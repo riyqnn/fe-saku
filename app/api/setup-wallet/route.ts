@@ -30,23 +30,28 @@ export async function POST(req: Request) {
       data: { session },
     } = await supabase.auth.getSession()
 
-    // Try to get phone from request body first, then fall back to session metadata
-    const reqBody = req.method === 'POST' ? await req.json().catch(() => ({})) : {}
-    const userPhone = reqBody.phone || session?.user?.user_metadata?.phone || session?.user?.phone
-
-    if (!session && !userPhone) {
-      console.error('❌ [Auth API] No session found and no phone provided')
+    if (!session) {
+      console.error('❌ [Setup Wallet] No session found')
       return NextResponse.json(
         { error: 'Unauthorized: No session' },
         { status: 401 }
       )
     }
 
-    const user = session?.user
-    const uid = user?.id || 'temp-' + Date.now()
+    const user = session.user
+    const userPhone = user.user_metadata?.phone || user.phone
+    const uid = user.id
 
-    console.log('📱 [Auth API] Phone:', userPhone)
-    console.log('👤 [Auth API] User ID:', uid)
+    if (!userPhone) {
+      console.error('❌ [Setup Wallet] Phone not found')
+      return NextResponse.json(
+        { error: 'Phone number not found' },
+        { status: 400 }
+      )
+    }
+
+    console.log('📱 [Setup Wallet] Phone:', userPhone)
+    console.log('👤 [Setup Wallet] User ID:', uid)
 
     // Check if user already has wallet
     const { data: existingProfile } = await supabase
@@ -56,33 +61,33 @@ export async function POST(req: Request) {
       .single()
 
     if (existingProfile?.wallet_address) {
-      console.log('✅ [Auth API] User already has wallet')
+      console.log('✅ [Setup Wallet] User already has wallet')
       return NextResponse.json({
         success: true,
-        message: 'Welcome back!',
+        message: 'User already has wallet',
         address: existingProfile.wallet_address,
         isNewUser: false,
       })
     }
 
-    console.log('🆕 [Auth API] Generating deterministic wallet from phone number...')
+    console.log('🆕 [Setup Wallet] Generating deterministic wallet from phone number...')
 
-    // Generate deterministic private key from phone number (like MetaMask)
+    // Generate deterministic private key from phone number
     const phoneBytes = ethers.toUtf8Bytes(userPhone)
     const seed = ethers.keccak256(phoneBytes)
     const privateKey = seed
 
-    console.log('🔑 [Auth API] Deterministic private key generated from phone')
+    console.log('🔑 [Setup Wallet] Deterministic private key generated from phone')
 
     const userWallet = new ethers.Wallet(privateKey)
-    console.log('💼 [Auth API] Wallet address:', userWallet.address)
+    console.log('💼 [Setup Wallet] Wallet address:', userWallet.address)
 
     // Hash phone with keccak256
-    console.log('📋 [Auth API] Hashing phone number with keccak256...')
+    console.log('📋 [Setup Wallet] Hashing phone number with keccak256...')
     const phoneHash = ethers.keccak256(ethers.toUtf8Bytes(userPhone))
 
     // Store in database
-    console.log('💾 [Auth API] Storing wallet in database...')
+    console.log('💾 [Setup Wallet] Storing wallet in database...')
     const { error: dbError } = await supabase.from('profiles').upsert({
       id: uid,
       phone_number: userPhone,
@@ -93,18 +98,18 @@ export async function POST(req: Request) {
 
     if (dbError) throw dbError
 
-    console.log('✅ [Auth API] Wallet created and stored successfully')
+    console.log('✅ [Setup Wallet] Wallet created and stored successfully')
 
     return NextResponse.json({
       success: true,
-      message: 'Account created successfully',
+      message: 'Wallet created',
       address: userWallet.address,
       isNewUser: true,
     })
   } catch (error: any) {
-    console.error('❌ [Auth API] Error:', error.message)
+    console.error('❌ [Setup Wallet] Error:', error.message)
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: error.message || 'Wallet creation failed' },
       { status: 500 }
     )
   }

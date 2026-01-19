@@ -2,7 +2,6 @@
 
 import React, { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabaseClient"
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -15,13 +14,20 @@ export default function LoginScreen() {
   const handleSendOtp = async () => {
     setLoading(true)
     try {
-      const formattedPhone = phone.startsWith('0') ? `+62${phone.slice(1)}` : `+62${phone}`
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: formattedPhone,
+      console.log('📱 [GetStarted] Requesting OTP for:', phone)
+      const response = await fetch('/api/request-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
       })
-      if (error) throw error
+      
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to send OTP')
+      
+      console.log('✅ [GetStarted] OTP sent successfully')
       setLoginMethod("otp")
     } catch (error: any) {
+      console.error('❌ [GetStarted] Error:', error.message)
       alert(error.message || "Failed to send code. Please try again.")
     } finally {
       setLoading(false)
@@ -32,29 +38,34 @@ export default function LoginScreen() {
     setLoading(true)
     try {
       const otpString = otp.join("")
-      const formattedPhone = phone.startsWith('0') ? `+62${phone.slice(1)}` : `+62${phone}`
-      const { data: authData, error: verifyError } = await supabase.auth.verifyOtp({
-        phone: formattedPhone,
-        token: otpString,
-        type: 'sms',
-      })
+      console.log('🔐 [GetStarted] Verifying OTP...')
+      console.log('📱 [GetStarted] Phone:', phone)
+      console.log('🔑 [GetStarted] OTP Code:', otpString)
 
-      if (verifyError) throw verifyError
-
-      const res = await fetch('/api/auth', { 
+      // Call verify-otp endpoint which handles wallet generation on-chain
+      const response = await fetch('/api/verify-otp', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authData.session?.access_token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, otp: otpString }),
       })
-      
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error)
 
-      alert(result.isNewUser ? "Wallet Created Successfully!" : "Welcome Back!")
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'OTP verification failed')
+
+      console.log('✅ [GetStarted] OTP verified! Wallet registered on-chain')
+      console.log('👛 [GetStarted] Wallet address:', data.walletAddress)
+      console.log('📝 [GetStarted] Transaction hash:', data.txHash)
+
+      // Store wallet data locally
+      localStorage.setItem('walletAddress', data.walletAddress)
+      localStorage.setItem('privateKey', data.privateKey)
+      localStorage.setItem('phoneNumber', phone)
+      localStorage.setItem('isOnboarded', 'true')
+
+      alert(data.isNewRegistration ? "Wallet Created Successfully!" : "Welcome Back!")
       router.push('/')
     } catch (error: any) {
+      console.error('❌ [GetStarted] Error:', error.message)
       alert(error.message || "Verification failed")
     } finally {
       setLoading(false)

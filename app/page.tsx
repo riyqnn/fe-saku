@@ -2,30 +2,25 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabaseClient" 
-import BalanceCard from "@/components/home/balance-card"
-import SearchBar from "@/components/home/search-bar"
-import RecentTransfers from "@/components/home/recent-transfer"
-import PayButton from "@/components/home/pay-button"
+import HomeHeader from "@/components/home/header"
+import BalanceCardSection from "@/components/home/balance-card-section"
+import QuickActions from "@/components/home/quick-actions"
+import RecentTransactions from "@/components/home/recent-transactions"
+import BottomNavigation from "@/components/home/bottom-navigation"
 import TransferModal from "@/components/transfer/transfer-modal"
 
 export default function Home() {
   const router = useRouter()
-  const [showTransferModal, setShowTransferModal] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [showTransferModal, setShowTransferModal] = useState(false)
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-
-      if (!session) {
-        router.push('/get-started')
-      } else {
-        setLoading(false)
-      }
+    const isOnboarded = localStorage.getItem('isOnboarded') === 'true'
+    if (!isOnboarded) {
+      router.push('/get-started')
+    } else {
+      setLoading(false)
     }
-
-    checkUser()
   }, [router])
 
   if (loading) {
@@ -37,27 +32,24 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F9EFE5] pb-20">
-      <header className="pt-8 px-6 pb-6">
-        <div className="max-w-lg mx-auto">
-          <h1 className="text-3xl font-bold text-[#000000]">Saku</h1> 
-        </div>
-      </header>
+    <div className="min-h-screen bg-background pb-24">
+      {/* Header */}
+      <HomeHeader />
 
       {/* Main Content */}
-      <main className="max-w-lg mx-auto px-6 space-y-6">
-        {/* Balance Card - Nantinya saldo ini kita ambil dari blockchain */}
-        <BalanceCard balance={1250000} />
+      <main className="max-w-lg mx-auto px-4 space-y-6 py-6">
+        {/* Balance Card */}
+        <BalanceCardSection />
 
-        {/* Search Bar */}
-        <SearchBar onPayClick={() => setShowTransferModal(true)} />
+        {/* Quick Actions */}
+        <QuickActions />
 
-        {/* Recent Transfers */}
-        <RecentTransfers />
+        {/* Recent Transactions */}
+        <RecentTransactions />
       </main>
 
-      {/* FAB */}
-      <PayButton onClick={() => setShowTransferModal(true)} />
+      {/* Bottom Navigation */}
+      <BottomNavigation />
 
       {/* Transfer Modal */}
       {showTransferModal && <TransferModal onClose={() => setShowTransferModal(false)} />}

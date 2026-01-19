@@ -8,3 +8,24 @@ export const hashPhone = (phone: string) => {
 
 export const getProvider = () => new ethers.JsonRpcProvider(process.env.RPC_URL);
 
+/**
+ * Convert token amount to human readable format
+ */
+export const fromTokenAmount = (amount: bigint, decimals: number = 6): string => {
+  return ethers.formatUnits(amount, decimals);
+};
+
+/**
+ * Convert amount to token decimals
+ */
+export const toTokenAmount = (amount: string, decimals: number = 6): bigint => {
+  return ethers.parseUnits(amount, decimals);
+};
+
+/**
+ * Check if address is valid Ethereum address
+ */
+export const isValidAddress = (address: string): boolean => {
+  return ethers.isAddress(address);
+};
+
