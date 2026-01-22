@@ -1,5 +1,7 @@
 "use client"
 
+import { ArrowLeft, Check, AlertCircle } from "lucide-react"
+
 export default function ReviewStep({
   receiver,
   amount,
@@ -18,46 +20,79 @@ export default function ReviewStep({
   }).format(amount)
 
   return (
-    <div className="p-4 space-y-6 animate-slide-in">
-      <h2 className="text-xl font-bold text-foreground">Periksa Detail</h2>
+    <div className="p-5 sm:p-7 space-y-6 sm:space-y-8">
+      {/* Back Button */}
+      <div className="flex items-center gap-3 sm:gap-4">
+        <button
+          onClick={onBack}
+          className="p-2 sm:p-2.5 hover:bg-muted rounded-full transition-colors duration-200"
+          aria-label="Go back"
+        >
+          <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground hover:text-foreground transition-colors" />
+        </button>
+        <h2 className="text-lg sm:text-xl font-bold text-foreground">Review Transfer</h2>
+      </div>
 
-      <div className="bg-card rounded-lg p-4 border border-border space-y-4">
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Penerima</span>
-          <div className="text-right">
-            <p className="font-semibold text-foreground">{receiver.name}</p>
-            <p className="text-xs text-muted-foreground">{receiver.phone}</p>
+      {/* Transfer Details Card */}
+      <div className="card-elevated space-y-4 sm:space-y-5 p-5 sm:p-6">
+        {/* Receiver */}
+        <div className="space-y-1.5 sm:space-y-2">
+          <p className="text-xs sm:text-sm font-bold text-muted-foreground uppercase tracking-widest">To</p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm sm:text-base flex-shrink-0">
+              {receiver.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-sm sm:text-base text-foreground truncate">{receiver.name}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">{receiver.phone}</p>
+            </div>
           </div>
         </div>
 
-        <div className="border-t border-border pt-4 flex items-center justify-between">
-          <span className="text-muted-foreground">Nominal</span>
-          <p className="text-2xl font-bold text-foreground">{formattedAmount}</p>
+        {/* Divider */}
+        <div className="h-px bg-border/50" />
+
+        {/* Amount */}
+        <div className="space-y-1.5 sm:space-y-2">
+          <p className="text-xs sm:text-sm font-bold text-muted-foreground uppercase tracking-widest">Amount</p>
+          <p className="text-3xl sm:text-4xl font-bold text-foreground">{formattedAmount}</p>
         </div>
 
-        <div className="border-t border-border pt-4 flex items-center justify-between">
-          <span className="text-muted-foreground">Biaya</span>
-          <p className="text-sm text-accent">Gratis</p>
+        {/* Divider */}
+        <div className="h-px bg-border/50" />
+
+        {/* Fee */}
+        <div className="flex items-center justify-between">
+          <p className="text-xs sm:text-sm font-bold text-muted-foreground uppercase tracking-widest">Fee</p>
+          <p className="text-sm sm:text-base font-bold text-green-600 dark:text-green-400">Free</p>
         </div>
       </div>
 
-      <div className="bg-primary/5 rounded-lg p-3 text-sm text-foreground">
-        ✓ Transaksi akan diproses secara instan. Gas fee ditanggung sponsor.
+      {/* Info Alert */}
+      <div className="flex gap-3 p-4 sm:p-5 rounded-2xl bg-accent/10 dark:bg-accent/5 border border-accent/20">
+        <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-accent flex-shrink-0 mt-0.5" />
+        <p className="text-xs sm:text-sm font-medium text-accent leading-relaxed">
+          Transfer will be processed instantly. Network fees covered by Saku.
+        </p>
       </div>
 
-      <button
-        onClick={onConfirm}
-        className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors animate-pulse-scale"
-      >
-        Bayar Sekarang
-      </button>
+      {/* Action Buttons */}
+      <div className="flex flex-col-reverse sm:flex-col gap-3 sm:gap-4">
+        <button
+          onClick={onConfirm}
+          className="btn-primary w-full text-base sm:text-lg font-bold py-3 sm:py-4 flex items-center justify-center gap-2 hover:scale-105 transition-transform"
+        >
+          <Check className="w-5 h-5 sm:w-6 sm:h-6" />
+          Confirm & Send
+        </button>
 
-      <button
-        onClick={onBack}
-        className="w-full px-4 py-3 bg-secondary text-secondary-foreground rounded-lg font-semibold hover:bg-secondary/80 transition-colors"
-      >
-        Kembali
-      </button>
+        <button
+          onClick={onBack}
+          className="btn-outline w-full text-sm sm:text-base font-bold py-2.5 sm:py-3"
+        >
+          Back
+        </button>
+      </div>
     </div>
   )
 }

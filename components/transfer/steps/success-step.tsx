@@ -1,56 +1,85 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { CheckCircle, ExternalLink } from "lucide-react"
 
 export default function SuccessStep({ onComplete }: { onComplete: () => void }) {
-  const [showConfetti, setShowConfetti] = useState(true)
+  const [showAnimation, setShowAnimation] = useState(true)
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setShowConfetti(false)
-    }, 2000)
+      setShowAnimation(false)
+    }, 3000)
     return () => clearTimeout(timer)
   }, [])
 
   return (
-    <div className="p-4 space-y-6 text-center animate-slide-in">
-      <div className="py-8">
-        {/* Confetti animation */}
-        {showConfetti && (
-          <div className="relative h-40 flex items-center justify-center">
-            {[...Array(8)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute w-2 h-2 bg-primary rounded-full animate-confetti"
-                style={{
-                  left: `${25 + i * 10}%`,
-                  animationDelay: `${i * 0.05}s`,
-                }}
-              />
-            ))}
-            <div className="text-6xl">✓</div>
-          </div>
+    <div className="p-5 sm:p-8 space-y-6 sm:space-y-8 text-center animate-fade-in-scale">
+      {/* Success Icon & Animation */}
+      <div className="py-4 sm:py-6">
+        {showAnimation ? (
+          <>
+            {/* Confetti particles */}
+            <div className="relative h-32 sm:h-40 flex items-center justify-center">
+              {[...Array(12)].map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-br from-primary to-accent rounded-full animate-confetti"
+                  style={{
+                    left: `${20 + (i % 3) * 20}%`,
+                    top: `${10 + (Math.floor(i / 3) * 20)}%`,
+                    animationDelay: `${i * 0.08}s`,
+                    animationDuration: `${1.5 + (i % 3) * 0.3}s`,
+                  }}
+                />
+              ))}
+              <CheckCircle className="w-20 h-20 sm:w-24 sm:h-24 text-green-500 dark:text-green-400 animate-pulse-scale" />
+            </div>
+          </>
+        ) : (
+          <CheckCircle className="w-20 h-20 sm:w-24 sm:h-24 text-green-500 dark:text-green-400 mx-auto" />
         )}
       </div>
 
-      <div className="space-y-2">
-        <h2 className="text-2xl font-bold text-foreground">Berhasil!</h2>
-        <p className="text-muted-foreground">Uang sudah dikirim ke Budi</p>
-        <p className="text-lg font-semibold text-foreground">Rp 100.000</p>
+      {/* Success Message */}
+      <div className="space-y-2.5 sm:space-y-3">
+        <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Transfer Successful!</h2>
+        <p className="text-sm sm:text-base text-muted-foreground">
+          Money has been sent successfully
+        </p>
+        <p className="text-2xl sm:text-3xl font-bold text-primary">Rp 100,000</p>
       </div>
 
-      <div className="bg-accent/10 rounded-lg p-3 text-sm text-foreground space-y-1">
-        <p>📝 Tx: 0x1234...5678</p>
-        <a href="#" className="text-accent hover:underline text-xs">
-          Lihat di Explorer
+      {/* Transaction Details */}
+      <div className="bg-gradient-to-br from-primary/5 to-accent/5 dark:from-primary/10 dark:to-accent/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-primary/20 space-y-3 sm:space-y-4">
+        <div className="space-y-2">
+          <p className="text-xs sm:text-sm font-bold text-muted-foreground uppercase tracking-widest">Transaction ID</p>
+          <p className="font-mono text-xs sm:text-sm font-semibold text-foreground break-all">
+            0x1234567890abcdef...5678
+          </p>
+        </div>
+        <a
+          href="#"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-primary hover:text-accent transition-colors"
+        >
+          <ExternalLink className="w-4 h-4" />
+          View on Explorer
         </a>
       </div>
 
+      {/* Info Alert */}
+      <div className="bg-green-100 dark:bg-green-900/30 rounded-2xl p-4 sm:p-5 border border-green-200 dark:border-green-800">
+        <p className="text-xs sm:text-sm font-medium text-green-800 dark:text-green-300">
+          ✓ Your wallet balance will update in a few moments
+        </p>
+      </div>
+
+      {/* Complete Button */}
       <button
         onClick={onComplete}
-        className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors"
+        className="btn-primary w-full text-base sm:text-lg font-bold py-3 sm:py-4"
       >
-        Selesai
+        Done
       </button>
     </div>
   )

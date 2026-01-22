@@ -102,12 +102,15 @@ export default function QuickActions() {
   }
 
   return (
-    <div className="animate-in slide-in-from-bottom-4 duration-700 delay-100">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Quick Actions</p>
+    <div className="animate-fade-in-up" style={{ animationDelay: "100ms" }}>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs sm:text-sm font-bold text-foreground uppercase tracking-widest">Quick Actions</p>
+        <div className="h-px flex-1 ml-3 bg-gradient-to-r from-border to-transparent" />
+      </div>
 
       {error && (
-        <div className="mb-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-          <p className="text-xs text-destructive">{error}</p>
+        <div className="mb-4 p-3 sm:p-4 rounded-2xl bg-destructive/10 dark:bg-destructive/5 border border-destructive/20 animate-fade-in-up">
+          <p className="text-xs sm:text-sm font-medium text-destructive">{error}</p>
         </div>
       )}
 
@@ -122,26 +125,26 @@ export default function QuickActions() {
               key={action.id}
               onClick={() => handleAction(action.id, action.href)}
               disabled={isDisabled}
-              className="group animate-in fade-in duration-500 w-full disabled:opacity-50"
+              className="group animate-fade-in-scale w-full disabled:opacity-50"
               style={{ animationDelay: `${100 + idx * 50}ms` }}
               title={action.description}
             >
               <div
-                className={`w-full aspect-square rounded-xl sm:rounded-2xl bg-gradient-to-br ${action.color} p-2 sm:p-3 flex items-center justify-center shadow-md hover:shadow-lg group-active:scale-95 transition-all duration-200 ${
-                  isDisabled ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
+                className={`w-full aspect-square rounded-2xl sm:rounded-3xl bg-gradient-to-br ${action.color} p-3 sm:p-4 flex items-center justify-center shadow-lg hover:shadow-2xl group-hover:scale-105 group-active:scale-95 transition-all duration-200 ${
+                  isDisabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
                 }`}
               >
                 {isLoading ? (
-                  <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 text-white animate-spin" />
+                  <Loader2 className="w-6 h-6 sm:w-7 sm:h-7 text-white animate-spin" />
                 ) : (
-                  <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  <Icon className="w-6 h-6 sm:w-7 sm:h-7 text-white group-hover:scale-110 transition-transform" />
                 )}
               </div>
-              <p className="text-xs font-medium text-foreground mt-1 sm:mt-2 text-center">{action.label}</p>
+              <p className="text-xs sm:text-sm font-semibold text-foreground mt-2 sm:mt-2.5 text-center">{action.label}</p>
             </button>
           )
         })}
       </div>
     </div>
-          )
-        }
+  )
+}

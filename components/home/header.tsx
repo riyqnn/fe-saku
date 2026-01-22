@@ -1,6 +1,7 @@
 "use client"
 
 import { useAuth } from "@/hooks/useAuth"
+import { Settings } from "lucide-react"
 
 export default function HomeHeader() {
   const { user } = useAuth()
@@ -29,16 +30,26 @@ export default function HomeHeader() {
   }
 
   return (
-    <header className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 space-y-1 sm:space-y-2">
+    <header className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 sm:pb-6 sticky top-0 z-10 bg-gradient-to-b from-background via-background to-background/80 dark:from-background dark:via-background dark:to-background/80 backdrop-blur-md border-b border-border/50">
       <div className="flex items-center justify-between gap-3 sm:gap-4">
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Saku</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground truncate">
-            Welcome, {getDisplayName()}
+          <h1 className="text-2xl sm:text-3xl font-bold text-gradient bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            Saku
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground truncate mt-0.5">
+            Welcome back, {getDisplayName()}
           </p>
         </div>
-        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold text-xs sm:text-sm shadow-lg flex-shrink-0">
-          {getInitials(user?.name, user?.phone)}
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <button
+            className="p-2 sm:p-2.5 rounded-full hover:bg-muted transition-colors duration-200"
+            aria-label="Settings"
+          >
+            <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-foreground" />
+          </button>
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold text-xs sm:text-sm shadow-lg">
+            {getInitials(user?.name, user?.phone)}
+          </div>
         </div>
       </div>
     </header>

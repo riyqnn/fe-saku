@@ -69,7 +69,7 @@ export default function Home() {
         <HomeHeader />
 
         {/* Scrollable Content - Responsive padding */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-24 space-y-4 sm:space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-28 sm:pb-32 space-y-5 sm:space-y-7 pt-4 sm:pt-6">
           {/* Balance Card - fetches from blockchain */}
           <BalanceCardSection />
 
@@ -78,6 +78,9 @@ export default function Home() {
 
           {/* Recent Transactions - real-time updates from database */}
           <RecentTransactions />
+
+          {/* Bottom spacing */}
+          <div className="h-4" />
         </div>
 
         {/* Bottom Navigation - Full width responsive */}

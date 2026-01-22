@@ -29,9 +29,22 @@ export default function TransferModal({ onClose }: { onClose: () => void }) {
     onClose()
   }
 
+  // Progress indicator
+  const steps = ["receiver", "amount", "review", "success"]
+  const currentStepIndex = steps.indexOf(step)
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end z-50">
-      <div className="bg-background w-full rounded-t-2xl animate-slide-in">
+    <div className="w-full rounded-3xl sm:rounded-4xl overflow-hidden">
+      {/* Progress bar */}
+      <div className="h-1 sm:h-1.5 bg-muted/50 dark:bg-muted/20 overflow-hidden">
+        <div
+          className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
+          style={{ width: `${((currentStepIndex + 1) / steps.length) * 100}%` }}
+        />
+      </div>
+
+      {/* Content */}
+      <div className="animate-fade-in-up">
         {step === "receiver" && <ReceiverStep onSelect={handleReceiverSelect} onClose={onClose} />}
         {step === "amount" && (
           <AmountStep receiver={receiver!} onSubmit={handleAmountSubmit} onBack={() => setStep("receiver")} />

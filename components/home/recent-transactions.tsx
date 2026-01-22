@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowDownLeft, ArrowUpRight } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, ChevronRight } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { useRecentTransfers } from "@/hooks/useRecentTransfers"
 
@@ -23,61 +23,69 @@ export default function RecentTransactions() {
   }
 
   return (
-    <div className="animate-in slide-in-from-bottom-4 duration-700 delay-200">
-      <div className="flex items-center justify-between mb-3 sm:mb-4 px-0">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Recent Transactions {transfersRefreshing && <span className="text-xs ml-2">↻</span>}
-        </p>
-        <a href="/transfer" className="text-xs font-semibold text-primary hover:text-secondary smooth-transition">
+    <div className="animate-fade-in-up" style={{ animationDelay: "200ms" }}>
+      <div className="flex items-center justify-between mb-4 sm:mb-5">
+        <div className="flex items-center gap-2">
+          <p className="text-xs sm:text-sm font-bold text-foreground uppercase tracking-widest">
+            Recent Activity
+          </p>
+          {transfersRefreshing && (
+            <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+          )}
+        </div>
+        <a href="/transfer" className="flex items-center gap-1 text-xs sm:text-sm font-semibold text-primary hover:text-accent transition-colors">
           View All
+          <ChevronRight className="w-4 h-4" />
         </a>
       </div>
 
       {transfers.length === 0 ? (
-        <div className="p-6 sm:p-8 text-center">
-          <p className="text-sm text-muted-foreground">No transactions yet</p>
+        <div className="p-8 sm:p-10 text-center rounded-3xl bg-muted/30 dark:bg-muted/10 border border-border/50">
+          <p className="text-sm text-muted-foreground">No transactions yet. Start by making a transfer!</p>
         </div>
       ) : (
         <div className="space-y-2 sm:space-y-3">
-          {transfers.map((transfer, idx) => (
+          {transfers.slice(0, 5).map((transfer, idx) => (
             <div
               key={transfer.id}
-              className="animate-in slide-in-from-left-4 duration-500 fill-mode-both"
+              className="animate-fade-in-scale"
               style={{ animationDelay: `${300 + idx * 50}ms` }}
             >
-              <div className="flex items-center justify-between p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-card dark:bg-card/80 border border-border/50 hover:border-primary/30 smooth-transition group cursor-pointer">
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="flex items-center justify-between p-4 sm:p-5 rounded-2xl sm:rounded-3xl card-modern hover:card-elevated group cursor-pointer transition-all duration-200 border border-border/50 hover:border-primary/30">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                   <div
-                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 font-semibold text-sm sm:text-base ${
                       transfer.type === "received"
-                        ? "bg-success/10 dark:bg-success/20 text-success"
-                        : "bg-destructive/10 dark:bg-destructive/20 text-destructive"
+                        ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
+                        : "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
                     }`}
                   >
                     {transfer.type === "received" ? (
-                      <ArrowDownLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <ArrowDownLeft className="w-5 h-5 sm:w-6 sm:h-6" />
                     ) : (
-                      <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <ArrowUpRight className="w-5 h-5 sm:w-6 sm:h-6" />
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-foreground text-xs sm:text-sm truncate">
+                    <p className="font-semibold text-sm sm:text-base text-foreground truncate group-hover:text-primary transition-colors">
                       {transfer.type === "received" ? transfer.senderName : transfer.receiverName}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {transfer.type === "received" ? "Received" : "Sent"}
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {transfer.type === "received" ? "Received from" : "Sent to"} Saku
                     </p>
                   </div>
                 </div>
-                <div className="text-right flex-shrink-0 ml-2">
+                <div className="text-right flex-shrink-0 ml-4">
                   <p
-                    className={`font-semibold text-xs sm:text-sm ${
-                      transfer.type === "received" ? "text-success" : "text-foreground"
+                    className={`font-bold text-sm sm:text-base ${
+                      transfer.type === "received" 
+                        ? "text-green-600 dark:text-green-400" 
+                        : "text-foreground"
                     }`}
                   >
                     {transfer.type === "received" ? "+" : "-"}{transfer.amount}
                   </p>
-                  <p className="text-xs text-muted-foreground">{formatTransactionTime(transfer.timestamp)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{formatTransactionTime(transfer.timestamp)}</p>
                 </div>
               </div>
             </div>
