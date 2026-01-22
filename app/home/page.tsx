@@ -8,84 +8,76 @@ import QuickActions from "@/components/home/quick-actions"
 import RecentTransactions from "@/components/home/recent-transactions"
 import BottomNavigation from "@/components/home/bottom-navigation"
 import { useAuth } from "@/hooks/useAuth"
+import { Download } from "lucide-react";
+import Navbar from "@/components/landing/Navbar"
+import StepCard from "@/components/landing/StepCard"
+import FAQSection from "@/components/landing/Faq"
 
 export default function Home() {
-  const router = useRouter()
-  const { user, isLoading: authLoading } = useAuth()
-  const [isInitializing, setIsInitializing] = useState(true)
-  const [hasCheckedAuth, setHasCheckedAuth] = useState(false)
-
-  // Check authentication and redirect if needed
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        // Wait a bit for auth state to be ready
-        if (!authLoading && !hasCheckedAuth) {
-          if (!user) {
-            console.log('❌ [Home] No user, redirecting to get-started')
-            // User not authenticated, redirect to get-started
-            router.push("/get-started")
-          } else {
-            console.log('✅ [Home] User authenticated:', user.phone)
-            // User authenticated, ready to show home
-            setIsInitializing(false)
-          }
-          setHasCheckedAuth(true)
-        }
-      } catch (err) {
-        console.error("Auth check failed:", err)
-        setIsInitializing(false)
-      }
-    }
-
-    checkAuth()
-  }, [user, authLoading, hasCheckedAuth, router])
-
-  // Show loading state while checking authentication
-  if (authLoading || isInitializing) {
-    return (
-      <div className="min-h-screen bg-background dark:bg-background overflow-hidden flex items-center justify-center">
-        <div className="max-w-lg mx-auto w-full h-screen bg-background dark:bg-background flex flex-col items-center justify-center">
-          {/* Loading Spinner */}
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm text-muted-foreground">Loading wallet...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Only show home page if user is authenticated
-  if (!user) {
-    return null
-  }
-
   return (
-    <div className="min-h-screen bg-background dark:bg-background overflow-hidden">
-      {/* Full width container with mobile frame max-width */}
-      <div className="max-w-lg mx-auto h-screen bg-background dark:bg-background flex flex-col relative">
-        {/* Header - shows user info and welcome */}
-        <HomeHeader />
+    <div className="w-full h-dvh">
+      {/* NAVBAR */}
+      <div className="w-full flex justify-center">
+        <Navbar className="fixed" />
+      </div>
 
-        {/* Scrollable Content - Responsive padding */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-28 sm:pb-32 space-y-5 sm:space-y-7 pt-4 sm:pt-6">
-          {/* Balance Card - fetches from blockchain */}
-          <BalanceCardSection />
+      {/* Hero Section */}
+      <section className="relative w-full flex flex-col gap-20 py-10 justify-center bg-gradient-to-b from-primary to-background items-center text-center pt-30">
+        <h1 className="text-[150px] text-black/85 font-medium leading-normal">
+        Your 
+          <span>
+            <video
+            className="w-50 inline"
+            src="/logo.webm"
+            autoPlay
+            muted
+            loop
+            playsInline
+            />
+          </span> 
+        trusted wallet shit
+        </h1>
+        <a className="py-5 px-12 transition-all duration-300 hover:bg-white rounded-full" href=""><Download className="inline mr-2 w-5 h-5 text-black" />Try Saku Now!</a>
+        <div className="border ">
+          <img src="/landing/landing.png" alt="" />
+        </div>
+      </section>
 
-          {/* Quick Actions - transfer, withdraw, deposit, pay */}
-          <QuickActions />
-
-          {/* Recent Transactions - real-time updates from database */}
-          <RecentTransactions />
-
-          {/* Bottom spacing */}
-          <div className="h-4" />
+      {/* Steps Section  */}
+      <section className="relative w-full flex flex-col gap-20 py-10 justify-center items-center text-center pt-30">
+        <div className="max-w-200 flex flex-col gap-6">
+          <h2 className="text-5xl font-semibold">Transfer crypto with <br /> phone number</h2>
+          <p className="text-2xl text-black/50">Easily transfer IDRX without inputing the complex address</p>
         </div>
 
-        {/* Bottom Navigation - Full width responsive */}
-        <BottomNavigation />
-      </div>
+        <div className="w-full flex justify-center gap-10">
+          <StepCard
+            step={1}
+            title="Deposit Crypto"
+            description="Deposit crypto easily just with your phone number"
+            imageSrc="/landing/step1.png"
+          />
+          <StepCard
+            step={2}
+            title="Transfer Crypto"
+            description="Transfer crypto easily just with your phone number"
+            imageSrc="/landing/step1.png"
+          />
+          <StepCard
+            step={3}
+            title="Withdraw Crypto"
+            description="Withdraw crypto easily just with your phone number"
+            imageSrc="/landing/step1.png"
+          />
+
+        </div>
+      </section>
+
+      <section className="relative w-full flex flex-col gap-20 py-20 justify-center items-center text-center pt-30">
+        <FAQSection />
+      </section>
+
     </div>
+    
   )
 }
