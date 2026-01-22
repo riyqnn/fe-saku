@@ -115,8 +115,54 @@ export function useWalletSetup() {
     }
   };
 
+  /**
+   * Direct on-chain registration (for admin use)
+   * This bypasses the backend and calls the smart contract directly
+   */
+  const registerOnChain = async (
+    phoneNumber: string,
+    walletAddress: string,
+    signer: ethers.Signer
+  ): Promise<ethers.ContractTransactionReceipt> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!signer) {
+        throw new Error('Signer not available');
+      }
+
+      // Hash phone number on client side (in production, this should be done on backend)
+      const { hashPhoneNumber } = await import('@/utils/phoneHash');
+      const phoneHash = hashPhoneNumber(phoneNumber);
+
+      // Create registry contract instance
+      const registry = new ethers.Contract(
+        CONTRACTS.REGISTRY_ADDRESS,
+        SAKU_REGISTRY_ABI,
+        signer
+      );
+
+      // Call register function
+      const tx = await registry.register(phoneHash, walletAddress);
+      const receipt = await tx.wait();
+
+      console.log('✅ [useWalletSetup] Registered on-chain:', receipt.hash);
+
+      return receipt;
+    } catch (err: any) {
+      const errorMsg = err.message || 'On-chain registration failed';
+      setError(errorMsg);
+      console.error('❌ [useWalletSetup] Error:', errorMsg);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     setupWallet,
+    registerOnChain,
     isLoading,
     error,
     progress,

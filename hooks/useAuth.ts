@@ -27,12 +27,12 @@ export function useAuth() {
     const getCurrentUser = async () => {
       try {
         setIsLoading(true);
-        
+
         // Check if user is onboarded (wallet created)
         const isOnboarded = localStorage.getItem('isOnboarded');
         const walletAddress = localStorage.getItem('walletAddress');
         const phoneNumber = localStorage.getItem('phoneNumber');
-        
+
         if (isMounted) {
           if (isOnboarded && walletAddress) {
             console.log('✅ [useAuth] User already onboarded with wallet:', walletAddress);
@@ -120,12 +120,10 @@ export function useAuth() {
 
       console.log('✅ [useAuth] OTP verified and wallet registered on-chain!');
       console.log('👛 [useAuth] Wallet address:', verifyData.walletAddress);
-      console.log('🔑 [useAuth] Private key:', verifyData.privateKey);
       console.log('📝 [useAuth] Transaction hash:', verifyData.txHash);
 
       // Store wallet and private key locally (in production, use secure storage)
       localStorage.setItem('walletAddress', verifyData.walletAddress);
-      localStorage.setItem('privateKey', verifyData.privateKey);
       localStorage.setItem('phoneNumber', phoneNumber);
       localStorage.setItem('walletCreatedAt', verifyData.walletCreatedAt || Date.now().toString());
       localStorage.setItem('isOnboarded', 'true');
@@ -151,9 +149,20 @@ export function useAuth() {
     }
   };
 
+  // Logout
+  const logout = () => {
+    localStorage.removeItem('isOnboarded');
+    localStorage.removeItem('walletAddress');
+    localStorage.removeItem('phoneNumber');
+    localStorage.removeItem('walletCreatedAt');
+    setUser(null);
+    console.log('✅ [useAuth] User logged out');
+  };
+
   return {
     requestOTP,
     verifyOTP,
+    logout,
     isLoading,
     error,
     user,
