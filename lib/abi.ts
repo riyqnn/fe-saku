@@ -1,8 +1,46 @@
 export const SAKU_REGISTRY_ABI = [
   {
-    "inputs": [{"internalType": "address", "name": "_idrxAddress", "type": "address"}],
+    "inputs": [
+      {"internalType": "address", "name": "_idrxAddress", "type": "address"},
+      {"internalType": "address", "name": "_adminWallet", "type": "address"}
+    ],
     "stateMutability": "nonpayable",
     "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "ReentrancyGuardReentrantCall",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "bytes32", "name": "phoneHash", "type": "bytes32"},
+      {"indexed": true, "internalType": "address", "name": "wallet", "type": "address"},
+      {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "Deposited",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "bytes32", "name": "qrHash", "type": "bytes32"},
+      {"indexed": false, "internalType": "address", "name": "merchant", "type": "address"},
+      {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "QRPaymentClaimed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "bytes32", "name": "qrHash", "type": "bytes32"},
+      {"indexed": true, "internalType": "bytes32", "name": "merchantHash", "type": "bytes32"},
+      {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "QRPaymentCreated",
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -36,9 +74,109 @@ export const SAKU_REGISTRY_ABI = [
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "bytes32", "name": "phoneHash", "type": "bytes32"},
+      {"indexed": true, "internalType": "address", "name": "wallet", "type": "address"},
+      {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"},
+      {"indexed": false, "internalType": "uint256", "name": "fee", "type": "uint256"}
+    ],
+    "name": "Withdrawn",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "QR_PAYMENT_EXPIRY",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "WITHDRAW_FEE_BPS",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "adminWallet",
+    "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "bytes32[]", "name": "receiverHashes", "type": "bytes32[]"},
+      {"internalType": "uint256[]", "name": "amounts", "type": "uint256[]"}
+    ],
+    "name": "batchTransferByPhone",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "qrHash", "type": "bytes32"}],
+    "name": "claimQRPayment",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "bytes32", "name": "merchantHash", "type": "bytes32"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "createQRPayment",
+    "outputs": [{"internalType": "bytes32", "name": "qrHash", "type": "bytes32"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "bytes32", "name": "phoneHash", "type": "bytes32"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "deposit",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "bytes32", "name": "receiverHash", "type": "bytes32"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "depositTo",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "amount", "type": "uint256"}],
+    "name": "emergencyWithdraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [{"internalType": "bytes32", "name": "phoneHash", "type": "bytes32"}],
     "name": "getAccount",
     "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "qrHash", "type": "bytes32"}],
+    "name": "getQRPayment",
+    "outputs": [
+      {"internalType": "bytes32", "name": "merchantHash", "type": "bytes32"},
+      {"internalType": "address", "name": "payer", "type": "address"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"},
+      {"internalType": "uint256", "name": "timestamp", "type": "uint256"},
+      {"internalType": "bool", "name": "claimed", "type": "bool"},
+      {"internalType": "bool", "name": "exists", "type": "bool"}
+    ],
     "stateMutability": "view",
     "type": "function"
   },
@@ -64,10 +202,38 @@ export const SAKU_REGISTRY_ABI = [
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "paymentCounter",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
     "name": "phoneToAccount",
     "outputs": [{"internalType": "address", "name": "", "type": "address"}],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
+    "name": "qrPayments",
+    "outputs": [
+      {"internalType": "bytes32", "name": "merchantHash", "type": "bytes32"},
+      {"internalType": "address", "name": "payer", "type": "address"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"},
+      {"internalType": "uint256", "name": "timestamp", "type": "uint256"},
+      {"internalType": "bool", "name": "claimed", "type": "bool"},
+      {"internalType": "bool", "name": "exists", "type": "bool"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "qrHash", "type": "bytes32"}],
+    "name": "refundQRPayment",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -108,11 +274,39 @@ export const SAKU_REGISTRY_ABI = [
     "type": "function"
   },
   {
+    "inputs": [{"internalType": "address", "name": "newAdminWallet", "type": "address"}],
+    "name": "updateAdminWallet",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [
       {"internalType": "bytes32", "name": "phoneHash", "type": "bytes32"},
       {"internalType": "address", "name": "newAccount", "type": "address"}
     ],
     "name": "updateRegistration",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "bytes32", "name": "phoneHash", "type": "bytes32"},
+      {"internalType": "address", "name": "toAddress", "type": "address"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "withdraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "bytes32", "name": "phoneHash", "type": "bytes32"},
+      {"internalType": "address", "name": "toAddress", "type": "address"}
+    ],
+    "name": "withdrawAll",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

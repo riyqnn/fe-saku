@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CheckCircle, ExternalLink } from "lucide-react"
+import { CheckCircle, ExternalLink, Copy, Check } from "lucide-react"
 
-export default function SuccessStep({ onComplete }: { onComplete: () => void }) {
+export default function SuccessStep({ txHash, onComplete }: { txHash: string | null; onComplete: () => void }) {
   const [showAnimation, setShowAnimation] = useState(true)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -12,6 +13,20 @@ export default function SuccessStep({ onComplete }: { onComplete: () => void }) 
     }, 3000)
     return () => clearTimeout(timer)
   }, [])
+
+  const handleCopy = () => {
+    if (txHash) {
+      navigator.clipboard.writeText(txHash)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const getExplorerUrl = () => {
+    if (!txHash) return "#"
+    // Base Sepolia testnet
+    return `https://sepolia.basescan.org/tx/${txHash}`
+  }
 
   return (
     <div className="p-5 sm:p-8 space-y-6 sm:space-y-8 text-center animate-fade-in-scale">
@@ -45,26 +60,44 @@ export default function SuccessStep({ onComplete }: { onComplete: () => void }) 
       <div className="space-y-2.5 sm:space-y-3">
         <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Transfer Successful!</h2>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Money has been sent successfully
+          Money has been sent successfully on the blockchain
         </p>
-        <p className="text-2xl sm:text-3xl font-bold text-primary">Rp 100,000</p>
       </div>
 
       {/* Transaction Details */}
       <div className="bg-gradient-to-br from-primary/5 to-accent/5 dark:from-primary/10 dark:to-accent/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-primary/20 space-y-3 sm:space-y-4">
         <div className="space-y-2">
-          <p className="text-xs sm:text-sm font-bold text-muted-foreground uppercase tracking-widest">Transaction ID</p>
-          <p className="font-mono text-xs sm:text-sm font-semibold text-foreground break-all">
-            0x1234567890abcdef...5678
-          </p>
+          <p className="text-xs sm:text-sm font-bold text-muted-foreground uppercase tracking-widest">Transaction Hash</p>
+          <div className="flex items-center gap-2">
+            <p className="font-mono text-xs sm:text-sm font-semibold text-foreground break-all flex-1 text-left">
+              {txHash || "Processing..."}
+            </p>
+            {txHash && (
+              <button
+                onClick={handleCopy}
+                className="p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                title="Copy hash"
+              >
+                {copied ? (
+                  <Check className="w-4 h-4 text-green-500" />
+                ) : (
+                  <Copy className="w-4 h-4 text-muted-foreground" />
+                )}
+              </button>
+            )}
+          </div>
         </div>
-        <a
-          href="#"
-          className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-primary hover:text-accent transition-colors"
-        >
-          <ExternalLink className="w-4 h-4" />
-          View on Explorer
-        </a>
+        {txHash && (
+          <a
+            href={getExplorerUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-primary hover:text-accent transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" />
+            View on Explorer
+          </a>
+        )}
       </div>
 
       {/* Info Alert */}

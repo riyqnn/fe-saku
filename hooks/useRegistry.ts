@@ -12,11 +12,13 @@ export function useRegistry(signer: ethers.Signer | null) {
     ? new ethers.Contract(CONTRACTS.REGISTRY_ADDRESS, SAKU_REGISTRY_ABI, signer)
     : null;
 
-  // Check if phone is registered
+  // ============================================================
+  // VIEW FUNCTIONS
+  // ============================================================
+
   const isRegistered = async (phoneNumber: string): Promise<boolean> => {
     try {
       if (!contract) throw new Error('Wallet not connected');
-
       const phoneHash = hashPhoneNumber(phoneNumber);
       return await contract.isRegistered(phoneHash);
     } catch (err: any) {
@@ -25,11 +27,9 @@ export function useRegistry(signer: ethers.Signer | null) {
     }
   };
 
-  // Get wallet address from phone
   const getAccount = async (phoneNumber: string): Promise<string> => {
     try {
       if (!contract) throw new Error('Wallet not connected');
-
       const phoneHash = hashPhoneNumber(phoneNumber);
       return await contract.getAccount(phoneHash);
     } catch (err: any) {
@@ -38,7 +38,89 @@ export function useRegistry(signer: ethers.Signer | null) {
     }
   };
 
-  // Register phone hash (admin only - backend should call this)
+  const getRegistrationTime = async (phoneNumber: string): Promise<bigint> => {
+    try {
+      if (!contract) throw new Error('Wallet not connected');
+      const phoneHash = hashPhoneNumber(phoneNumber);
+      return await contract.getRegistrationTime(phoneHash);
+    } catch (err: any) {
+      console.error('Failed to get registration time:', err);
+      throw err;
+    }
+  };
+
+  const getAdminWallet = async (): Promise<string> => {
+    try {
+      if (!contract) throw new Error('Wallet not connected');
+      return await contract.adminWallet();
+    } catch (err: any) {
+      console.error('Failed to get admin wallet:', err);
+      throw err;
+    }
+  };
+
+  const getPaymentCounter = async (): Promise<bigint> => {
+    try {
+      if (!contract) throw new Error('Wallet not connected');
+      return await contract.paymentCounter();
+    } catch (err: any) {
+      console.error('Failed to get payment counter:', err);
+      throw err;
+    }
+  };
+
+  const getIdrxTokenAddress = async (): Promise<string> => {
+    try {
+      if (!contract) throw new Error('Wallet not connected');
+      return await contract.idrxToken();
+    } catch (err: any) {
+      console.error('Failed to get IDRX token address:', err);
+      throw err;
+    }
+  };
+
+  const getQRPayment = async (qrHash: string) => {
+    try {
+      if (!contract) throw new Error('Wallet not connected');
+      const paymentDetails = await contract.getQRPayment(qrHash);
+      return {
+        merchantHash: paymentDetails.merchantHash,
+        payer: paymentDetails.payer,
+        amount: paymentDetails.amount,
+        timestamp: paymentDetails.timestamp,
+        claimed: paymentDetails.claimed,
+        exists: paymentDetails.exists,
+      };
+    } catch (err: any) {
+      console.error('Failed to get QR payment:', err);
+      throw err;
+    }
+  };
+
+  const getWithdrawFeeBps = async (): Promise<bigint> => {
+    try {
+      if (!contract) throw new Error('Wallet not connected');
+      return await contract.WITHDRAW_FEE_BPS();
+    } catch (err: any) {
+      console.error('Failed to get withdraw fee bps:', err);
+      throw err;
+    }
+  };
+
+  const getQRPaymentExpiry = async (): Promise<bigint> => {
+    try {
+      if (!contract) throw new Error('Wallet not connected');
+      return await contract.QR_PAYMENT_EXPIRY();
+    } catch (err: any) {
+      console.error('Failed to get QR payment expiry:', err);
+      throw err;
+    }
+  };
+
+  // ============================================================
+  // WRITE FUNCTIONS - REGISTRY
+  // ============================================================
+
   const register = async (phoneNumber: string, walletAddress: string) => {
     try {
       setIsLoading(true);
@@ -59,48 +141,6 @@ export function useRegistry(signer: ethers.Signer | null) {
     }
   };
 
-  // Transfer IDRX by phone number
-  const transferByPhone = async (receiverPhone: string, amount: bigint) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      if (!contract) throw new Error('Wallet not connected');
-
-      const receiverHash = hashPhoneNumber(receiverPhone);
-      const tx = await contract.transferIDRX(receiverHash, amount);
-      const receipt = await tx.wait();
-
-      return receipt;
-    } catch (err: any) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Transfer IDRX by address
-  const transferByAddress = async (receiverAddress: string, amount: bigint) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      if (!contract) throw new Error('Wallet not connected');
-
-      const tx = await contract.transferIDRXDirect(receiverAddress, amount);
-      const receipt = await tx.wait();
-
-      return receipt;
-    } catch (err: any) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Update registration
   const updateRegistration = async (phoneNumber: string, newAddress: string) => {
     try {
       setIsLoading(true);
@@ -121,13 +161,326 @@ export function useRegistry(signer: ethers.Signer | null) {
     }
   };
 
+  // ============================================================
+  // WRITE FUNCTIONS - TRANSFER
+  // ============================================================
+
+  const transferByPhone = async (receiverPhone: string, amount: bigint) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      const receiverHash = hashPhoneNumber(receiverPhone);
+      const tx = await contract.transferIDRX(receiverHash, amount);
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const transferByAddress = async (receiverAddress: string, amount: bigint) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      const tx = await contract.transferIDRXDirect(receiverAddress, amount);
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const batchTransferByPhone = async (
+    receiverPhones: string[],
+    amounts: bigint[]
+  ) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      if (receiverPhones.length !== amounts.length) {
+        throw new Error('Receiver phones and amounts arrays must have the same length');
+      }
+
+      if (receiverPhones.length > 100) {
+        throw new Error('Cannot transfer to more than 100 recipients at once');
+      }
+
+      const receiverHashes = receiverPhones.map((phone) => hashPhoneNumber(phone));
+      const tx = await contract.batchTransferByPhone(receiverHashes, amounts);
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ============================================================
+  // WRITE FUNCTIONS - DEPOSIT
+  // ============================================================
+
+  const deposit = async (phoneNumber: string, amount: bigint) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      const phoneHash = hashPhoneNumber(phoneNumber);
+      const tx = await contract.deposit(phoneHash, amount);
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const depositTo = async (receiverPhone: string, amount: bigint) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      const receiverHash = hashPhoneNumber(receiverPhone);
+      const tx = await contract.depositTo(receiverHash, amount);
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ============================================================
+  // WRITE FUNCTIONS - WITHDRAW
+  // ============================================================
+
+  const withdraw = async (phoneNumber: string, toAddress: string, amount: bigint) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      const phoneHash = hashPhoneNumber(phoneNumber);
+      const tx = await contract.withdraw(phoneHash, toAddress, amount);
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const withdrawAll = async (phoneNumber: string, toAddress: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      const phoneHash = hashPhoneNumber(phoneNumber);
+      const tx = await contract.withdrawAll(phoneHash, toAddress);
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ============================================================
+  // WRITE FUNCTIONS - QR PAYMENT
+  // ============================================================
+
+  const createQRPayment = async (merchantPhone: string, amount: bigint) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      const merchantHash = hashPhoneNumber(merchantPhone);
+      const tx = await contract.createQRPayment(merchantHash, amount);
+      const receipt = await tx.wait();
+
+      // Extract qrHash from the receipt
+      let qrHash = '';
+      if (receipt && receipt.logs) {
+        for (const log of receipt.logs) {
+          try {
+            const parsed = contract.interface.parseLog(log);
+            if (parsed && parsed.name === 'QRPaymentCreated') {
+              qrHash = parsed.args.qrHash;
+              break;
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+      }
+
+      return { receipt, qrHash };
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const claimQRPayment = async (qrHash: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      const tx = await contract.claimQRPayment(qrHash);
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const refundQRPayment = async (qrHash: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      const tx = await contract.refundQRPayment(qrHash);
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ============================================================
+  // WRITE FUNCTIONS - ADMIN
+  // ============================================================
+
+  const updateAdminWallet = async (newAdminWallet: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      const tx = await contract.updateAdminWallet(newAdminWallet);
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const emergencyWithdraw = async (amount: bigint) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      const tx = await contract.emergencyWithdraw(amount);
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
+    // View functions
     isRegistered,
     getAccount,
+    getRegistrationTime,
+    getAdminWallet,
+    getPaymentCounter,
+    getIdrxTokenAddress,
+    getQRPayment,
+    getWithdrawFeeBps,
+    getQRPaymentExpiry,
+
+    // Registry functions
     register,
+    updateRegistration,
+
+    // Transfer functions
     transferByPhone,
     transferByAddress,
-    updateRegistration,
+    batchTransferByPhone,
+
+    // Deposit functions
+    deposit,
+    depositTo,
+
+    // Withdraw functions
+    withdraw,
+    withdrawAll,
+
+    // QR Pay functions
+    createQRPayment,
+    claimQRPayment,
+    refundQRPayment,
+
+    // Admin functions
+    updateAdminWallet,
+    emergencyWithdraw,
+
     isLoading,
     error,
   };
