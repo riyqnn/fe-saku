@@ -105,7 +105,7 @@ export async function POST(request: Request) {
 
     try {
       const provider = new ethers.JsonRpcProvider(
-        process.env.RPC_URL || 'https://sepolia.base.org'
+        process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org'
       );
 
       const adminPrivateKey = process.env.ADMIN_PRIVATE_KEY;

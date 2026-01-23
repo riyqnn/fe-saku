@@ -1,47 +1,60 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react'; // Tambahkan useMemo
 import { ethers } from 'ethers';
-import { SAKU_REGISTRY_ABI } from '@/lib/abi';
+import { SAKU_ABI, getProvider, hashPhone } from '@/lib/blockchain'; 
 import { CONTRACTS } from '@/lib/config';
-import { hashPhoneNumber } from '@/utils/phoneHash';
 
-export function useRegistry(signer: ethers.Signer | null) {
+export function useRegistry(signer?: ethers.Signer | null) { 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const contract = signer
-    ? new ethers.Contract(CONTRACTS.REGISTRY_ADDRESS, SAKU_REGISTRY_ABI, signer)
-    : null;
+  const contract = useMemo(() => {
+    const provider = getProvider();
+    const registryAddress = CONTRACTS.REGISTRY_ADDRESS;
 
-  // ============================================================
-  // VIEW FUNCTIONS
-  // ============================================================
+    if (!registryAddress) {
+      console.error("Registry address is missing in config");
+      return null;
+    }
+
+    return new ethers.Contract(
+      registryAddress, 
+      SAKU_ABI, 
+      signer || provider
+    );
+  }, [signer]);
+
+  const getActiveContract = () => {
+    if (!contract) throw new Error('Contract not initialized');
+    return contract;
+  };
+
 
   const isRegistered = async (phoneNumber: string): Promise<boolean> => {
     try {
-      if (!contract) throw new Error('Wallet not connected');
-      const phoneHash = hashPhoneNumber(phoneNumber);
-      return await contract.isRegistered(phoneHash);
+      const targetContract = getActiveContract();
+      const phoneHash = hashPhone(phoneNumber); 
+      return await targetContract.isRegistered(phoneHash);
     } catch (err: any) {
       console.error('Failed to check registration:', err);
-      throw err;
+      return false; 
     }
   };
 
   const getAccount = async (phoneNumber: string): Promise<string> => {
     try {
-      if (!contract) throw new Error('Wallet not connected');
-      const phoneHash = hashPhoneNumber(phoneNumber);
-      return await contract.getAccount(phoneHash);
+      const targetContract = getActiveContract();
+      const phoneHash = hashPhone(phoneNumber);
+      return await targetContract.getAccount(phoneHash);
     } catch (err: any) {
       console.error('Failed to get account:', err);
-      throw err;
+      return ethers.ZeroAddress;
     }
   };
 
   const getRegistrationTime = async (phoneNumber: string): Promise<bigint> => {
     try {
       if (!contract) throw new Error('Wallet not connected');
-      const phoneHash = hashPhoneNumber(phoneNumber);
+      const phoneHash = hashPhone(phoneNumber);
       return await contract.getRegistrationTime(phoneHash);
     } catch (err: any) {
       console.error('Failed to get registration time:', err);
@@ -126,10 +139,11 @@ export function useRegistry(signer: ethers.Signer | null) {
       setIsLoading(true);
       setError(null);
 
-      if (!contract) throw new Error('Wallet not connected');
+      if (!signer) throw new Error('Wallet not connected (Signer missing)');
+      const activeContract = getActiveContract();
 
-      const phoneHash = hashPhoneNumber(phoneNumber);
-      const tx = await contract.register(phoneHash, walletAddress);
+      const phoneHash = hashPhone(phoneNumber);
+      const tx = await activeContract.register(phoneHash, walletAddress);
       const receipt = await tx.wait();
 
       return receipt;
@@ -148,7 +162,7 @@ export function useRegistry(signer: ethers.Signer | null) {
 
       if (!contract) throw new Error('Wallet not connected');
 
-      const phoneHash = hashPhoneNumber(phoneNumber);
+      const phoneHash = hashPhone(phoneNumber);
       const tx = await contract.updateRegistration(phoneHash, newAddress);
       const receipt = await tx.wait();
 
@@ -172,7 +186,7 @@ export function useRegistry(signer: ethers.Signer | null) {
 
       if (!contract) throw new Error('Wallet not connected');
 
-      const receiverHash = hashPhoneNumber(receiverPhone);
+      const receiverHash = hashPhone(receiverPhone);
       const tx = await contract.transferIDRX(receiverHash, amount);
       const receipt = await tx.wait();
 
@@ -222,7 +236,7 @@ export function useRegistry(signer: ethers.Signer | null) {
         throw new Error('Cannot transfer to more than 100 recipients at once');
       }
 
-      const receiverHashes = receiverPhones.map((phone) => hashPhoneNumber(phone));
+      const receiverHashes = receiverPhones.map((phone) => hashPhone(phone));
       const tx = await contract.batchTransferByPhone(receiverHashes, amounts);
       const receipt = await tx.wait();
 
@@ -246,7 +260,7 @@ export function useRegistry(signer: ethers.Signer | null) {
 
       if (!contract) throw new Error('Wallet not connected');
 
-      const phoneHash = hashPhoneNumber(phoneNumber);
+      const phoneHash = hashPhone(phoneNumber);
       const tx = await contract.deposit(phoneHash, amount);
       const receipt = await tx.wait();
 
@@ -266,7 +280,7 @@ export function useRegistry(signer: ethers.Signer | null) {
 
       if (!contract) throw new Error('Wallet not connected');
 
-      const receiverHash = hashPhoneNumber(receiverPhone);
+      const receiverHash = hashPhone(receiverPhone);
       const tx = await contract.depositTo(receiverHash, amount);
       const receipt = await tx.wait();
 
@@ -290,7 +304,7 @@ export function useRegistry(signer: ethers.Signer | null) {
 
       if (!contract) throw new Error('Wallet not connected');
 
-      const phoneHash = hashPhoneNumber(phoneNumber);
+      const phoneHash = hashPhone(phoneNumber);
       const tx = await contract.withdraw(phoneHash, toAddress, amount);
       const receipt = await tx.wait();
 
@@ -310,7 +324,7 @@ export function useRegistry(signer: ethers.Signer | null) {
 
       if (!contract) throw new Error('Wallet not connected');
 
-      const phoneHash = hashPhoneNumber(phoneNumber);
+      const phoneHash = hashPhone(phoneNumber);
       const tx = await contract.withdrawAll(phoneHash, toAddress);
       const receipt = await tx.wait();
 
@@ -334,7 +348,7 @@ export function useRegistry(signer: ethers.Signer | null) {
 
       if (!contract) throw new Error('Wallet not connected');
 
-      const merchantHash = hashPhoneNumber(merchantPhone);
+      const merchantHash = hashPhone(merchantPhone);
       const tx = await contract.createQRPayment(merchantHash, amount);
       const receipt = await tx.wait();
 

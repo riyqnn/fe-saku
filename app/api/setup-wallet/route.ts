@@ -1,116 +1,49 @@
-import { NextResponse } from 'next/server'
-import { ethers } from 'ethers'
-import { cookies } from 'next/headers'
-import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@/lib/supabaseServer';
+import { NextResponse } from 'next/server';
+import { ethers } from 'ethers';
+import { encrypt } from '@/lib/encryp';
 
 export async function POST(req: Request) {
+  const supabase = createClient();
+  
   try {
-    const cookieStore = await cookies()
+    // 1. Cek Auth Session
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {}
-          },
-        },
-      }
-    )
+    const { phone_number, phone_hash } = await req.json();
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
+    // 2. Generate Wallet Baru
+    const wallet = ethers.Wallet.createRandom();
+    const { encryptedData, iv, authTag } = encrypt(wallet.privateKey);
 
-    if (!session) {
-      console.error('❌ [Setup Wallet] No session found')
-      return NextResponse.json(
-        { error: 'Unauthorized: No session' },
-        { status: 401 }
-      )
-    }
-
-    const user = session.user
-    const userPhone = user.user_metadata?.phone || user.phone
-    const uid = user.id
-
-    if (!userPhone) {
-      console.error('❌ [Setup Wallet] Phone not found')
-      return NextResponse.json(
-        { error: 'Phone number not found' },
-        { status: 400 }
-      )
-    }
-
-    console.log('📱 [Setup Wallet] Phone:', userPhone)
-    console.log('👤 [Setup Wallet] User ID:', uid)
-
-    // Check if user already has wallet
-    const { data: existingProfile } = await supabase
+    // 3. Simpan ke Database Supabase
+    const { error: dbError } = await supabase
       .from('profiles')
-      .select('wallet_address')
-      .eq('id', uid)
-      .single()
+      .upsert({
+        id: user.id,
+        phone_number,
+        phone_hash,
+        wallet_address: wallet.address,
+        encrypted_private_key: encryptedData,
+        encryption_iv: iv,
+        auth_tag: authTag,
+        is_verified: true,
+      });
 
-    if (existingProfile?.wallet_address) {
-      console.log('✅ [Setup Wallet] User already has wallet')
-      return NextResponse.json({
-        success: true,
-        message: 'User already has wallet',
-        address: existingProfile.wallet_address,
-        isNewUser: false,
-      })
-    }
+    if (dbError) throw dbError;
 
-    console.log('🆕 [Setup Wallet] Generating deterministic wallet from phone number...')
+    // 4. Register ke Smart Contract (On-chain)
+    // Note: Di production, gunakan Relayer/Admin Wallet untuk membayar gas fee registrasi awal
+    // agar user tidak perlu punya Saldo Native Token di awal.
+    
+    return NextResponse.json({ 
+      success: true, 
+      wallet_address: wallet.address 
+    });
 
-    // Generate deterministic private key from phone number
-    const phoneBytes = ethers.toUtf8Bytes(userPhone)
-    const seed = ethers.keccak256(phoneBytes)
-    const privateKey = seed
-
-    console.log('🔑 [Setup Wallet] Deterministic private key generated from phone')
-
-    const userWallet = new ethers.Wallet(privateKey)
-    console.log('💼 [Setup Wallet] Wallet address:', userWallet.address)
-
-    // Hash phone with keccak256
-    console.log('📋 [Setup Wallet] Hashing phone number with keccak256...')
-    const phoneHash = ethers.keccak256(ethers.toUtf8Bytes(userPhone))
-
-    // Store in database
-    console.log('💾 [Setup Wallet] Storing wallet in database...')
-    const { error: dbError } = await supabase.from('profiles').upsert({
-      id: uid,
-      phone_number: userPhone,
-      phone_hash: phoneHash,
-      wallet_address: userWallet.address,
-      is_verified: true,
-    })
-
-    if (dbError) throw dbError
-
-    console.log('✅ [Setup Wallet] Wallet created and stored successfully')
-
-    return NextResponse.json({
-      success: true,
-      message: 'Wallet created',
-      address: userWallet.address,
-      isNewUser: true,
-    })
   } catch (error: any) {
-    console.error('❌ [Setup Wallet] Error:', error.message)
-    return NextResponse.json(
-      { error: error.message || 'Wallet creation failed' },
-      { status: 500 }
-    )
+    console.error('Setup Error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

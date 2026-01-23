@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
     // Get provider (using backend RPC)
     const provider = new ethers.JsonRpcProvider(
-      process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org'
+      process.env.NEXT_PUBLIC_NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org'
     );
 
     // Get signer from private key (admin wallet)

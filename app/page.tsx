@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAuthContext } from "@/context/AuthContext"
+import { useAuth } from "@/hooks/useAuth"
 import HomeHeader from "@/components/home/header"
 import BalanceCardSection from "@/components/home/balance-card-section"
 import QuickActions from "@/components/home/quick-actions"
@@ -12,7 +12,7 @@ import TransferModal from "@/components/transfer/transfer-modal"
 
 export default function Home() {
   const router = useRouter()
-  const { isAuthenticated, isLoading } = useAuthContext() 
+  const { isAuthenticated, isLoading, user } = useAuth() 
   const [showTransferModal, setShowTransferModal] = useState(false)
 
   useEffect(() => {
@@ -24,7 +24,9 @@ export default function Home() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#F9EFE5] flex items-center justify-center">
-        <div className="animate-pulse text-[#7F8790] font-medium">Loading Saku...</div>
+        <div className="animate-pulse text-[#7F8790] font-medium text-lg">
+          Loading Saku...
+        </div>
       </div>
     )
   }
@@ -32,27 +34,28 @@ export default function Home() {
   if (!isAuthenticated) return null
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-24 animate-in fade-in duration-500">
       {/* Header */}
       <HomeHeader />
 
-      {/* Main Content */}
       <main className="max-w-lg mx-auto px-4 space-y-6 py-6">
-        {/* Balance Card */}
+        {/* Balance Card - Sekarang datanya sync dengan DB via useAuth */}
         <BalanceCardSection />
 
-        {/* Tambahkan prop onTransferClick jika QuickActions membutuhkannya untuk buka modal */}
-        <QuickActions />
+        {/* Action Buttons */}
+        <QuickActions onTransferClick={() => setShowTransferModal(true)} />
 
         {/* Recent Transactions */}
         <RecentTransactions />
       </main>
 
-      {/* Bottom Navigation */}
+      {/* Navigasi Bawah */}
       <BottomNavigation />
 
-      {/* Transfer Modal */}
-      {showTransferModal && <TransferModal onClose={() => setShowTransferModal(false)} />}
+      {/* Modal Transfer */}
+      {showTransferModal && (
+        <TransferModal onClose={() => setShowTransferModal(false)} />
+      )}
     </div>
   )
 }
