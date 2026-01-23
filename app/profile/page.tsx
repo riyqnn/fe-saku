@@ -1,18 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Plus, Settings, LogOut } from "lucide-react"
-import { useAuth } from "@/hooks/useAuth" // Update ke hook baru
+import { ArrowLeft, Settings, LogOut } from "lucide-react"
+import { useAuth } from "@/hooks/useAuth" 
 import ProfileCard from "@/components/profile/profile-card"
-import FoldersList from "@/components/profile/folders-list"
-import CreateFolderModal from "@/components/profile/create-folder-modal"
+import FoldersManager from "@/components/profile/folders-list" 
 
 export default function ProfilePage() {
   const router = useRouter()
-  
   const { user, isLoading, logout, isAuthenticated } = useAuth()
-  const [isShowCreateModal, setIsShowCreateModal] = useState(false)
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -56,28 +53,18 @@ export default function ProfilePage() {
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-8">
+        {/* Bagian Atas: Info User */}
         <ProfileCard />
 
         <div className="h-px bg-black/5" />
 
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-black">Saved Contacts</h2>
-              <p className="text-sm text-[#7F8790]">Organize your recipients</p>
-            </div>
-            <button
-              onClick={() => setIsShowCreateModal(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-black text-white font-bold rounded-2xl hover:scale-[1.02] transition-transform active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New</span>
-            </button>
-          </div>
-          
-          <FoldersList />
-        </div>
+        {/* Bagian Tengah: Manajemen Folder/Kontak */}
+        {/* Kita tidak perlu lagi judul "Saved Contacts" dan tombol "New" di sini 
+            karena sudah dipindahkan ke dalam FoldersManager agar lebih efisien.
+        */}
+        <FoldersManager />
 
+        {/* Bagian Bawah: Settings & Logout */}
         <div className="space-y-4 pt-6 border-t border-black/5">
           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#7F8790]">Account Settings</h3>
           <button
@@ -89,11 +76,6 @@ export default function ProfilePage() {
           </button>
         </div>
       </div>
-
-      <CreateFolderModal
-        isOpen={isShowCreateModal}
-        onClose={() => setIsShowCreateModal(false)}
-      />
     </div>
   )
 }
