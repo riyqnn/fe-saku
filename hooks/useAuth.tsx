@@ -35,8 +35,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
 
-      // STOP di sini kalau session gak ada. 
-      // Jangan biarkan dia coba query database pakai user.id yang undefined.
       if (!session || !session.user) {
         setUser(null);
         setIsLoading(false);
@@ -47,13 +45,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('profiles')
         .select('id, phone_number, wallet_address, is_verified')
         .eq('id', session.user.id)
-        .maybeSingle(); // GANTI .single() jadi .maybeSingle()
+        .maybeSingle(); 
 
       if (dbError) {
         console.error("Error fetching profile:", dbError.message);
         setUser(null);
       } else if (!profile) {
-        // Ini normal buat user baru yang belum kelar API /api/auth-nya
         setUser(null); 
       } else {
         setUser(profile);

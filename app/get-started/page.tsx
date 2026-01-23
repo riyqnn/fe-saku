@@ -1,13 +1,14 @@
 "use client"
 
-import React, { useState, useRef } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import { useAuth } from "@/hooks/useAuth"
 
 export default function LoginScreen() {
   const router = useRouter()
-  const { refreshUser } = useAuth() 
+  const { refreshUser } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth() 
 
   const [loginMethod, setLoginMethod] = useState<"phone" | "otp" | null>(null)
   const [phone, setPhone] = useState("")
@@ -19,6 +20,12 @@ export default function LoginScreen() {
     const cleanNum = num.replace(/\D/g, '')
     return cleanNum.startsWith('0') ? `+62${cleanNum.slice(1)}` : `+62${cleanNum}`
   }
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace('/')
+    }
+  }, [isAuthenticated, isLoading, router])
 
   const handleSendOtp = async () => {
     if (phone.length < 10) return alert("Nomor HP minimal 10 digit co")
@@ -42,8 +49,6 @@ export default function LoginScreen() {
       const otpString = otp.join("");
       const formattedPhone = formatPhone(phone);
       
-      // 1. Verifikasi OTP (Client Side)
-      // Di dalam handleVerifyOtp (page.tsx)
       const { data: authData, error: verifyError } = await supabase.auth.verifyOtp({
         phone: formattedPhone,
         token: otpString,
@@ -52,33 +57,28 @@ export default function LoginScreen() {
 
       if (verifyError) throw verifyError;
 
-      // Ambil UID langsung dari authData
       const userId = authData.user?.id;
 
-      // Kirim UID ke API agar API tidak mendapatkan 'null'
       const res = await fetch('/api/auth', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           phone: formattedPhone,
-          uid: userId // KIRIM INI SEBAGAI BACKUP
+          uid: userId
         }),
       });
       
       const result = await res.json();
       
-      // Jika API Auth gagal, jangan lanjut redirect!
       if (!res.ok) throw new Error(result.error || "Gagal sinkronisasi backend");
 
       console.log("✅ Success Auth & On-chain:", result);
       
-      // 4. Update Global State
       await refreshUser();
 
-      // Kasih feedback visual sebelum pindah
       alert(result.isNewUser ? "🚀 Wallet created on-chain!" : "👋 Welcome back!");
       
-      router.replace('/home'); 
+      router.replace('/'); 
       
     } catch (error: any) {
       alert("Error: " + error.message);
@@ -104,7 +104,6 @@ export default function LoginScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-[#F9EFE5]">
       <div className="w-full max-w-md space-y-8">
-        {/* STEP 1: WELCOME */}
         {loginMethod === null && (
           <div className="animate-in fade-in duration-500">
             <div className="flex flex-col items-center space-y-6">
@@ -125,7 +124,6 @@ export default function LoginScreen() {
           </div>
         )}
 
-        {/* STEP 2: PHONE INPUT */}
         {loginMethod === "phone" && (
           <div className="space-y-8 animate-in slide-in-from-right duration-300">
             <button onClick={() => setLoginMethod(null)} className="flex items-center text-[#7F8790] hover:text-[#000000] transition-colors">
@@ -147,7 +145,6 @@ export default function LoginScreen() {
           </div>
         )}
 
-        {/* STEP 3: OTP INPUT */}
         {loginMethod === "otp" && (
           <div className="space-y-8 animate-in slide-in-from-right duration-300">
             <button onClick={() => setLoginMethod("phone")} className="flex items-center text-[#7F8790] hover:text-[#000000]"><svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>Back</button>

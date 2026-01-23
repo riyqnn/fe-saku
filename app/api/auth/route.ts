@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ethers } from 'ethers';
-import { encrypt } from '@/lib/encryp'; // Pastikan path ini bener (encryp atau encrypt)
+import { encrypt } from '@/lib/encryp';
 import { SAKU_ABI, hashPhone, getProvider } from '@/lib/blockchain';
 import { createSakuServerClient } from '@/lib/supabaseServer';
 
@@ -30,17 +30,11 @@ export async function POST(req: Request) {
       provider
     );
 
-    // 1. Cek On-Chain
     const isRegistered = await contract.isRegistered(phoneHash);
     
     if (isRegistered) {
       const walletAddress = await contract.getAccount(phoneHash);
       console.log("🔄 Syncing existing user...");
-
-      // Kalo user udah ada di blockchain tapi datanya ilang di DB lo, 
-      // SEBAIKNYA lo jangan kasih data dummy '0'. 
-      // Tapi karena Private Key lama udah ilang (kalo ga disimpen di seed), 
-      // kita update profile-nya aja tanpa nimpa key lama kalo ada.
       
       const { error: syncError } = await supabase
         .from('profiles')
@@ -56,24 +50,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, isNewUser: false });
     }
 
-    // 2. New User Registration - THE REAL ENCRYPTION
-    console.log("🆕 Registering new user on-chain...");
+    console.log("Registering new user on-chain...");
     
-    // Kita buat wallet baru
-    // const userWallet = ethers.Wallet.createRandom();
     const seed = ethers.id(userPhone + process.env.ENCRYPTION_KEY);
     const userWallet = new ethers.Wallet(seed);
     
-    // Admin Wallet buat bayar gas registrasi
     const adminWallet = new ethers.Wallet(process.env.ADMIN_PRIVATE_KEY!, provider);
     const contractWithAdmin = contract.connect(adminWallet) as any;
     
-    // Register di blockchain
     const regTx = await contractWithAdmin.register(phoneHash, userWallet.address);
     await regTx.wait();
 
-    // 3. ENKRIPSI PRIVATE KEY YANG BENER
-    // Kita enkripsi userWallet.privateKey pake function dari @/lib/encryp
     const encryptionResult = encrypt(userWallet.privateKey);
 
     const { error: dbError } = await supabase.from('profiles').upsert({
@@ -81,9 +68,9 @@ export async function POST(req: Request) {
       phone_number: userPhone,
       phone_hash: phoneHash,
       wallet_address: userWallet.address,
-      encrypted_private_key: encryptionResult.encryptedData, // Hasil enkripsi rill
-      encryption_iv: encryptionResult.iv,                   // IV rill
-      auth_tag: encryptionResult.authTag,                   // Auth Tag rill
+      encrypted_private_key: encryptionResult.encryptedData,
+      encryption_iv: encryptionResult.iv,                   
+      auth_tag: encryptionResult.authTag,                  
       is_verified: true,
     });
 

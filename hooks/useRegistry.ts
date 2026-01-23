@@ -130,9 +130,6 @@ export function useRegistry(signer?: ethers.Signer | null) {
     }
   };
 
-  // ============================================================
-  // WRITE FUNCTIONS - REGISTRY
-  // ============================================================
 
   const register = async (phoneNumber: string, walletAddress: string) => {
     try {

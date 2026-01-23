@@ -24,7 +24,8 @@ export default function Home() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#F9EFE5] flex items-center justify-center">
-        <div className="animate-pulse text-[#7F8790] font-medium text-lg">
+        <div className="animate-pulse text-[#7F8790] font-medium text-lg text-center">
+          <div className="w-10 h-10 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           Loading Saku...
         </div>
       </div>
