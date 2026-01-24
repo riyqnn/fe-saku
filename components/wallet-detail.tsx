@@ -4,7 +4,10 @@ import { useUserWallet } from '@/hooks/useUserWallet';
 import { useState } from 'react';
 
 export default function WalletDetail() {
-  const { walletAddress, phoneNumber, isVerified, isLoading } = useUserWallet();
+  const { profile, loading: isLoading } = useUserWallet();
+  const walletAddress = profile?.wallet_address || null;
+  const phoneNumber = profile?.phone_number || null;
+  const isVerified = profile?.is_verified || false;
   const [copied, setCopied] = useState(false);
 
   if (isLoading) {

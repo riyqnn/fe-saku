@@ -4,8 +4,8 @@ import { IDRX_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/lib/config';
 
 export function useIDRX(signer: ethers.Signer | null, address: string | null) {
-  const [balance, setBalance] = useState<bigint>(0n);
-  const [allowance, setAllowance] = useState<bigint>(0n);
+  const [balance, setBalance] = useState<bigint>(BigInt(0));
+  const [allowance, setAllowance] = useState<bigint>(BigInt(0));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,7 +84,7 @@ export function useIDRX(signer: ethers.Signer | null, address: string | null) {
       setError(null);
 
       if (!contract) throw new Error('Wallet not connected');
-      if (amount <= 0n) throw new Error('Amount must be greater than 0');
+      if (amount <= BigInt(0)) throw new Error('Amount must be greater than 0');
 
       const tx = await contract.transfer(to, amount);
       const receipt = await tx.wait();
@@ -108,7 +108,7 @@ export function useIDRX(signer: ethers.Signer | null, address: string | null) {
       setError(null);
 
       if (!contract) throw new Error('Wallet not connected');
-      if (amount <= 0n) throw new Error('Amount must be greater than 0');
+      if (amount <= BigInt(0)) throw new Error('Amount must be greater than 0');
 
       const tx = await contract.transferFrom(from, to, amount);
       const receipt = await tx.wait();

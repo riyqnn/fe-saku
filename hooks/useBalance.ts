@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import { IDRX_ABI } from '@/lib/abi';
 import { CONTRACTS, IDRX_DECIMALS } from '@/lib/config';
 import { fromTokenAmount } from '@/lib/blockchain';
+import { eventBus, EVENTS } from '@/lib/events';
 
 interface BalanceData {
   balance: bigint;
@@ -37,7 +38,7 @@ export function useBalance(address: string | null, refreshTrigger?: number) {
 
       // Get provider
       const provider = new ethers.JsonRpcProvider(
-        process.env.NEXT_PUBLIC_NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org'
+        process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org'
       );
 
       // Create contract instance for reading
@@ -77,15 +78,31 @@ export function useBalance(address: string | null, refreshTrigger?: number) {
     fetchBalance();
   }, [address, refreshTrigger]);
 
-  // Poll for balance updates every 10 seconds
+  // Poll for balance updates every 5 seconds (faster updates)
   useEffect(() => {
     if (!address) return;
 
     const interval = setInterval(() => {
       fetchBalance();
-    }, 10000);
+    }, 5000); // Reduced from 10000 (10s) to 5000 (5s)
 
     return () => clearInterval(interval);
+  }, [address]);
+
+  // Listen for balance refresh events
+  useEffect(() => {
+    if (!address) return;
+
+    const handleRefresh = () => {
+      console.log('🔄 [useBalance] Refresh triggered by event');
+      fetchBalance();
+    };
+
+    eventBus.on(EVENTS.BALANCE_REFRESH, handleRefresh);
+
+    return () => {
+      eventBus.off(EVENTS.BALANCE_REFRESH, handleRefresh);
+    };
   }, [address]);
 
   return {

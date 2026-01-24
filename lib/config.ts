@@ -7,7 +7,7 @@ export const CONTRACTS = {
 export const NETWORK_CONFIG = {
   chainId: 84532,
   name: "Base Sepolia",
-  rpcUrl: process.env.NEXT_PUBLIC_NEXT_PUBLIC_RPC_URL || "https://sepolia.base.org",
+  rpcUrl: process.env.NEXT_PUBLIC_RPC_URL || "https://sepolia.base.org",
   blockExplorer: "https://sepolia.basescan.org",
 } as const;
 

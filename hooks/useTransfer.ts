@@ -2,10 +2,6 @@
 
 import { useState, useCallback } from "react"
 import { useAuth } from "./useAuth"
-import { useWallet } from "./useWallet"
-import { supabase } from "@/lib/supabaseClient"
-import { decrypt } from "@/utils/encrypt"
-import { hashPhoneNumber } from "@/utils/phoneHash"
 
 export interface TransferParams {
   receiverAddress: string
@@ -24,7 +20,6 @@ export interface TransferResult {
 
 export function useTransfer() {
   const { user } = useAuth()
-  const { address } = useWallet()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<string | null>(null)
@@ -37,8 +32,8 @@ export function useTransfer() {
         setTxHash(null)
 
         // Validate inputs
-        if (!address || !user?.phone) {
-          throw new Error("Wallet not initialized")
+        if (!user?.phone_number) {
+          throw new Error("User not authenticated")
         }
 
         if (!params.receiverAddress) {
@@ -54,41 +49,16 @@ export function useTransfer() {
           throw new Error("Amount must be greater than 0")
         }
 
-        // Fetch encrypted private key from database
-        const phoneHash = hashPhoneNumber(user.phone)
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("encrypted_private_key, encryption_iv, auth_tag")
-          .eq("phone_hash", phoneHash)
-          .single()
-
-        if (profileError || !profile) {
-          throw new Error("Could not retrieve wallet information")
-        }
-
-        // Decrypt private key
-        let privateKey: string
-        try {
-          privateKey = decrypt(
-            profile.encrypted_private_key,
-            profile.encryption_iv,
-            profile.auth_tag
-          )
-        } catch {
-          throw new Error("Failed to decrypt private key")
-        }
-
-        // Call transfer API
+        // Call transfer API - server will decrypt private key
         const response = await fetch("/api/transfer", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            senderAddress: address,
+            phoneNumber: user.phone_number,
             receiverAddress: params.receiverAddress,
             amount: params.amount,
-            privateKey: privateKey,
           }),
         })
 
@@ -117,7 +87,7 @@ export function useTransfer() {
         setLoading(false)
       }
     },
-    [address, user?.phone]
+    [user?.phone_number]
   )
 
   return {

@@ -1,15 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { 
-  Folder, MoreVertical, Trash2, Edit2, FolderOpen, 
-  X, Loader2, Plus, Smartphone 
+import {
+  Folder, MoreVertical, Trash2, Edit2, FolderOpen,
+  X, Loader2, Plus, Smartphone
 } from "lucide-react"
 import { useProfileFolders } from "@/hooks/useProfileFolders"
+import { useAuth } from "@/hooks/useAuth"
 
 export default function FoldersManager() {
   // 1. Single Hook Call (Efisien!)
-  const walletAddress = typeof window !== 'undefined' ? localStorage.getItem('walletAddress') : null
+  const { user } = useAuth()
+  const walletAddress = user?.wallet_address || null
   const { folders, isLoading, createFolder, deleteFolder } = useProfileFolders(walletAddress)
 
   // 2. UI States

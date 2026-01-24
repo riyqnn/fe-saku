@@ -1,11 +1,31 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CheckCircle, ExternalLink, Copy, Check } from "lucide-react"
+import { CheckCircle, ExternalLink, Copy, Check, UserPlus } from "lucide-react"
+import { useContacts } from "@/hooks/useContacts"
 
-export default function SuccessStep({ txHash, onComplete }: { txHash: string | null; onComplete: () => void }) {
+interface SuccessStepProps {
+  txHash: string | null
+  receiverName: string
+  receiverPhone: string
+  amount: string
+  onComplete: () => void
+}
+
+export default function SuccessStep({ txHash, receiverName, receiverPhone, amount, onComplete }: SuccessStepProps) {
   const [showAnimation, setShowAnimation] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [savingContact, setSavingContact] = useState(false)
+  const [contactSaved, setContactSaved] = useState(false)
+
+  const { contacts, addContact } = useContacts()
+
+  // Check if receiver is already in contacts
+  const isAlreadyContact = contacts.some(
+    (c) => c.phone_number === receiverPhone
+  )
+
+  const shouldShowSaveButton = !isAlreadyContact && !contactSaved && receiverPhone && receiverName !== receiverPhone
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -19,6 +39,24 @@ export default function SuccessStep({ txHash, onComplete }: { txHash: string | n
       navigator.clipboard.writeText(txHash)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const handleSaveContact = async () => {
+    try {
+      setSavingContact(true)
+      const result = await addContact({
+        name: receiverName,
+        phone_number: receiverPhone,
+      })
+
+      if (result.success) {
+        setContactSaved(true)
+      }
+    } catch (err) {
+      console.error("Failed to save contact:", err)
+    } finally {
+      setSavingContact(false)
     }
   }
 
@@ -60,9 +98,30 @@ export default function SuccessStep({ txHash, onComplete }: { txHash: string | n
       <div className="space-y-2.5 sm:space-y-3">
         <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Transfer Successful!</h2>
         <p className="text-sm sm:text-base text-muted-foreground">
-          Money has been sent successfully on the blockchain
+          {Number(amount).toLocaleString()} IDRX sent to {receiverName}
         </p>
       </div>
+
+      {/* Save Contact Button */}
+      {shouldShowSaveButton && (
+        <button
+          onClick={handleSaveContact}
+          disabled={savingContact}
+          className="w-full py-3 px-6 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          <UserPlus className="w-4 h-4" />
+          {savingContact ? "Saving..." : `Save ${receiverName} as Contact`}
+        </button>
+      )}
+
+      {contactSaved && (
+        <div className="w-full py-3 px-6 rounded-xl bg-green-500/10 border border-green-500/20">
+          <p className="text-sm font-semibold text-green-500 flex items-center justify-center gap-2">
+            <Check className="w-4 h-4" />
+            Contact saved successfully!
+          </p>
+        </div>
+      )}
 
       {/* Transaction Details */}
       <div className="bg-gradient-to-br from-primary/5 to-accent/5 dark:from-primary/10 dark:to-accent/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-primary/20 space-y-3 sm:space-y-4">

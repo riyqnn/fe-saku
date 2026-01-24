@@ -33,7 +33,7 @@ export function useDepositWithdraw(signer: ethers.Signer | null) {
       setError(null);
 
       if (!contract) throw new Error('Wallet not connected');
-      if (amount <= 0n) throw new Error('Amount must be greater than 0');
+      if (amount <= BigInt(0)) throw new Error('Amount must be greater than 0');
 
       const phoneHash = hashPhoneNumber(phoneNumber);
 
@@ -63,7 +63,7 @@ export function useDepositWithdraw(signer: ethers.Signer | null) {
       setError(null);
 
       if (!contract) throw new Error('Wallet not connected');
-      if (amount <= 0n) throw new Error('Amount must be greater than 0');
+      if (amount <= BigInt(0)) throw new Error('Amount must be greater than 0');
 
       const receiverHash = hashPhoneNumber(receiverPhone);
 
@@ -94,13 +94,13 @@ export function useDepositWithdraw(signer: ethers.Signer | null) {
       setError(null);
 
       if (!contract) throw new Error('Wallet not connected');
-      if (amount <= 0n) throw new Error('Amount must be greater than 0');
+      if (amount <= BigInt(0)) throw new Error('Amount must be greater than 0');
 
       const phoneHash = hashPhoneNumber(phoneNumber);
 
       // Calculate fee (1%)
       const feeBps = await contract.WITHDRAW_FEE_BPS();
-      const fee = (amount * feeBps) / 10000n;
+      const fee = (amount * feeBps) / BigInt(10000);
       const amountAfterFee = amount - fee;
 
       const tx = await contract.withdraw(phoneHash, toAddress, amount);
@@ -141,16 +141,16 @@ export function useDepositWithdraw(signer: ethers.Signer | null) {
 
       // Calculate fee from the transaction
       // Parse the Withdrawn event to get exact amounts
-      let amount = 0n;
-      let fee = 0n;
+      let amount = BigInt(0);
+      let fee = BigInt(0);
 
       if (receipt && receipt.logs) {
         for (const log of receipt.logs) {
           try {
             const parsed = contract.interface.parseLog(log);
             if (parsed && parsed.name === 'Withdrawn') {
-              amount = parsed.args.amount || 0n;
-              fee = parsed.args.fee || 0n;
+              amount = parsed.args.amount || BigInt(0);
+              fee = parsed.args.fee || BigInt(0);
               break;
             }
           } catch (e) {
@@ -196,10 +196,10 @@ export function useDepositWithdraw(signer: ethers.Signer | null) {
   const calculateWithdrawFee = async (amount: bigint): Promise<bigint> => {
     try {
       const feeBps = await getWithdrawFeeBps();
-      return (amount * feeBps) / 10000n;
+      return (amount * feeBps) / BigInt(10000);
     } catch (err) {
       console.error('Failed to calculate withdraw fee:', err);
-      return 0n;
+      return BigInt(0);
     }
   };
 
