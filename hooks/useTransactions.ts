@@ -65,8 +65,10 @@ export function useTransactions(autoRefresh = true) {
         try {
           provider = new ethers.JsonRpcProvider(rpcUrl)
           await provider.getBlockNumber()
+          console.log(`[Transactions] Connected to RPC: ${rpcUrl}`)
           break
         } catch (err) {
+          console.error(`[Transactions] RPC failed: ${rpcUrl}`, err)
           lastError = err as Error
           provider = null
         }
@@ -86,8 +88,10 @@ export function useTransactions(autoRefresh = true) {
 
       // Get current block number to calculate range
       const currentBlock = await provider.getBlockNumber()
-      const blocksToQuery = 2000 // Reduced for faster loading
+      const blocksToQuery = 10000 // Increased to find more transactions
       const fromBlock = Math.max(0, currentBlock - blocksToQuery)
+
+      console.log(`[Transactions] Fetching from block ${fromBlock} to ${currentBlock} for wallet ${user.wallet_address}`)
 
       // Fetch all event types in parallel for speed
       const batchSize = 3000
@@ -274,9 +278,11 @@ export function useTransactions(autoRefresh = true) {
       // Sort by block number descending (newest first)
       txWithTimestamps.sort((a, b) => b.blockNumber - a.blockNumber)
 
+      console.log(`[Transactions] Found ${txWithTimestamps.length} transactions`)
       setTransactions(txWithTimestamps)
       setError(null)
     } catch (err: any) {
+      console.error('[Transactions] Error:', err)
       setError(err.message)
       setTransactions([])
     } finally {
