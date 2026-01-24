@@ -12,6 +12,7 @@ import { Download } from "lucide-react";
 import Navbar from "@/components/landing/Navbar"
 import StepCard from "@/components/landing/StepCard"
 import FAQSection from "@/components/landing/Faq"
+import MultipleItems from "@/components/landing/Slider"
 
 export default function Home() {
   return (
@@ -37,9 +38,24 @@ export default function Home() {
           </span> 
         trusted wallet shit
         </h1>
-        <a className="py-5 px-12 transition-all duration-300 hover:bg-white rounded-full" href=""><Download className="inline mr-2 w-5 h-5 text-black" />Try Saku Now!</a>
-        <div className="border ">
-          <img src="/landing/landing.png" alt="" />
+        <a className="relative -top-20 py-5 px-12 transition-all duration-300 hover:bg-white rounded-full" href=""><Download className="inline mr-2 w-5 h-5 text-black" />Try Saku Now!</a>
+        <div className="">
+          <video
+            className="w-100 h-auto"
+            src="/landing/landing.webm"
+            autoPlay
+            muted
+            loop
+            playsInline
+            />
+        </div>
+      </section>
+
+      {/* Promotion Section  */}
+      <section className="relative w-full flex flex-col gap-20 py-10 justify-center items-center text-center">
+        <h1 className="text-[80px] text-black/85 font-medium leading-normal">Transfer crypto <br /> with phone number</h1>
+        <div className="w-[80%]">
+        <MultipleItems />
         </div>
       </section>
 
