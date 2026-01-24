@@ -4,60 +4,40 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowUpRight, Wallet, CheckCircle, AlertCircle, Info } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
-import { useWallet } from "@/hooks/useWallet"
-import { useDepositWithdraw } from "@/hooks/useDepositWithdraw"
+import { useSakuWithdraw } from "@/hooks/useSakuWithdraw"
 import { useBalance } from "@/hooks/useBalance"
-import { toTokenAmount, fromTokenAmount } from "@/lib/blockchain"
+import { fromTokenAmount } from "@/lib/blockchain"
 import { IDRX_DECIMALS } from "@/lib/config"
 
 export default function WithdrawPage() {
   const router = useRouter()
   const { user } = useAuth()
-  const { signer, connect, address } = useWallet()
-  const { withdraw, withdrawAll, isWithdrawing, calculateWithdrawFee, calculateAmountAfterFee } = useDepositWithdraw(signer)
-  const { balance, formattedBalance, refetch: refetchBalance } = useBalance(address)
+  const walletAddress = user?.wallet_address || null
+  const { withdraw, loading } = useSakuWithdraw()
+  const { balance, formattedBalance, refetch: refetchBalance } = useBalance(walletAddress)
 
   const [amount, setAmount] = useState("")
   const [toAddress, setToAddress] = useState("")
   const [withdrawAllFlag, setWithdrawAllFlag] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [txHash, setTxHash] = useState<string | null>(null)
-  const [fee, setFee] = useState<bigint>(0n)
-  const [amountAfterFee, setAmountAfterFee] = useState<bigint>(0n)
+  const [withdrawResult, setWithdrawResult] = useState<{ amount: string; fee: string; amountAfterFee: string } | null>(null)
 
-  // Check if wallet is connected
-  useEffect(() => {
-    if (!signer && user) {
-      connect()
-    }
-  }, [signer, user, connect])
-
-  // Calculate fee when amount changes
-  useEffect(() => {
-    const calculateFee = async () => {
-      if (amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0) {
-        const amountBigInt = toTokenAmount(parseFloat(amount), IDRX_DECIMALS)
-        const feeAmount = await calculateWithdrawFee(amountBigInt)
-        const afterFee = await calculateAmountAfterFee(amountBigInt)
-        setFee(feeAmount)
-        setAmountAfterFee(afterFee)
-      } else {
-        setFee(0n)
-        setAmountAfterFee(0n)
-      }
-    }
-    calculateFee()
-  }, [amount])
+  // Calculate estimated fee (1%) for display
+  const estimatedFee = amount && !isNaN(parseFloat(amount))
+    ? (parseFloat(amount) * 0.01).toFixed(6)
+    : "0"
+  const estimatedAmountAfterFee = amount && !isNaN(parseFloat(amount))
+    ? (parseFloat(amount) - parseFloat(estimatedFee)).toFixed(6)
+    : "0"
 
   const handleWithdraw = async () => {
     try {
-      setIsLoading(true)
       setError(null)
 
-      if (!user?.phone || !signer) {
-        throw new Error("Wallet not connected")
+      if (!user?.phone_number) {
+        throw new Error("User not authenticated")
       }
 
       if (!toAddress) {
@@ -68,28 +48,30 @@ export default function WithdrawPage() {
         throw new Error("Please enter an amount or select withdraw all")
       }
 
-      let receipt
-      if (withdrawAllFlag) {
-        receipt = await withdrawAll(user.phone, toAddress)
+      const result = await withdraw({
+        toAddress,
+        amount: withdrawAllFlag ? undefined : amount,
+        withdrawAll: withdrawAllFlag || false,
+      })
+
+      if (result.success) {
+        setTxHash(result.transactionHash || null)
+        setWithdrawResult({
+          amount: result.amount || "0",
+          fee: result.fee || "0",
+          amountAfterFee: result.amountAfterFee || "0",
+        })
+        setSuccess(true)
+
+        // Refresh balance
+        setTimeout(() => {
+          refetchBalance()
+        }, 2000)
       } else {
-        if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-          throw new Error("Please enter a valid amount")
-        }
-        const amountBigInt = toTokenAmount(parseFloat(amount), IDRX_DECIMALS)
-        receipt = await withdraw(user.phone, toAddress, amountBigInt)
+        throw new Error(result.error || "Withdrawal failed")
       }
-
-      setTxHash(receipt.hash)
-      setSuccess(true)
-
-      // Refresh balance
-      setTimeout(() => {
-        refetchBalance()
-      }, 2000)
     } catch (err: any) {
       setError(err.message || "Withdrawal failed")
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -118,7 +100,12 @@ export default function WithdrawPage() {
             <div className="space-y-2">
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Withdrawal Successful!</h1>
               <p className="text-muted-foreground">
-                {withdrawAllFlag ? 'All funds withdrawn' : `${Number(fromTokenAmount(amountAfterFee, IDRX_DECIMALS)).toLocaleString()} IDRX withdrawn`}
+                {withdrawAllFlag
+                  ? 'All funds withdrawn'
+                  : withdrawResult
+                    ? `${Number(withdrawResult.amountAfterFee).toLocaleString()} IDRX withdrawn`
+                    : `${Number(estimatedAmountAfterFee).toLocaleString()} IDRX withdrawn`
+                }
               </p>
             </div>
 
@@ -186,7 +173,7 @@ export default function WithdrawPage() {
               onChange={(e) => setToAddress(e.target.value)}
               placeholder="0x..."
               className="w-full p-4 rounded-2xl bg-muted/50 border border-border text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
-              disabled={isLoading || isWithdrawing}
+              disabled={loading}
             />
           </div>
 
@@ -203,13 +190,13 @@ export default function WithdrawPage() {
                 }}
                 placeholder="Enter amount"
                 className="w-full p-4 rounded-2xl bg-muted/50 border border-border text-foreground text-lg font-semibold placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
-                disabled={isLoading || isWithdrawing || withdrawAllFlag}
+                disabled={loading || withdrawAllFlag}
               />
               <div className="absolute right-4 top-1/2 -translate-y-1/2">
                 <button
                   onClick={handleMax}
                   className="px-3 py-1 rounded-lg bg-accent/20 text-accent text-xs font-semibold hover:bg-accent/30 transition-colors"
-                  disabled={isLoading || isWithdrawing}
+                  disabled={loading}
                 >
                   MAX
                 </button>
@@ -227,14 +214,14 @@ export default function WithdrawPage() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Fee (1%)</span>
                 <span className="text-sm font-semibold text-orange-500">
-                  -{Number(fromTokenAmount(fee, IDRX_DECIMALS)).toLocaleString()} IDRX
+                  -{Number(estimatedFee).toLocaleString()} IDRX
                 </span>
               </div>
               <div className="h-px bg-border" />
               <div className="flex justify-between items-center">
                 <span className="text-sm font-semibold text-foreground">You'll Receive</span>
                 <span className="text-lg font-bold text-green-500">
-                  {Number(fromTokenAmount(amountAfterFee, IDRX_DECIMALS)).toLocaleString()} IDRX
+                  {Number(estimatedAmountAfterFee).toLocaleString()} IDRX
                 </span>
               </div>
             </div>
@@ -249,7 +236,7 @@ export default function WithdrawPage() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Est. Fee (1%)</span>
                 <span className="text-sm font-semibold text-orange-500">
-                  -{Number(fromTokenAmount(fee, IDRX_DECIMALS)).toLocaleString()} IDRX
+                  ~{(parseFloat(formattedBalance) * 0.01).toFixed(6)} IDRX
                 </span>
               </div>
             </div>
@@ -267,19 +254,18 @@ export default function WithdrawPage() {
             <button
               onClick={handleWithdraw}
               disabled={
-                isLoading ||
-                isWithdrawing ||
+                loading ||
                 !toAddress ||
                 (!amount && !withdrawAllFlag)
               }
               className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-accent to-primary text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
             >
-              {isLoading || isWithdrawing ? 'Withdrawing...' : `Withdraw ${withdrawAllFlag ? 'All' : amount} IDRX`}
+              {loading ? 'Withdrawing...' : `Withdraw ${withdrawAllFlag ? 'All' : amount} IDRX`}
             </button>
 
             <button
               onClick={handleBack}
-              disabled={isLoading || isWithdrawing}
+              disabled={loading}
               className="w-full py-4 px-6 rounded-2xl bg-muted/50 text-foreground font-semibold text-lg hover:bg-muted transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel

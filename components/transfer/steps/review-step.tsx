@@ -5,17 +5,13 @@ import { ArrowLeft, Check, AlertCircle } from "lucide-react"
 export default function ReviewStep({
   receiver,
   amount,
-  isApproved,
   isLoading,
-  onApprove,
   onConfirm,
   onBack,
 }: {
   receiver: { name: string; phone: string }
   amount: number
-  isApproved: boolean
   isLoading: boolean
-  onApprove: () => void
   onConfirm: () => void
   onBack: () => void
 }) {
@@ -74,63 +70,28 @@ export default function ReviewStep({
         </div>
       </div>
 
-      {/* Approval Status */}
-      {!isApproved && (
-        <div className="flex gap-3 p-4 sm:p-5 rounded-2xl bg-yellow-500/10 border border-yellow-500/20">
-          <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-yellow-500 dark:text-yellow-400">Approval Required</p>
-            <p className="text-xs text-muted-foreground">
-              Please approve the smart contract to spend your IDRX tokens before transferring.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {isApproved && (
-        <div className="flex gap-3 p-4 sm:p-5 rounded-2xl bg-green-500/10 border border-green-500/20">
-          <Check className="w-5 h-5 sm:w-6 sm:h-6 text-green-500 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-green-500 dark:text-green-400">Approved</p>
-            <p className="text-xs text-muted-foreground">
-              Contract approved. You can now proceed with the transfer.
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Info Alert */}
       <div className="flex gap-3 p-4 sm:p-5 rounded-2xl bg-accent/10 dark:bg-accent/5 border border-accent/20">
         <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-accent flex-shrink-0 mt-0.5" />
         <p className="text-xs sm:text-sm font-medium text-accent leading-relaxed">
-          Transfer will be processed instantly on the blockchain.
+          Transfer will be processed instantly on the blockchain. Server will handle token approval automatically.
         </p>
       </div>
 
       {/* Action Buttons */}
       <div className="flex flex-col-reverse sm:flex-col gap-3 sm:gap-4">
-        {!isApproved ? (
-          <button
-            onClick={onApprove}
-            disabled={isLoading}
-            className="btn-primary w-full text-base sm:text-lg font-bold py-3 sm:py-4 flex items-center justify-center gap-2 hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? "Approving..." : "Approve Contract"}
-          </button>
-        ) : (
-          <button
-            onClick={onConfirm}
-            disabled={isLoading}
-            className="btn-primary w-full text-base sm:text-lg font-bold py-3 sm:py-4 flex items-center justify-center gap-2 hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? "Sending..." : (
-              <>
-                <Check className="w-5 h-5 sm:w-6 sm:h-6" />
-                Confirm & Send
-              </>
-            )}
-          </button>
-        )}
+        <button
+          onClick={onConfirm}
+          disabled={isLoading}
+          className="btn-primary w-full text-base sm:text-lg font-bold py-3 sm:py-4 flex items-center justify-center gap-2 hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? "Sending..." : (
+            <>
+              <Check className="w-5 h-5 sm:w-6 sm:h-6" />
+              Send Transfer
+            </>
+          )}
+        </button>
 
         <button
           onClick={onBack}

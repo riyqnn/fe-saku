@@ -6,7 +6,7 @@ import { useRecentTransfers } from "@/hooks/useRecentTransfers"
 
 export default function RecentTransactions() {
   const { user } = useAuth()
-  const { transfers, refreshing: transfersRefreshing } = useRecentTransfers(user?.phone || null)
+  const { transfers, refreshing: transfersRefreshing } = useRecentTransfers(user?.phone_number || null)
 
   const formatTransactionTime = (isoString: string) => {
     const date = new Date(isoString)

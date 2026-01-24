@@ -24,8 +24,7 @@ export default function HomeHeader() {
 
   // Get user display name
   const getDisplayName = (): string => {
-    if (user?.name) return user.name
-    if (user?.phone) return user.phone
+    if (user?.phone_number) return user.phone_number
     return "User"
   }
 
@@ -48,7 +47,7 @@ export default function HomeHeader() {
             <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-foreground" />
           </button>
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold text-xs sm:text-sm shadow-lg">
-            {getInitials(user?.name, user?.phone)}
+            {getInitials(undefined, user?.phone_number)}
           </div>
         </div>
       </div>

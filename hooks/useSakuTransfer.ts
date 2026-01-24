@@ -3,41 +3,41 @@
 import { useState, useCallback } from "react"
 import { useAuth } from "./useAuth"
 
-export interface TransferParams {
-  receiverAddress: string
+export interface TransferByPhoneParams {
+  receiverPhone: string
   amount: string
-  receiverName?: string
 }
 
-export interface TransferResult {
+export interface TransferByPhoneResult {
   success: boolean
   transactionHash?: string
   blockNumber?: number
   gasUsed?: string
-  timestamp?: string
+  amount?: string
+  transferredTo?: string
+  approvalTxHash?: string
   error?: string
 }
 
-export function useTransfer() {
+export function useSakuTransfer() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<string | null>(null)
 
-  const transfer = useCallback(
-    async (params: TransferParams): Promise<TransferResult> => {
+  const transferByPhone = useCallback(
+    async (params: TransferByPhoneParams): Promise<TransferByPhoneResult> => {
       try {
         setLoading(true)
         setError(null)
         setTxHash(null)
 
-        // Validate inputs
         if (!user?.phone_number) {
           throw new Error("User not authenticated")
         }
 
-        if (!params.receiverAddress) {
-          throw new Error("Receiver address is required")
+        if (!params.receiverPhone) {
+          throw new Error("Receiver phone number is required")
         }
 
         if (!params.amount || isNaN(parseFloat(params.amount))) {
@@ -49,15 +49,15 @@ export function useTransfer() {
           throw new Error("Amount must be greater than 0")
         }
 
-        // Call transfer API - server will decrypt private key
-        const response = await fetch("/api/transfer", {
+        // Call transfer API - server will decrypt private key and handle approval
+        const response = await fetch("/api/transfer/phone", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
             phoneNumber: user.phone_number,
-            receiverAddress: params.receiverAddress,
+            receiverPhone: params.receiverPhone,
             amount: params.amount,
           }),
         })
@@ -74,7 +74,9 @@ export function useTransfer() {
           transactionHash: data.transactionHash,
           blockNumber: data.blockNumber,
           gasUsed: data.gasUsed,
-          timestamp: data.timestamp,
+          amount: data.amount,
+          transferredTo: data.transferredTo,
+          approvalTxHash: data.approvalTxHash,
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Unknown error"
@@ -87,11 +89,11 @@ export function useTransfer() {
         setLoading(false)
       }
     },
-    [user?.phone_number]
+    [user]
   )
 
   return {
-    transfer,
+    transferByPhone,
     loading,
     error,
     txHash,

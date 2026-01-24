@@ -44,7 +44,7 @@ export default function Home() {
         <BalanceCardSection />
 
         {/* Action Buttons */}
-        <QuickActions onTransferClick={() => setShowTransferModal(true)} />
+        <QuickActions />
 
         {/* Recent Transactions */}
         <RecentTransactions />

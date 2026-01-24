@@ -12,7 +12,7 @@ interface FaqsCardProps {
 }
 
 const FaqsCard = ({ faqsList, idx }: FaqsCardProps) => {
-  const answerElRef = useRef() as MutableRefObject<HTMLDivElement | null>;
+  const answerElRef = useRef<HTMLDivElement>(null) as MutableRefObject<HTMLDivElement | null>;
   const [state, setState] = useState(false);
   const [answerH, setAnswerH] = useState("0px");
 

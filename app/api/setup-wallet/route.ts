@@ -1,10 +1,10 @@
-import { createClient } from '@/lib/supabaseServer';
+import { createSakuServerClient } from '@/lib/supabaseServer';
 import { NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { encrypt } from '@/lib/encryp';
 
 export async function POST(req: Request) {
-  const supabase = createClient();
+  const supabase = await createSakuServerClient();
   
   try {
     // 1. Cek Auth Session

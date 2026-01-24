@@ -2,11 +2,8 @@
 
 import { useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
-import { useWallet } from "@/hooks/useWallet"
-import { useRegistry } from "@/hooks/useRegistry"
-import { useIDRX } from "@/hooks/useIDRX"
-import { toTokenAmount } from "@/lib/blockchain"
-import { IDRX_DECIMALS } from "@/lib/config"
+import { useSakuTransfer } from "@/hooks/useSakuTransfer"
+import { useBalance } from "@/hooks/useBalance"
 import ReceiverStep from "./steps/receiver-step"
 import AmountStep from "./steps/amount-step"
 import ReviewStep from "./steps/review-step"
@@ -14,15 +11,13 @@ import SuccessStep from "./steps/success-step"
 
 export default function TransferModal({ onClose }: { onClose: () => void }) {
   const { user } = useAuth()
-  const { signer } = useWallet()
-  const { transferByPhone } = useRegistry(signer)
-  const { approveUnlimited, allowance } = useIDRX(signer, user ? localStorage.getItem('walletAddress') || null : null)
+  const walletAddress = user?.wallet_address || null
+  const { transferByPhone, loading } = useSakuTransfer()
+  const { refetch: refetchBalance } = useBalance(walletAddress)
 
   const [step, setStep] = useState<"receiver" | "amount" | "review" | "success">("receiver")
   const [receiver, setReceiver] = useState<{ name: string; phone: string } | null>(null)
   const [amount, setAmount] = useState("")
-  const [isApproved, setIsApproved] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<string | null>(null)
 
@@ -31,48 +26,16 @@ export default function TransferModal({ onClose }: { onClose: () => void }) {
     setStep("amount")
   }
 
-  const handleAmountSubmit = async (amt: string) => {
+  const handleAmountSubmit = (amt: string) => {
     setAmount(amt)
-
-    // Check allowance
-    if (signer && receiver) {
-      try {
-        const amountBigInt = toTokenAmount(parseFloat(amt), IDRX_DECIMALS)
-        if (amountBigInt > 0n && allowance >= amountBigInt) {
-          setIsApproved(true)
-        }
-      } catch (err) {
-        console.error('Error checking allowance:', err)
-      }
-    }
-
     setStep("review")
-  }
-
-  const handleApprove = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-
-      if (!signer) {
-        throw new Error("Wallet not connected")
-      }
-
-      await approveUnlimited()
-      setIsApproved(true)
-    } catch (err: any) {
-      setError(err.message || "Failed to approve tokens")
-    } finally {
-      setIsLoading(false)
-    }
   }
 
   const handleConfirm = async () => {
     try {
-      setIsLoading(true)
       setError(null)
 
-      if (!receiver || !user?.phone || !signer) {
+      if (!receiver || !user?.phone_number) {
         throw new Error("Missing required information")
       }
 
@@ -80,19 +43,23 @@ export default function TransferModal({ onClose }: { onClose: () => void }) {
         throw new Error("Invalid amount")
       }
 
-      if (!isApproved) {
-        throw new Error("Please approve the contract first")
+      const result = await transferByPhone({
+        receiverPhone: receiver.phone,
+        amount: amount,
+      })
+
+      if (result.success) {
+        setTxHash(result.transactionHash || null)
+
+        // Refetch balance immediately after successful transfer
+        await refetchBalance()
+
+        setStep("success")
+      } else {
+        throw new Error(result.error || "Transfer failed")
       }
-
-      const amountBigInt = toTokenAmount(parseFloat(amount), IDRX_DECIMALS)
-      const receipt = await transferByPhone(receiver.phone, amountBigInt)
-
-      setTxHash(receipt.hash)
-      setStep("success")
     } catch (err: any) {
       setError(err.message || "Transfer failed")
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -131,14 +98,20 @@ export default function TransferModal({ onClose }: { onClose: () => void }) {
           <ReviewStep
             receiver={receiver!}
             amount={Number.parseInt(amount)}
-            isApproved={isApproved}
-            isLoading={isLoading}
-            onApprove={handleApprove}
+            isLoading={loading}
             onConfirm={handleConfirm}
             onBack={() => setStep("amount")}
           />
         )}
-        {step === "success" && <SuccessStep txHash={txHash} onComplete={handleComplete} />}
+        {step === "success" && (
+          <SuccessStep
+            txHash={txHash}
+            receiverName={receiver?.name || ""}
+            receiverPhone={receiver?.phone || ""}
+            amount={amount}
+            onComplete={handleComplete}
+          />
+        )}
       </div>
     </div>
   )

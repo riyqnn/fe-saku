@@ -3,69 +3,76 @@
 import { useState, useCallback } from "react"
 import { useAuth } from "./useAuth"
 
-export interface TransferParams {
-  receiverAddress: string
-  amount: string
-  receiverName?: string
+export interface WithdrawParams {
+  toAddress: string
+  amount?: string
+  withdrawAll?: boolean
 }
 
-export interface TransferResult {
+export interface WithdrawResult {
   success: boolean
   transactionHash?: string
   blockNumber?: number
   gasUsed?: string
-  timestamp?: string
+  amount?: string
+  fee?: string
+  amountAfterFee?: string
+  approvalTxHash?: string
   error?: string
 }
 
-export function useTransfer() {
+export function useSakuWithdraw() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<string | null>(null)
 
-  const transfer = useCallback(
-    async (params: TransferParams): Promise<TransferResult> => {
+  const withdraw = useCallback(
+    async (params: WithdrawParams): Promise<WithdrawResult> => {
       try {
         setLoading(true)
         setError(null)
         setTxHash(null)
 
-        // Validate inputs
         if (!user?.phone_number) {
           throw new Error("User not authenticated")
         }
 
-        if (!params.receiverAddress) {
-          throw new Error("Receiver address is required")
+        if (!params.toAddress) {
+          throw new Error("Destination address is required")
         }
 
-        if (!params.amount || isNaN(parseFloat(params.amount))) {
+        if (!params.amount && !params.withdrawAll) {
+          throw new Error("Either amount or withdrawAll flag is required")
+        }
+
+        if (params.amount && isNaN(parseFloat(params.amount))) {
           throw new Error("Valid amount is required")
         }
 
-        const amount = parseFloat(params.amount)
-        if (amount <= 0) {
+        const amount = params.amount ? parseFloat(params.amount) : 0
+        if (amount <= 0 && !params.withdrawAll) {
           throw new Error("Amount must be greater than 0")
         }
 
-        // Call transfer API - server will decrypt private key
-        const response = await fetch("/api/transfer", {
+        // Call withdraw API - server will decrypt private key
+        const response = await fetch("/api/withdraw", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
             phoneNumber: user.phone_number,
-            receiverAddress: params.receiverAddress,
+            toAddress: params.toAddress,
             amount: params.amount,
+            withdrawAll: params.withdrawAll || false,
           }),
         })
 
         const data = await response.json()
 
         if (!response.ok) {
-          throw new Error(data.error || "Transfer failed")
+          throw new Error(data.error || "Withdrawal failed")
         }
 
         setTxHash(data.transactionHash)
@@ -74,7 +81,10 @@ export function useTransfer() {
           transactionHash: data.transactionHash,
           blockNumber: data.blockNumber,
           gasUsed: data.gasUsed,
-          timestamp: data.timestamp,
+          amount: data.amount,
+          fee: data.fee,
+          amountAfterFee: data.amountAfterFee,
+          approvalTxHash: data.approvalTxHash,
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Unknown error"
@@ -87,11 +97,11 @@ export function useTransfer() {
         setLoading(false)
       }
     },
-    [user?.phone_number]
+    [user]
   )
 
   return {
-    transfer,
+    withdraw,
     loading,
     error,
     txHash,

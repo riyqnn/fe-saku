@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabaseClient';
+import { hashPhoneNumber } from '@/utils/phoneHash';
 
 export default function SetupWalletFlow() {
   const { user } = useAuth();
@@ -30,8 +31,8 @@ export default function SetupWalletFlow() {
   const handleVerifyOTP = async () => {
     setLoading(true);
     try {
-      // Dummy Hash (Gunakan library hash yang sama dengan backend)
-      const phoneHash = ethers.utils.id(phone); 
+      // Use the same hash library as the backend
+      const phoneHash = hashPhoneNumber(phone); 
 
       const res = await fetch('/api/setup-wallet', {
         method: 'POST',

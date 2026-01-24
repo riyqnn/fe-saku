@@ -42,7 +42,7 @@ export function useQRPayment(signer: ethers.Signer | null) {
       setError(null);
 
       if (!contract) throw new Error('Wallet not connected');
-      if (amount <= 0n) throw new Error('Amount must be greater than 0');
+      if (amount <= BigInt(0)) throw new Error('Amount must be greater than 0');
 
       const merchantHash = hashPhoneNumber(merchantPhone);
 
@@ -176,6 +176,7 @@ export function useQRPayment(signer: ethers.Signer | null) {
 
       // Check if 24 hours have passed
       const now = BigInt(Math.floor(Date.now() / 1000));
+      if (!contract) return false;
       const expiry = await contract.QR_PAYMENT_EXPIRY();
 
       return payment.timestamp + expiry < now;
@@ -211,10 +212,10 @@ export function useQRPayment(signer: ethers.Signer | null) {
       const expiryTime = payment.timestamp + expiry;
       const now = BigInt(Math.floor(Date.now() / 1000));
 
-      return expiryTime > now ? expiryTime - now : 0n;
+      return expiryTime > now ? expiryTime - now : BigInt(0);
     } catch (err) {
       console.error('Failed to calculate time until expiry:', err);
-      return 0n;
+      return BigInt(0);
     }
   };
 

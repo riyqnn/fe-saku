@@ -1,11 +1,9 @@
  "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowDownLeft, ArrowUpRight, Send, QrCode, Loader2 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
-import { supabase } from "@/lib/supabaseClient"
-import { hashPhoneNumber } from "@/utils/phoneHash"
 
 const quickActions = [
   {
@@ -44,41 +42,10 @@ const quickActions = [
 
 export default function QuickActions() {
   const router = useRouter()
-  const { user } = useAuth()
-  const [walletAddress, setWalletAddress] = useState<string | null>(null)
+  const { user, isLoading: isCheckingWallet } = useAuth()
+  const walletAddress = user?.wallet_address || null
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [isCheckingWallet, setIsCheckingWallet] = useState(true)
-
-  // Fetch wallet address from database
-  useEffect(() => {
-    const fetchWalletAddress = async () => {
-      try {
-        if (!user?.phone) {
-          setIsCheckingWallet(false)
-          return
-        }
-
-        setIsCheckingWallet(true)
-        const phoneHash = hashPhoneNumber(user.phone)
-
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("wallet_address")
-          .eq("phone_hash", phoneHash)
-          .single()
-
-        setWalletAddress(profile?.wallet_address || null)
-      } catch (err) {
-        console.error("Error fetching wallet:", err)
-        setWalletAddress(null)
-      } finally {
-        setIsCheckingWallet(false)
-      }
-    }
-
-    fetchWalletAddress()
-  }, [user?.phone])
 
   const handleAction = async (actionId: string, href: string) => {
     try {

@@ -3,41 +3,34 @@
 import { useState, useCallback } from "react"
 import { useAuth } from "./useAuth"
 
-export interface TransferParams {
-  receiverAddress: string
+export interface DepositParams {
   amount: string
-  receiverName?: string
 }
 
-export interface TransferResult {
+export interface DepositResult {
   success: boolean
   transactionHash?: string
   blockNumber?: number
   gasUsed?: string
-  timestamp?: string
+  approvalTxHash?: string
   error?: string
 }
 
-export function useTransfer() {
+export function useSakuDeposit() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<string | null>(null)
 
-  const transfer = useCallback(
-    async (params: TransferParams): Promise<TransferResult> => {
+  const deposit = useCallback(
+    async (params: DepositParams): Promise<DepositResult> => {
       try {
         setLoading(true)
         setError(null)
         setTxHash(null)
 
-        // Validate inputs
         if (!user?.phone_number) {
           throw new Error("User not authenticated")
-        }
-
-        if (!params.receiverAddress) {
-          throw new Error("Receiver address is required")
         }
 
         if (!params.amount || isNaN(parseFloat(params.amount))) {
@@ -49,15 +42,14 @@ export function useTransfer() {
           throw new Error("Amount must be greater than 0")
         }
 
-        // Call transfer API - server will decrypt private key
-        const response = await fetch("/api/transfer", {
+        // Call deposit API - server will decrypt private key
+        const response = await fetch("/api/deposit", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
             phoneNumber: user.phone_number,
-            receiverAddress: params.receiverAddress,
             amount: params.amount,
           }),
         })
@@ -65,7 +57,7 @@ export function useTransfer() {
         const data = await response.json()
 
         if (!response.ok) {
-          throw new Error(data.error || "Transfer failed")
+          throw new Error(data.error || "Deposit failed")
         }
 
         setTxHash(data.transactionHash)
@@ -74,7 +66,7 @@ export function useTransfer() {
           transactionHash: data.transactionHash,
           blockNumber: data.blockNumber,
           gasUsed: data.gasUsed,
-          timestamp: data.timestamp,
+          approvalTxHash: data.approvalTxHash,
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Unknown error"
@@ -87,11 +79,11 @@ export function useTransfer() {
         setLoading(false)
       }
     },
-    [user?.phone_number]
+    [user]
   )
 
   return {
-    transfer,
+    deposit,
     loading,
     error,
     txHash,
