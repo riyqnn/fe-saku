@@ -8,6 +8,7 @@ interface UserProfile {
   id: string
   phone_number: string
   wallet_address: string
+  full_name: string
   is_verified: boolean
 }
 
@@ -43,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { data: profile, error: dbError } = await supabase
         .from('profiles')
-        .select('id, phone_number, wallet_address, is_verified')
+        .select('id, phone_number, wallet_address, full_name, is_verified')
         .eq('id', session.user.id)
         .maybeSingle(); 
 

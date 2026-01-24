@@ -8,6 +8,8 @@ import { useBalance } from "@/hooks/useBalance"
 export default function BalanceCardSection() {
   const { user } = useAuth()
   const [walletAddress, setWalletAddress] = useState<string | null>(null)
+  const [phoneNumber, setPhoneNumber] = useState<string | null>(null)
+  const [fullName, setFullName] = useState<string | null>(null)
   const [isLoadingWallet, setIsLoadingWallet] = useState(true)
   const { formattedBalance, refreshing } = useBalance(walletAddress)
   const [balanceVisible, setBalanceVisible] = useState(true)
@@ -16,9 +18,11 @@ export default function BalanceCardSection() {
   // Get wallet address from localStorage (set during OTP verification)
   useEffect(() => {
     try {
-      const storedWallet = localStorage.getItem('walletAddress')
-      setWalletAddress(storedWallet)
-      console.log('✅ [BalanceCardSection] Wallet loaded from localStorage:', storedWallet)
+      if (user?.id) {
+        setWalletAddress(user?.wallet_address);
+        setPhoneNumber(user?.phone_number);
+        setFullName(user?.full_name);
+      }
     } catch (err) {
       console.error("Failed to get wallet address from localStorage:", err)
       setWalletAddress(null)
@@ -42,7 +46,7 @@ export default function BalanceCardSection() {
       <div className="relative rounded-3xl sm:rounded-4xl overflow-hidden group">
         {/* Gradient Background */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary via-accent to-primary opacity-100 dark:opacity-80" />
-        
+
         {/* Glass overlay */}
         <div className="absolute inset-0 bg-white/10 dark:bg-white/5 backdrop-blur-sm" />
 
@@ -103,7 +107,7 @@ export default function BalanceCardSection() {
             <div className="space-y-1.5">
               <p className="text-xs sm:text-sm font-medium text-white/80">Phone</p>
               <p className="font-semibold text-sm sm:text-base text-white">
-                {user?.phone ? user.phone.slice(-4) : '—'}
+                +{phoneNumber}
               </p>
             </div>
           </div>

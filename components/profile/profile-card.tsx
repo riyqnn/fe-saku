@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import { Copy, CheckCircle, Shield, Smartphone, User, AlertCircle, Edit2, Save, X, Loader2 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { supabase } from "@/lib/supabaseClient"
-import { time } from "console"
 
 export default function ProfileCard() {
   const { user } = useAuth()
@@ -23,6 +22,7 @@ export default function ProfileCard() {
       if (!user?.id) return
 
       // 1. Ambil data dari Supabase
+      // Sebenernya ini salah sih ngambil data user nya dua kali wkwk
       const { data, error } = await supabase
         .from('profiles')
         .select('full_name, wallet_address, phone_number, created_at')
@@ -61,7 +61,7 @@ export default function ProfileCard() {
       }
     }
     fetchProfile()
-  }, [user])
+  }, [])
 
   const handleSaveName = async () => {
     if (!user?.id) return
