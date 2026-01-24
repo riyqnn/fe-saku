@@ -17,8 +17,9 @@ export default function LoginScreen() {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   const formatPhone = (num: string) => {
-    const cleanNum = num.replace(/\D/g, '')
-    return cleanNum.startsWith('0') ? `+62${cleanNum.slice(1)}` : `+62${cleanNum}`
+    const cleanNum = num.replace(/\D/g, '');
+    // Kirim format 62xxx saja, jangan pakai tanda '+' karena Fonnte lebih suka angka murni
+    return cleanNum.startsWith('0') ? `62${cleanNum.slice(1)}` : cleanNum.startsWith('62') ? cleanNum : `62${cleanNum}`;
   }
 
   useEffect(() => {
@@ -28,20 +29,26 @@ export default function LoginScreen() {
   }, [isAuthenticated, isLoading, router])
 
   const handleSendOtp = async () => {
-    if (phone.length < 10) return alert("Nomor HP minimal 10 digit co")
-    setLoading(true)
+    if (phone.length < 10) return alert("Nomor HP minimal 10 digit co");
+    setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: formatPhone(phone),
-      })
-      if (error) throw error
-      setLoginMethod("otp")
+      // Kita panggil API route kustom kita, bukan supabase.auth lagi
+      const res = await fetch('/api/request-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formatPhone(phone) }),
+      });
+
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Gagal kirim OTP");
+
+      setLoginMethod("otp");
     } catch (error: any) {
-      alert("Gagal kirim OTP: " + (error.message || "Cek kuota/koneksi"))
+      alert("Gagal kirim OTP: " + error.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleVerifyOtp = async () => {
     setLoading(true);
@@ -49,34 +56,31 @@ export default function LoginScreen() {
       const otpString = otp.join("");
       const formattedPhone = formatPhone(phone);
       
-      const { data: authData, error: verifyError } = await supabase.auth.verifyOtp({
-        phone: formattedPhone,
-        token: otpString,
-        type: 'sms',
-      });
-
-      if (verifyError) throw verifyError;
-
-      const userId = authData.user?.id;
-
-      const res = await fetch('/api/auth', { 
+      // 1. Panggil API verify-otp kustom kita
+      const res = await fetch('/api/verify-otp', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           phone: formattedPhone,
-          uid: userId
+          otp: otpString
         }),
       });
       
       const result = await res.json();
       
-      if (!res.ok) throw new Error(result.error || "Gagal sinkronisasi backend");
+      if (!res.ok) throw new Error(result.error || "Gagal verifikasi OTP");
 
-      console.log("✅ Success Auth & On-chain:", result);
-      
+      console.log("✅ Success Verify & On-chain:", result);
+
+      // 2. Karena ini sistem mandiri, kamu perlu menyimpan status login 
+      // di LocalStorage atau State (karena kita tidak pakai Supabase Auth Session)
+      localStorage.setItem('saku_user_phone', formattedPhone);
+      localStorage.setItem('saku_wallet_address', result.walletAddress);
+
+      // Update state auth di aplikasi
       await refreshUser();
 
-      alert(result.isNewUser ? "🚀 Wallet created on-chain!" : "👋 Welcome back!");
+      alert(result.isNewRegistration ? "🚀 Wallet created on-chain!" : "👋 Welcome back!");
       
       router.replace('/home'); 
       
