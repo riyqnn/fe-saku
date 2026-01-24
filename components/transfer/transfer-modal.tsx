@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { useSakuTransfer } from "@/hooks/useSakuTransfer"
 import { useBalance } from "@/hooks/useBalance"
+import { eventBus, EVENTS } from "@/lib/events"
 import ReceiverStep from "./steps/receiver-step"
 import AmountStep from "./steps/amount-step"
 import ReviewStep from "./steps/review-step"
@@ -51,7 +52,10 @@ export default function TransferModal({ onClose }: { onClose: () => void }) {
       if (result.success) {
         setTxHash(result.transactionHash || null)
 
-        // Refetch balance immediately after successful transfer
+        // Emit global balance refresh event for all components
+        eventBus.emit(EVENTS.BALANCE_REFRESH)
+
+        // Also refetch local balance for this modal instance
         await refetchBalance()
 
         setStep("success")

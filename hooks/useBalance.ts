@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import { IDRX_ABI } from '@/lib/abi';
 import { CONTRACTS, IDRX_DECIMALS } from '@/lib/config';
 import { fromTokenAmount } from '@/lib/blockchain';
+import { eventBus, EVENTS } from '@/lib/events';
 
 interface BalanceData {
   balance: bigint;
@@ -86,6 +87,22 @@ export function useBalance(address: string | null, refreshTrigger?: number) {
     }, 5000); // Reduced from 10000 (10s) to 5000 (5s)
 
     return () => clearInterval(interval);
+  }, [address]);
+
+  // Listen for balance refresh events
+  useEffect(() => {
+    if (!address) return;
+
+    const handleRefresh = () => {
+      console.log('🔄 [useBalance] Refresh triggered by event');
+      fetchBalance();
+    };
+
+    eventBus.on(EVENTS.BALANCE_REFRESH, handleRefresh);
+
+    return () => {
+      eventBus.off(EVENTS.BALANCE_REFRESH, handleRefresh);
+    };
   }, [address]);
 
   return {
