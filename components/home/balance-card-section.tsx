@@ -6,13 +6,32 @@ import { useAuth } from "@/hooks/useAuth"
 import { useBalance } from "@/hooks/useBalance"
 
 export default function BalanceCardSection() {
-  const { user, isLoading: isLoadingAuth } = useAuth()
-  const walletAddress = user?.wallet_address || null
+  const { user } = useAuth()
+  const [walletAddress, setWalletAddress] = useState<string | null>(null)
+  const [phoneNumber, setPhoneNumber] = useState<string | null>(null)
+  const [fullName, setFullName] = useState<string | null>(null)
+  const [isLoadingWallet, setIsLoadingWallet] = useState(true)
   const { formattedBalance, refreshing } = useBalance(walletAddress)
   const [balanceVisible, setBalanceVisible] = useState(true)
   const [copied, setCopied] = useState(false)
 
-  const displayBalance = !isLoadingAuth ? formattedBalance : "..."
+  // Get wallet address from localStorage (set during OTP verification)
+  useEffect(() => {
+    try {
+      if (user?.id) {
+        setWalletAddress(user?.wallet_address);
+        setPhoneNumber(user?.phone_number);
+        setFullName(user?.full_name);
+      }
+    } catch (err) {
+      console.error("Failed to get wallet address from localStorage:", err)
+      setWalletAddress(null)
+    } finally {
+      setIsLoadingWallet(false)
+    }
+  }, [])
+
+  const displayBalance = !isLoadingWallet ? formattedBalance : "..."
 
   const handleCopyAddress = async () => {
     if (walletAddress) {
@@ -27,7 +46,7 @@ export default function BalanceCardSection() {
       <div className="relative rounded-3xl sm:rounded-4xl overflow-hidden group">
         {/* Gradient Background */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary via-accent to-primary opacity-100 dark:opacity-80" />
-        
+
         {/* Glass overlay */}
         <div className="absolute inset-0 bg-white/10 dark:bg-white/5 backdrop-blur-sm" />
 
@@ -42,7 +61,7 @@ export default function BalanceCardSection() {
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-4xl sm:text-5xl font-bold text-white flex items-center gap-3">
                 {balanceVisible ? displayBalance : "••••••"}
-                {(refreshing || isLoadingAuth) && (
+                {(refreshing || isLoadingWallet) && (
                   <Loader2 className="w-6 h-6 sm:w-7 sm:h-7 animate-spin text-white/80 flex-shrink-0" />
                 )}
               </h2>
@@ -68,9 +87,9 @@ export default function BalanceCardSection() {
               <p className="text-xs sm:text-sm font-medium text-white/80">Wallet Address</p>
               <div className="flex items-center gap-2">
                 <p className="font-mono text-xs sm:text-sm font-semibold text-white truncate">
-                  {isLoadingAuth ? "Loading..." : walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Not created'}
+                  {isLoadingWallet ? "Loading..." : walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Not created'}
                 </p>
-                {!isLoadingAuth && walletAddress && (
+                {!isLoadingWallet && walletAddress && (
                   <button
                     onClick={handleCopyAddress}
                     className="p-1.5 hover:bg-white/20 rounded-lg transition-colors flex-shrink-0"
@@ -88,7 +107,7 @@ export default function BalanceCardSection() {
             <div className="space-y-1.5">
               <p className="text-xs sm:text-sm font-medium text-white/80">Phone</p>
               <p className="font-semibold text-sm sm:text-base text-white">
-                {user?.phone_number ? user.phone_number.slice(-4) : '—'}
+                +{phoneNumber}
               </p>
             </div>
           </div>
