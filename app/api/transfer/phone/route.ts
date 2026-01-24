@@ -55,10 +55,6 @@ export async function POST(req: Request) {
     const wallet = new ethers.Wallet(privateKey, provider);
 
     // 6. Setup contract instances
-    console.log('[Transfer] Using IDRX address:', CONTRACTS.IDRX_ADDRESS);
-    console.log('[Transfer] Using Registry address:', CONTRACTS.REGISTRY_ADDRESS);
-    console.log('[Transfer] Wallet address:', wallet.address);
-
     const registryContract = new ethers.Contract(
       CONTRACTS.REGISTRY_ADDRESS,
       SAKU_REGISTRY_ABI,
@@ -73,10 +69,9 @@ export async function POST(req: Request) {
 
     // Verify the registry's internal IDRX address matches our config
     const registryIdrxAddress = await registryContract.idrxToken();
-    console.log('[Transfer] Registry internal IDRX address:', registryIdrxAddress);
 
     if (registryIdrxAddress.toLowerCase() !== CONTRACTS.IDRX_ADDRESS.toLowerCase()) {
-      console.error('[Transfer] MISMATCH! Registry expects:', registryIdrxAddress, 'but we are using:', CONTRACTS.IDRX_ADDRESS);
+      console.error('IDRX address mismatch. Registry expects:', registryIdrxAddress, 'config has:', CONTRACTS.IDRX_ADDRESS);
       throw new Error(`IDRX address mismatch. Registry expects ${registryIdrxAddress} but config has ${CONTRACTS.IDRX_ADDRESS}`);
     }
 
@@ -86,9 +81,6 @@ export async function POST(req: Request) {
 
     // Check if receiver is registered
     const receiverAddress = await registryContract.getAccount(receiverHash);
-    console.log('[Transfer] Receiver phone:', receiverPhone);
-    console.log('[Transfer] Receiver hash:', receiverHash);
-    console.log('[Transfer] Receiver address:', receiverAddress);
 
     if (receiverAddress === ethers.ZeroAddress) {
       return NextResponse.json({
@@ -98,8 +90,6 @@ export async function POST(req: Request) {
 
     // Check user's IDRX balance
     const balance = await idrxContract.balanceOf(wallet.address);
-    console.log('[Transfer] User balance:', ethers.formatUnits(balance, 6), 'IDRX');
-    console.log('[Transfer] Amount to transfer:', ethers.formatUnits(amountBigInt, 6), 'IDRX');
 
     if (balance < amountBigInt) {
       return NextResponse.json({
@@ -111,25 +101,15 @@ export async function POST(req: Request) {
     let approvalTxHash: string | undefined;
     let allowance = await idrxContract.allowance(wallet.address, CONTRACTS.REGISTRY_ADDRESS);
 
-    console.log('[Transfer] Initial allowance:', allowance.toString());
-    console.log('[Transfer] Amount to transfer:', amountBigInt.toString());
-
     if (allowance < amountBigInt) {
-      console.log('[Transfer] Approving unlimited...');
-
       // Approve unlimited
       const approveTx = await idrxContract.approve(
         CONTRACTS.REGISTRY_ADDRESS,
         ethers.MaxUint256
       );
-      console.log('[Transfer] Approval tx hash:', approveTx.hash);
-      console.log('[Transfer] Waiting for approval confirmation...');
 
       const approveReceipt = await approveTx.wait();
       approvalTxHash = approveReceipt?.hash;
-
-      console.log('[Transfer] Approval confirmed, block:', approveReceipt?.blockNumber);
-      console.log('[Transfer] Approval status:', approveReceipt?.status);
 
       // Check if the approval transaction was successful
       if (approveReceipt?.status !== 1) {
@@ -143,15 +123,12 @@ export async function POST(req: Request) {
       let retries = 5;
       for (let i = 0; i < retries; i++) {
         allowance = await idrxContract.allowance(wallet.address, CONTRACTS.REGISTRY_ADDRESS);
-        console.log(`[Transfer] Check ${i + 1}/${retries}: New allowance after approval:`, allowance.toString());
 
         if (allowance >= amountBigInt) {
-          console.log('[Transfer] ✓ Allowance verified successfully!');
           break;
         }
 
         if (i < retries - 1) {
-          console.log('[Transfer] Allowance not updated yet, waiting 2 seconds...');
           await new Promise(resolve => setTimeout(resolve, 2000));
         } else {
           throw new Error(`Approval failed after ${retries} retries. Allowance is ${allowance.toString()}, need ${amountBigInt.toString()}`);
@@ -160,12 +137,8 @@ export async function POST(req: Request) {
     }
 
     // 9. Execute transferIDRX
-    console.log('[Transfer] Executing transferIDRX...');
     const tx = await registryContract.transferIDRX(receiverHash, amountBigInt);
-    console.log('[Transfer] Transfer tx hash:', tx.hash);
-
     const receipt = await tx.wait();
-    console.log('[Transfer] Transfer confirmed, block:', receipt.blockNumber);
 
     // 10. Parse Transferred event for confirmation
     let transferredAmount = BigInt(0);

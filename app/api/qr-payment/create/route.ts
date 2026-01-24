@@ -75,25 +75,15 @@ export async function POST(req: Request) {
     let approvalTxHash: string | undefined;
     let allowance = await idrxContract.allowance(wallet.address, CONTRACTS.REGISTRY_ADDRESS);
 
-    console.log('[Create QR] Initial allowance:', allowance.toString());
-    console.log('[Create QR] Amount for QR payment:', amountBigInt.toString());
-
     if (allowance < amountBigInt) {
-      console.log('[Create QR] Approving unlimited...');
-
       // Approve unlimited
       const approveTx = await idrxContract.approve(
         CONTRACTS.REGISTRY_ADDRESS,
         ethers.MaxUint256
       );
-      console.log('[Create QR] Approval tx hash:', approveTx.hash);
-      console.log('[Create QR] Waiting for approval confirmation...');
 
       const approveReceipt = await approveTx.wait();
       approvalTxHash = approveReceipt?.hash;
-
-      console.log('[Create QR] Approval confirmed, block:', approveReceipt?.blockNumber);
-      console.log('[Create QR] Approval status:', approveReceipt?.status);
 
       // Check if the approval transaction was successful
       if (approveReceipt?.status !== 1) {
@@ -107,15 +97,12 @@ export async function POST(req: Request) {
       let retries = 5;
       for (let i = 0; i < retries; i++) {
         allowance = await idrxContract.allowance(wallet.address, CONTRACTS.REGISTRY_ADDRESS);
-        console.log(`[Create QR] Check ${i + 1}/${retries}: New allowance after approval:`, allowance.toString());
 
         if (allowance >= amountBigInt) {
-          console.log('[Create QR] ✓ Allowance verified successfully!');
           break;
         }
 
         if (i < retries - 1) {
-          console.log('[Create QR] Allowance not updated yet, waiting 2 seconds...');
           await new Promise(resolve => setTimeout(resolve, 2000));
         } else {
           throw new Error(`Approval failed after ${retries} retries. Allowance is ${allowance.toString()}, need ${amountBigInt.toString()}`);

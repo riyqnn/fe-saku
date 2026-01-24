@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // 2. Read request body ONCE
+    // 2. Read request body
     const { phoneNumber, amount } = await req.json();
 
     if (!phoneNumber || !amount) {
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org');
     const wallet = new ethers.Wallet(privateKey, provider);
 
-    // 4. Setup contract instances
+    // 6. Setup contract instances
     const registryContract = new ethers.Contract(
       CONTRACTS.REGISTRY_ADDRESS,
       SAKU_REGISTRY_ABI,
@@ -67,31 +67,21 @@ export async function POST(req: Request) {
       wallet
     );
 
-    // 5. Check and handle approval if needed
+    // 7. Check and handle approval if needed
     const amountBigInt = ethers.parseUnits(amount, 6);
     let allowance = await idrxContract.allowance(wallet.address, CONTRACTS.REGISTRY_ADDRESS);
-
-    console.log('[Deposit] Initial allowance:', allowance.toString());
-    console.log('[Deposit] Amount to deposit:', amountBigInt.toString());
 
     let approvalTxHash: string | undefined;
 
     if (allowance < amountBigInt) {
-      console.log('[Deposit] Approving unlimited...');
-
       // Approve unlimited
       const approveTx = await idrxContract.approve(
         CONTRACTS.REGISTRY_ADDRESS,
         ethers.MaxUint256
       );
-      console.log('[Deposit] Approval tx hash:', approveTx.hash);
-      console.log('[Deposit] Waiting for approval confirmation...');
 
       const approveReceipt = await approveTx.wait();
       approvalTxHash = approveReceipt?.hash;
-
-      console.log('[Deposit] Approval confirmed, block:', approveReceipt?.blockNumber);
-      console.log('[Deposit] Approval status:', approveReceipt?.status);
 
       // Check if the approval transaction was successful
       if (approveReceipt?.status !== 1) {
@@ -105,15 +95,12 @@ export async function POST(req: Request) {
       let retries = 5;
       for (let i = 0; i < retries; i++) {
         allowance = await idrxContract.allowance(wallet.address, CONTRACTS.REGISTRY_ADDRESS);
-        console.log(`[Deposit] Check ${i + 1}/${retries}: New allowance after approval:`, allowance.toString());
 
         if (allowance >= amountBigInt) {
-          console.log('[Deposit] ✓ Allowance verified successfully!');
           break;
         }
 
         if (i < retries - 1) {
-          console.log('[Deposit] Allowance not updated yet, waiting 2 seconds...');
           await new Promise(resolve => setTimeout(resolve, 2000));
         } else {
           throw new Error(`Approval failed after ${retries} retries. Allowance is ${allowance.toString()}, need ${amountBigInt.toString()}`);
@@ -121,7 +108,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 6. Execute deposit
+    // 8. Execute deposit
     const depositTx = await registryContract.deposit(phoneHash, amountBigInt);
     const receipt = await depositTx.wait();
 
