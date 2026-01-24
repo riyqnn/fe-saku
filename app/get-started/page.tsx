@@ -78,7 +78,7 @@ export default function LoginScreen() {
 
       alert(result.isNewUser ? "🚀 Wallet created on-chain!" : "👋 Welcome back!");
       
-      router.replace('/'); 
+      router.replace('/home'); 
       
     } catch (error: any) {
       alert("Error: " + error.message);
