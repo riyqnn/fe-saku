@@ -247,10 +247,10 @@ export function useRegistry(signer?: ethers.Signer | null) {
   };
 
   // ============================================================
-  // WRITE FUNCTIONS - DEPOSIT
+  // WRITE FUNCTIONS - TOPUP
   // ============================================================
 
-  const deposit = async (phoneNumber: string, amount: bigint) => {
+  const topup = async (phoneNumber: string, amount: bigint) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -258,7 +258,7 @@ export function useRegistry(signer?: ethers.Signer | null) {
       if (!contract) throw new Error('Wallet not connected');
 
       const phoneHash = hashPhone(phoneNumber);
-      const tx = await contract.deposit(phoneHash, amount);
+      const tx = await contract.topup(phoneHash, amount);
       const receipt = await tx.wait();
 
       return receipt;
@@ -270,7 +270,7 @@ export function useRegistry(signer?: ethers.Signer | null) {
     }
   };
 
-  const depositTo = async (receiverPhone: string, amount: bigint) => {
+  const topupTo = async (receiverPhone: string, amount: bigint) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -278,7 +278,7 @@ export function useRegistry(signer?: ethers.Signer | null) {
       if (!contract) throw new Error('Wallet not connected');
 
       const receiverHash = hashPhone(receiverPhone);
-      const tx = await contract.depositTo(receiverHash, amount);
+      const tx = await contract.topupTo(receiverHash, amount);
       const receipt = await tx.wait();
 
       return receipt;
@@ -475,9 +475,9 @@ export function useRegistry(signer?: ethers.Signer | null) {
     transferByAddress,
     batchTransferByPhone,
 
-    // Deposit functions
-    deposit,
-    depositTo,
+    // Topup functions
+    topup,
+    topupTo,
 
     // Withdraw functions
     withdraw,

@@ -108,9 +108,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // 8. Execute deposit
-    const depositTx = await registryContract.deposit(phoneHash, amountBigInt);
-    const receipt = await depositTx.wait();
+    // 8. Execute topup
+    const topupTx = await registryContract.topup(phoneHash, amountBigInt);
+    const receipt = await topupTx.wait();
 
     return NextResponse.json({
       success: true,
@@ -121,9 +121,9 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
-    console.error('Deposit Error:', error);
+    console.error('Topup Error:', error);
     return NextResponse.json({
-      error: error.message || 'Deposit failed'
+      error: error.message || 'Topup failed'
     }, { status: 500 });
   }
 }

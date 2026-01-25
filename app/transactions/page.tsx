@@ -19,11 +19,11 @@ const TRANSACTION_CONFIG: Record<string, { icon: any; bgClass: string; textClass
     textClass: "text-green-600 dark:text-green-400",
     label: "Transfer Received",
   },
-  deposit: {
+  topup: {
     icon: Wallet,
     bgClass: "bg-blue-100 dark:bg-blue-900/30",
     textClass: "text-blue-600 dark:text-blue-400",
-    label: "Deposit",
+    label: "Top Up",
   },
   withdraw: {
     icon: DollarSign,
@@ -100,7 +100,7 @@ export default function TransactionsPage() {
   }
 
   const getAmountDisplay = (tx: Transaction) => {
-    const isPositive = ["transfer_received", "deposit", "qr_claimed"].includes(tx.type)
+    const isPositive = ["transfer_received", "topup", "qr_claimed"].includes(tx.type)
     return {
       prefix: isPositive ? "+" : "-",
       amount: tx.amount,

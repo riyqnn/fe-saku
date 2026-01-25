@@ -17,9 +17,9 @@ export const SAKU_REGISTRY_ABI = [
     "inputs": [
       {"indexed": true, "internalType": "bytes32", "name": "phoneHash", "type": "bytes32"},
       {"indexed": true, "internalType": "address", "name": "wallet", "type": "address"},
-      {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
+      {"indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256"}
     ],
-    "name": "Deposited",
+    "name": "ToppedUp",
     "type": "event"
   },
   {
@@ -137,7 +137,7 @@ export const SAKU_REGISTRY_ABI = [
       {"internalType": "bytes32", "name": "phoneHash", "type": "bytes32"},
       {"internalType": "uint256", "name": "amount", "type": "uint256"}
     ],
-    "name": "deposit",
+    "name": "topup",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -147,7 +147,7 @@ export const SAKU_REGISTRY_ABI = [
       {"internalType": "bytes32", "name": "receiverHash", "type": "bytes32"},
       {"internalType": "uint256", "name": "amount", "type": "uint256"}
     ],
-    "name": "depositTo",
+    "name": "topupTo",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

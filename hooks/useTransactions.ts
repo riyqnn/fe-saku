@@ -8,7 +8,7 @@ import { CONTRACTS, NETWORK_CONFIG } from "@/lib/config"
 
 export interface Transaction {
   id: string
-  type: "transfer_sent" | "transfer_received" | "deposit" | "withdraw" | "qr_created" | "qr_claimed" | "qr_refunded"
+  type: "transfer_sent" | "transfer_received" | "topup" | "withdraw" | "qr_created" | "qr_claimed" | "qr_refunded"
   amount: string
   amountRaw: bigint
   timestamp: string
@@ -110,10 +110,10 @@ export function useTransactions(autoRefresh = true) {
           const batchTransactions: Transaction[] = []
 
           // Fetch all event types for this batch in parallel
-          const [transferEvents, depositEvents, withdrawEvents, qrCreatedEvents, qrClaimedEvents] =
+          const [transferEvents, topupEvents, withdrawEvents, qrCreatedEvents, qrClaimedEvents] =
             await Promise.allSettled([
               registryContract.queryFilter(registryContract.filters.Transferred(), start, end),
-              registryContract.queryFilter(registryContract.filters.Deposited(), start, end),
+              registryContract.queryFilter(registryContract.filters.ToppedUp(), start, end),
               registryContract.queryFilter(registryContract.filters.Withdrawn(), start, end),
               registryContract.queryFilter(registryContract.filters.QRPaymentCreated(), start, end),
               registryContract.queryFilter(registryContract.filters.QRPaymentClaimed(), start, end),
@@ -146,17 +146,49 @@ export function useTransactions(autoRefresh = true) {
             }
           }
 
-          // Process Deposit events
-          if (depositEvents.status === "fulfilled") {
-            for (const event of depositEvents.value) {
+          // Process Topup events
+          if (topupEvents.status === "fulfilled") {
+            for (const event of topupEvents.value) {
               if (!event.args) continue
-              const { wallet, amount } = event.args
+              const { wallet } = event.args
               const isForUser = wallet.toLowerCase() === user.wallet_address.toLowerCase()
 
               if (isForUser) {
+                // ToppedUp event doesn't include amount, need to fetch from transaction receipt
+                let amount = BigInt(0)
+                try {
+                  const receipt = await provider.getTransactionReceipt(event.transactionHash)
+                  if (receipt && receipt.logs) {
+                    for (const log of receipt.logs) {
+                      if (log.topics && log.topics.length > 0) {
+                        try {
+                          const parsed = registryContract.interface.parseLog({ topics: log.topics as string[], data: log.data })
+                          if (parsed && parsed.name === 'ToppedUp') {
+                            // The amount is in the transaction input data, decode it
+                            const tx = await provider.getTransaction(event.transactionHash)
+                            if (tx && tx.data) {
+                              // Decode the transaction data to get the amount
+                              // topup(bytes32 phoneHash, uint256 amount)
+                              // Function selector = first 4 bytes, then phoneHash (32 bytes), then amount (32 bytes)
+                              const data = tx.data.slice(10 + 64) // Skip function selector (10 chars) and phoneHash (64 chars)
+                              amount = BigInt('0x' + data.slice(0, 64))
+                            }
+                            break
+                          }
+                        } catch {
+                          continue
+                        }
+                      }
+                    }
+                  }
+                } catch {
+                  // If we can't fetch amount, use 0
+                  amount = BigInt(0)
+                }
+
                 batchTransactions.push({
-                  id: `deposit-${event.transactionHash}-${event.logIndex}`,
-                  type: "deposit",
+                  id: `topup-${event.transactionHash}-${event.logIndex}`,
+                  type: "topup",
                   amount: formatAmount(amount),
                   amountRaw: amount,
                   timestamp: new Date().toISOString(),
