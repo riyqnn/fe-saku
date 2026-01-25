@@ -18,25 +18,25 @@ export default () => {
         aria-label="My Favorite Images"
       >
         <SplideSlide>
-          <div className='w-full max-w-[420px] z-5 mx-auto relative h-full max-h-[520px] text-left p-12 rounded-4xl bg-[#F0F8A4]'>
+          <div className='w-full max-w-[420px] z-5 mx-auto left-90 relative h-full max-h-[520px] text-left p-12 rounded-4xl bg-[#F0F8A4]'>
             <p className='text-4xl font-medium'>Transfer tokens without worry. </p>
             <img className='mx-auto w-full' src="/landing/card1.png" alt="" />
           </div>
         </SplideSlide>
         <SplideSlide>
-          <div className='w-full max-w-[420px] z-5 mx-auto relative h-full max-h-[520px] text-left p-12 rounded-4xl bg-[#F0F8A4]'>
+          <div className='w-full max-w-[420px] z-4 mx-auto relative h-full max-h-[520px] text-left p-12 rounded-4xl bg-[#f7df78]'>
             <p className='text-4xl font-medium'>Transfer tokens without worry. </p>
             <img className='mx-auto w-full' src="/landing/card2.png" alt="" />
           </div>
         </SplideSlide>
         <SplideSlide>
-          <div className='w-full max-w-[420px] z-5 mx-auto relative h-full max-h-[520px] text-left p-12 rounded-4xl bg-[#F0F8A4]'>
+          <div className='w-full max-w-[420px] z-3 mx-auto relative h-full right-90 max-h-[520px] text-left p-12 rounded-4xl bg-[#F0F8A4]'>
             <p className='text-4xl font-medium'>Transfer tokens without worry. </p>
             <img className='mx-auto w-full' src="/landing/card3.png" alt="" />
           </div>
         </SplideSlide>
         <SplideSlide>
-          <div className='w-full max-w-[420px] z-5 mx-auto relative h-full max-h-[520px] overflow-hidden text-left p-12 rounded-4xl bg-[#F0F8A4]'>
+          <div className='w-full max-w-[420px] z-2 mx-auto relative h-full max-h-[520px] right-180 overflow-hidden text-left p-12 rounded-4xl bg-[#f7df78]'>
             <p className='text-4xl font-medium'>Transfer tokens without worry. </p>
             <img className='mx-auto absolute bottom-0 left-0' src="/landing/card4.png" alt="" />
           </div>

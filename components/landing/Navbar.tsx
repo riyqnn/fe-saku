@@ -35,8 +35,8 @@ export default function Navbar({ className = "" }: NavbarProps) {
 
         {/* Logo */}
         <div className="flex items-center justify-between py-3 md:py-5 md:block">
-          <a href="#" className="text-green text-xl font-bold">
-            Saku
+          <a href="#" className="text-green text-2xl font-bold">
+            <img className="w-10 inline" src="/logo.png" alt="" /> Saku
           </a>
 
           {/* Mobile Toggle */}

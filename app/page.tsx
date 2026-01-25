@@ -8,7 +8,7 @@ import QuickActions from "@/components/home/quick-actions"
 import RecentTransactions from "@/components/home/recent-transactions"
 import BottomNavigation from "@/components/home/bottom-navigation"
 import { useAuth } from "@/hooks/useAuth"
-import { Download } from "lucide-react";
+import { Download, Wallet } from "lucide-react";
 import Navbar from "@/components/landing/Navbar"
 import StepCard from "@/components/landing/StepCard"
 import FAQSection from "@/components/landing/Faq"
@@ -38,7 +38,7 @@ export default function Home() {
           </span> 
         trusted wallet shit
         </h1>
-        <a className="relative -top-20 py-5 px-12 transition-all duration-300 hover:bg-white rounded-full" href=""><Download className="inline mr-2 w-5 h-5 text-black" />Try Saku Now!</a>
+        <a className="relative -top-20 py-5 px-12 transition-all duration-300 font-medium text-xl hover:bg-white rounded-full" href=""><Wallet className="inline mr-2 w-7 h-7 text-black" />Try Saku Now!</a>
         {/* <div className="">
           <img
             className="w-100 rounded-4xl h-auto"
@@ -90,6 +90,25 @@ export default function Home() {
 
       <section className="relative w-full flex flex-col gap-20 py-20 justify-center items-center text-center pt-30">
         <FAQSection />
+      </section>
+
+      {/* Hero Section */}
+      <section className="relative w-full p-10 justify-around py-40 h-100 flex gap-20 bg-gradient-to-b from-background to-primary items-center">
+        <div className="flex flex-col gap-10">
+          <p className="text-2xl font-medium">
+            Secure your transaction without wallet addresses. <br />
+            <span className="
+              bg-gradient-to-r from-amber-600 to-amber-800
+              bg-clip-text text-transparent
+          ">
+    Try Saku and use your phone number instead.
+  </span>
+</p>
+
+          <a className="w-fit px-12 py-4 bg-gradient-to-r from-amber-300 border border-black to-primary rounded-3xl shadow-2xl" href=""><Wallet className="inline mr-3"/> Try Saku Now</a>
+        </div>
+
+        <img className="w-[250px]" src="/landing/cta.gif" alt="" />
       </section>
 
     </div>
