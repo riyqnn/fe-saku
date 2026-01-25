@@ -2,37 +2,39 @@
 
 import React, { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabaseClient"
 import { useAuth } from "@/hooks/useAuth"
+import { toast } from "sonner" // Import toast dari sonner
 
 export default function LoginScreen() {
   const router = useRouter()
-  const { refreshUser } = useAuth()
-  const { isAuthenticated, isLoading, user } = useAuth() 
+  const { refreshUser, isAuthenticated, isLoading } = useAuth() 
 
   const [loginMethod, setLoginMethod] = useState<"phone" | "otp" | null>(null)
   const [phone, setPhone] = useState("")
-  const [otp, setOtp] = useState<string[]>(new Array(6).fill(""))
+  const [otp, setOtp] = useState<string[]>(new Array(4).fill(""))
   const [loading, setLoading] = useState(false)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   const formatPhone = (num: string) => {
     const cleanNum = num.replace(/\D/g, '');
-    // Kirim format 62xxx saja, jangan pakai tanda '+' karena Fonnte lebih suka angka murni
     return cleanNum.startsWith('0') ? `62${cleanNum.slice(1)}` : cleanNum.startsWith('62') ? cleanNum : `62${cleanNum}`;
   }
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.replace('/')
+      router.replace('/home')
     }
   }, [isAuthenticated, isLoading, router])
 
   const handleSendOtp = async () => {
-    if (phone.length < 10) return alert("Nomor HP minimal 10 digit co");
+    if (phone.length < 10) {
+      return toast.error("Nomor HP minimal 10 digit bos!");
+    }
+    
     setLoading(true);
+    const toastId = toast.loading("Mengirim kode OTP...");
+
     try {
-      // Kita panggil API route kustom kita, bukan supabase.auth lagi
       const res = await fetch('/api/request-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -42,9 +44,10 @@ export default function LoginScreen() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Gagal kirim OTP");
 
+      toast.success("OTP berhasil dikirim ke WhatsApp!", { id: toastId });
       setLoginMethod("otp");
     } catch (error: any) {
-      alert("Gagal kirim OTP: " + error.message);
+      toast.error(error.message, { id: toastId });
     } finally {
       setLoading(false);
     }
@@ -52,11 +55,12 @@ export default function LoginScreen() {
 
   const handleVerifyOtp = async () => {
     setLoading(true);
+    const toastId = toast.loading("Memverifikasi & menyiapkan wallet...");
+
     try {
       const otpString = otp.join("");
       const formattedPhone = formatPhone(phone);
       
-      // 1. Panggil API verify-otp kustom kita
       const res = await fetch('/api/verify-otp', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -70,39 +74,44 @@ export default function LoginScreen() {
       
       if (!res.ok) throw new Error(result.error || "Gagal verifikasi OTP");
 
-      console.log("✅ Success Verify & On-chain:", result);
-
-      // 2. Karena ini sistem mandiri, kamu perlu menyimpan status login 
-      // di LocalStorage atau State (karena kita tidak pakai Supabase Auth Session)
+      // Simpan data ke local storage
       localStorage.setItem('saku_user_phone', formattedPhone);
       localStorage.setItem('saku_wallet_address', result.walletAddress);
 
-      // Update state auth di aplikasi
       await refreshUser();
-
-      alert(result.isNewRegistration ? "🚀 Wallet created on-chain!" : "👋 Welcome back!");
       
+      // Feedback spesifik buat user baru vs user lama
+      if (result.isNewRegistration) {
+        toast.success("🚀 Wallet berhasil dibuat di on-chain!", { id: toastId });
+      } else {
+        toast.success("👋 Selamat datang kembali!", { id: toastId });
+      }
+
       router.replace('/home'); 
       
     } catch (error: any) {
-      alert("Error: " + error.message);
+      toast.error(error.message, { id: toastId });
       console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-
   const handleOtpChange = (element: HTMLInputElement, index: number) => {
     if (isNaN(Number(element.value))) return false
     const newOtp = [...otp]
     newOtp[index] = element.value
     setOtp(newOtp)
-    if (element.value !== "" && index < 5) inputRefs.current[index + 1]?.focus()
+    
+    if (element.value !== "" && index < 3) {
+      inputRefs.current[index + 1]?.focus()
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0) inputRefs.current[index - 1]?.focus()
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus()
+    }
   }
 
   return (
@@ -156,9 +165,18 @@ export default function LoginScreen() {
               <h2 className="text-3xl font-bold text-[#000000]">Enter OTP</h2>
               <p className="text-[#7F8790]">Kode dikirim ke <span className="font-semibold text-[#000000]">+62 {phone}</span></p>
             </div>
-            <div className="flex justify-center gap-3">
+            <div className="flex justify-center gap-4">
               {otp.map((data, i) => (
-                <input key={i} type="text" maxLength={1} ref={(el) => { inputRefs.current[i] = el }} value={data} onChange={(e) => handleOtpChange(e.target, i)} onKeyDown={(e) => handleKeyDown(e, i)} className="w-12 h-14 bg-white border-2 border-[#F8F8F8] rounded-2xl text-center font-bold text-xl focus:border-[#7F8790] outline-none" />
+                <input 
+                  key={i} 
+                  type="text" 
+                  maxLength={1} 
+                  ref={(el) => { inputRefs.current[i] = el }} 
+                  value={data} 
+                  onChange={(e) => handleOtpChange(e.target, i)} 
+                  onKeyDown={(e) => handleKeyDown(e, i)} 
+                  className="w-14 h-16 bg-white border-2 border-[#F8F8F8] rounded-2xl text-center font-bold text-2xl focus:border-[#7F8790] outline-none transition-all" 
+                />
               ))}
             </div>
             <button onClick={handleVerifyOtp} disabled={otp.some(v => v === "") || loading} className="w-full px-6 py-4 bg-[#000000] text-white rounded-2xl font-semibold disabled:opacity-40">{loading ? "Verifying..." : "Verify"}</button>
