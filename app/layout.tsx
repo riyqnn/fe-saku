@@ -22,6 +22,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Saku - Fast Payment",
   description: "Transfer money with just a phone number. Fast, secure, and walletless.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+    shortcut: "/logo.png",
+  },
 }
 
 export default function RootLayout({

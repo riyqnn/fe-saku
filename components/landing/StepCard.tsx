@@ -18,7 +18,7 @@ export default function StepCard({
   return (
     <div className="flex w-[362px] max-w-[362px] flex-col gap-6 text-left">
       <img
-        className="w-80"
+        className="w-80 rounded-3xl"
         src={imageSrc}
         alt={imageAlt}
       />

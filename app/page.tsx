@@ -12,7 +12,7 @@ import { Download } from "lucide-react";
 import Navbar from "@/components/landing/Navbar"
 import StepCard from "@/components/landing/StepCard"
 import FAQSection from "@/components/landing/Faq"
-import MultipleItems from "@/components/landing/Slider"
+import Slider from "@/components/landing/Slider"
 
 export default function Home() {
   return (
@@ -23,7 +23,7 @@ export default function Home() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative w-full flex flex-col gap-20 py-10 justify-center bg-gradient-to-b from-primary to-background items-center text-center pt-30">
+      <section className="relative w-full flex flex-col gap-20 py-10 justify-center bg-gradient-to-b from-primary to-background items-center text-center pt-35">
         <h1 className="text-[150px] text-black/85 font-medium leading-normal">
         Your 
           <span>
@@ -39,23 +39,22 @@ export default function Home() {
         trusted wallet shit
         </h1>
         <a className="relative -top-20 py-5 px-12 transition-all duration-300 hover:bg-white rounded-full" href=""><Download className="inline mr-2 w-5 h-5 text-black" />Try Saku Now!</a>
-        <div className="">
-          <video
-            className="w-100 h-auto"
-            src="/landing/landing.webm"
-            autoPlay
-            muted
-            loop
-            playsInline
+        {/* <div className="">
+          <img
+            className="w-100 rounded-4xl h-auto"
+            src="/landing/landing.png"
             />
-        </div>
+        </div> */}
       </section>
 
       {/* Promotion Section  */}
       <section className="relative w-full flex flex-col gap-20 py-10 justify-center items-center text-center">
-        <h1 className="text-[80px] text-black/85 font-medium leading-normal">Transfer crypto <br /> with phone number</h1>
-        <div className="w-[80%]">
-        <MultipleItems />
+        <div className="flex flex-col gap-6">
+          <h1 className="text-[80px] text-black/85 font-medium leading-normal">Transfer crypto <br /> with phone number</h1>
+          <p className="text-2xl text-black/50">Easily transfer IDRX without inputing the complex address</p>
+        </div>
+        <div className="w-[95%]">
+        <Slider />
         </div>
       </section>
 
@@ -71,19 +70,19 @@ export default function Home() {
             step={1}
             title="Deposit Crypto"
             description="Deposit crypto easily just with your phone number"
-            imageSrc="/landing/step1.png"
+            imageSrc="/landing/steps1.png"
           />
           <StepCard
             step={2}
             title="Transfer Crypto"
             description="Transfer crypto easily just with your phone number"
-            imageSrc="/landing/step1.png"
+            imageSrc="/landing/steps2.png"
           />
           <StepCard
             step={3}
             title="Withdraw Crypto"
             description="Withdraw crypto easily just with your phone number"
-            imageSrc="/landing/step1.png"
+            imageSrc="/landing/steps3.png"
           />
 
         </div>
