@@ -93,7 +93,7 @@ export default function RecentTransactions() {
     const isPositive = ["transfer_received", "topup", "qr_claimed"].includes(tx.type)
     return {
       prefix: isPositive ? "+" : "-",
-      amount: tx.amount,
+      amount: tx.amount.replace("Rp", "").trim(), // Ambil angkanya saja jika prefix mau dipisah
       class: isPositive ? "text-green-600 dark:text-green-400" : "text-foreground",
     }
   }

@@ -24,13 +24,12 @@ export async function POST(req: Request) {
     const { phoneNumber, receiverPhone, amount } = await req.json();
 
     if (!phoneNumber || !receiverPhone || !amount) {
-      return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+      return NextResponse.json({ error: 'Data tidak lengkap' }, { status: 400 });
     }
 
     const formattedSenderPhone = normalizePhone(phoneNumber);
     const formattedReceiverPhone = normalizePhone(receiverPhone);
 
-    // 1. Cari Profil Pengirim
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('encrypted_private_key, encryption_iv, auth_tag')
@@ -41,41 +40,55 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Sender wallet not found' }, { status: 401 });
     }
 
-    // 2. Dekripsi Private Key
+    const provider = new ethers.JsonRpcProvider(
+      process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org',
+      undefined,
+      { staticNetwork: true }
+    );
+    
     const privateKey = decrypt(profile.encrypted_private_key, profile.encryption_iv, profile.auth_tag);
-    const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org');
     const wallet = new ethers.Wallet(privateKey, provider);
 
-    // 3. Setup Contracts
     const registryContract = new ethers.Contract(CONTRACTS.REGISTRY_ADDRESS, SAKU_REGISTRY_ABI, wallet);
     const idrxContract = new ethers.Contract(CONTRACTS.IDRX_ADDRESS, IDRX_ABI, wallet);
 
-    // 4. Cek Penerima & Balance
     const receiverHash = hashPhoneNumber(formattedReceiverPhone);
-    const amountBigInt = ethers.parseUnits(amount, 6); // Pastikan IDRX decimalnya 6
+    const amountBigInt = ethers.parseUnits(amount, 6);
 
     const receiverAddress = await registryContract.getAccount(receiverHash);
     if (receiverAddress === ethers.ZeroAddress) {
-      return NextResponse.json({ error: 'Penerima tidak terdaftar di Saku' }, { status: 400 });
+      return NextResponse.json({ error: 'Penerima tidak terdaftar' }, { status: 400 });
     }
 
-    const balance = await idrxContract.balanceOf(wallet.address);
-    if (balance < amountBigInt) {
-      return NextResponse.json({ error: 'Saldo IDRX tidak cukup' }, { status: 400 });
-    }
+    let currentNonce = await provider.getTransactionCount(wallet.address, "pending");
 
-    // 5. Just-in-Time Approval (Back-up jika auto-approve saat login gagal)
     const currentAllowance = await idrxContract.allowance(wallet.address, CONTRACTS.REGISTRY_ADDRESS);
     if (currentAllowance < amountBigInt) {
-      console.log('🔄 [Transfer API] Allowance kurang, melakukan auto-approve...');
-      const approveTx = await idrxContract.approve(CONTRACTS.REGISTRY_ADDRESS, ethers.MaxUint256);
+      console.log(`🔄 [Transfer API] Auto-approve dengan nonce: ${currentNonce}`);
+      const approveTx = await idrxContract.approve(CONTRACTS.REGISTRY_ADDRESS, ethers.MaxUint256, {
+        nonce: currentNonce
+      });
       await approveTx.wait();
+      currentNonce++; // Naikkan nonce setelah approve
     }
 
-    // 6. Eksekusi Transfer
-    console.log('🚀 [Transfer API] Executing transferIDRX...');
-    const tx = await registryContract.transferIDRX(receiverHash, amountBigInt);
+    console.log(`🚀 [Transfer API] Executing transferIDRX dengan nonce: ${currentNonce}`);
+    
+    const txPromise = registryContract.transferIDRX(receiverHash, amountBigInt, {
+      nonce: currentNonce
+    });
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 15000) // Timeout 15 detik
+    );
+
+    // Race antara transaksi blockchain dan timeout
+    const tx = await Promise.race([txPromise, timeoutPromise]) as ethers.ContractTransactionResponse;
     const receipt = await tx.wait();
+
+    if (!receipt || receipt.status !== 1) {
+      throw new Error('Blockchain transaction failed');
+    }
 
     return NextResponse.json({
       success: true,
@@ -86,6 +99,19 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error('❌ [Transfer API] Error:', error);
-    return NextResponse.json({ error: error.message || 'Transfer gagal' }, { status: 500 });
+
+    if (error.message === 'timeout' || error.message.includes('ETIMEDOUT')) {
+      return NextResponse.json({ 
+        error: "Koneksi blockchain lemot, transaksi mungkin sedang diproses di background. Cek riwayat beberapa saat lagi." 
+      }, { status: 504 });
+    }
+
+    if (error.code === 'NONCE_EXPIRED') {
+      return NextResponse.json({ error: "Transaksi tabrakan (nonce expired). Coba lagi ya bos." }, { status: 409 });
+    }
+
+    return NextResponse.json({ 
+      error: error.message || 'Transfer gagal diproses' 
+    }, { status: 500 });
   }
 }
