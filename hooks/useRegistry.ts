@@ -130,6 +130,36 @@ export function useRegistry(signer?: ethers.Signer | null) {
     }
   };
 
+  const getRegistrationBonus = async (): Promise<bigint> => {
+    try {
+      if (!contract) throw new Error('Wallet not connected');
+      return await contract.REGISTRATION_BONUS();
+    } catch (err: any) {
+      console.error('Failed to get registration bonus:', err);
+      throw err;
+    }
+  };
+
+  const getContractETHBalance = async (): Promise<bigint> => {
+    try {
+      if (!contract) throw new Error('Wallet not connected');
+      return await contract.getContractETHBalance();
+    } catch (err: any) {
+      console.error('Failed to get contract ETH balance:', err);
+      throw err;
+    }
+  };
+
+  const getRemainingRegistrations = async (): Promise<bigint> => {
+    try {
+      if (!contract) throw new Error('Wallet not connected');
+      return await contract.getRemainingRegistrations();
+    } catch (err: any) {
+      console.error('Failed to get remaining registrations:', err);
+      throw err;
+    }
+  };
+
 
   const register = async (phoneNumber: string, walletAddress: string) => {
     try {
@@ -454,6 +484,44 @@ export function useRegistry(signer?: ethers.Signer | null) {
     }
   };
 
+  const depositETH = async (amount: bigint) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      const tx = await contract.depositETH({ value: amount });
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const adminWithdrawETH = async (amount: bigint) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      const tx = await contract.adminWithdrawETH(amount);
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     // View functions
     isRegistered,
@@ -465,6 +533,9 @@ export function useRegistry(signer?: ethers.Signer | null) {
     getQRPayment,
     getWithdrawFeeBps,
     getQRPaymentExpiry,
+    getRegistrationBonus,
+    getContractETHBalance,
+    getRemainingRegistrations,
 
     // Registry functions
     register,
@@ -491,6 +562,8 @@ export function useRegistry(signer?: ethers.Signer | null) {
     // Admin functions
     updateAdminWallet,
     emergencyWithdraw,
+    depositETH,
+    adminWithdrawETH,
 
     isLoading,
     error,
