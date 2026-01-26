@@ -68,7 +68,7 @@ export default function Home() {
         <PendingBillsSection />
 
         {/* Action Buttons */}
-        <QuickActions onTransferClick={() => setShowTransferModal(true)} />
+        <QuickActions />
 
         {/* Recent Transactions */}
         <RecentTransactions />

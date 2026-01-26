@@ -3,11 +3,13 @@ import { NextResponse } from 'next/server';
 
 export async function GET(
   req: Request,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   const supabase = await createSakuServerClient();
 
   try {
+    const { orderId } = await params;
+
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -17,7 +19,7 @@ export async function GET(
     const { data: topup, error } = await supabase
       .from('topup_requests')
       .select('*')
-      .eq('order_id', params.orderId)
+      .eq('order_id', orderId)
       .eq('user_id', user.id)
       .single();
 

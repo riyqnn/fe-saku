@@ -44,10 +44,10 @@ export async function POST(req: Request) {
     console.log('Input phone:', phoneNumber);
     console.log('Normalized phone:', normalizedPhone);
 
-    // First, get the profile by phone_number to get the stored phone_hash
+    // Get profile by phone_number
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('wallet_address, encrypted_private_key, encryption_iv, auth_tag, phone_hash')
+      .select('wallet_address, encrypted_private_key, encryption_iv, auth_tag')
       .eq('phone_number', normalizedPhone)
       .single();
 
@@ -62,10 +62,11 @@ export async function POST(req: Request) {
     }
 
     console.log('DB wallet_address:', profile.wallet_address);
-    console.log('DB phone_hash:', profile.phone_hash);
 
-    // Use the phone_hash from database (ensures it matches what was registered)
-    const phoneHash = profile.phone_hash;
+    // RECALCULATE phone hash (same as transfer API does)
+    // This ensures we use the correct format (no + sign) to match the contract
+    const phoneHash = hashPhoneNumber(normalizedPhone);
+    console.log('Calculated phone_hash:', phoneHash);
 
     // 4. Decrypt private key server-side
     let privateKey: string;

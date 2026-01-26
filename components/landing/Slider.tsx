@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+// @ts-ignore - Types are available but not resolved correctly by Next.js 16
 import { Splide, SplideSlide } from "@splidejs/react-splide"
 import "@splidejs/react-splide/css"
 

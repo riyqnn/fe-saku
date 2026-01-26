@@ -119,7 +119,7 @@ export default function TransferModal({ onClose }: { onClose: () => void }) {
         {step === "review" && (
           <ReviewStep
             receiver={receiver!}
-            amount={amount} // tetap string, review step bisa parseInt hanya untuk display
+            amount={parseFloat(amount)}
             isLoading={loading}
             onConfirm={handleConfirm}
             onBack={() => setStep("amount")}

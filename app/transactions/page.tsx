@@ -3,9 +3,20 @@
 import { ArrowLeft, ArrowDownLeft, ArrowUpRight, Wallet, Receipt, DollarSign, QrCode, ExternalLink, RefreshCw } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
-import { useTransactions, Transaction } from "@/hooks/useTransactions"
+import { useTransactions } from "@/hooks/useTransactions"
 import { NETWORK_CONFIG } from "@/lib/config"
 import BottomNavigation from "@/components/home/bottom-navigation"
+
+type Transaction = {
+  type: string
+  amount: number
+  timestamp: string
+  tx_hash?: string
+  sender_phone?: string
+  receiver_phone?: string
+  sender_name?: string
+  receiver_name?: string
+}
 
 const TRANSACTION_CONFIG: Record<string, { icon: any; bgClass: string; textClass: string; label: string }> = {
   transfer_sent: {
@@ -55,7 +66,7 @@ const TRANSACTION_CONFIG: Record<string, { icon: any; bgClass: string; textClass
 export default function TransactionsPage() {
   const router = useRouter()
   const { user } = useAuth()
-  const { transactions, isLoading, error, refetch, refreshing } = useTransactions(true)
+  const { transactions, refreshing, refetch } = useTransactions(true)
 
   const handleBack = () => {
     router.push("/home")
@@ -136,25 +147,15 @@ export default function TransactionsPage() {
 
       <main className="max-w-lg min-h-screen mx-auto px-4 py-6">
         {/* Loading */}
-        {isLoading && (
+        {refreshing && (
           <div className="flex flex-col items-center justify-center py-20 space-y-4">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             <p className="text-muted-foreground font-medium">Loading transactions...</p>
           </div>
         )}
 
-        {/* Error */}
-        {error && !isLoading && (
-          <div className="p-8 text-center rounded-3xl bg-destructive/10 border border-destructive/20">
-            <p className="text-sm font-semibold text-destructive">{error}</p>
-            <button onClick={refetch} className="mt-4 px-6 py-2 bg-destructive text-destructive-foreground rounded-xl font-semibold text-sm">
-              Try Again
-            </button>
-          </div>
-        )}
-
         {/* Empty */}
-        {!isLoading && !error && transactions.length === 0 && (
+        {!refreshing && transactions.length === 0 && (
           <div className="p-12 text-center rounded-3xl bg-muted/30 dark:bg-muted/10 border border-border/50">
             <Receipt className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <p className="text-sm text-muted-foreground">No transactions yet. Start by making a transfer!</p>
@@ -162,7 +163,7 @@ export default function TransactionsPage() {
         )}
 
         {/* Transactions List */}
-        {!isLoading && !error && transactions.length > 0 && (
+        {!refreshing && transactions.length > 0 && (
           <div className="space-y-3">
             {transactions.map((tx, idx) => {
               const config = TRANSACTION_CONFIG[tx.type]

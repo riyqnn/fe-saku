@@ -9,7 +9,7 @@ import { useContacts } from "@/hooks/useContacts"
 import { toast } from "sonner"
 
 export default function FoldersManager() {
-  const { contacts, isLoading, addContact, deleteContact, filterContacts } = useContacts()
+  const { contacts, loading, addContact, deleteContact, searchContacts } = useContacts()
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null)
@@ -51,7 +51,7 @@ export default function FoldersManager() {
         toast.success("Contact saved!")
         setIsModalOpen(false)
         setSearchQuery("")
-        setSearchResult(null)
+        setSearchResults([])
       } else {
         toast.error(result.error || "Failed to save")
       }
@@ -78,7 +78,7 @@ export default function FoldersManager() {
         </button>
       </div>
 
-      {isLoading ? (
+      {loading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-20 bg-muted/30 border border-border/50 rounded-3xl animate-pulse" />
