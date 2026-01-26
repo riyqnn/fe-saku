@@ -1,117 +1,109 @@
-import { createClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
-import { ethers } from 'ethers';
-import { hashPhoneNumber } from '@/utils/phoneHash';
-import { decrypt } from '@/utils/encrypt';
-import { SAKU_REGISTRY_ABI, IDRX_ABI } from '@/lib/abi';
-import { CONTRACTS } from '@/lib/config';
+import { createClient } from '@supabase/supabase-js'
+import { NextResponse } from 'next/server'
+import { ethers } from 'ethers'
+import { hashPhoneNumber } from '@/utils/phoneHash'
+import { decrypt } from '@/utils/encrypt'
+import { SAKU_REGISTRY_ABI, IDRX_ABI } from '@/lib/abi'
+import { CONTRACTS } from '@/lib/config'
 
 function normalizePhone(phone: string): string {
-  let normalized = phone.replace(/\D/g, '');
-  if (normalized.startsWith('0')) {
-    normalized = '62' + normalized.substring(1);
-  }
-  return normalized;
+  let normalized = phone.replace(/\D/g, '')
+  if (normalized.startsWith('0')) normalized = '62' + normalized.substring(1)
+  return normalized
 }
 
 export async function POST(req: Request) {
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+    process.env.SUPABASE_SERVICE_ROLE_KEY! // pastikan ini service role key
+  )
 
   try {
-    const { phoneNumber, receiverPhone, amount } = await req.json();
+    const { phoneNumber, receiverPhone, amount } = await req.json()
 
     if (!phoneNumber || !receiverPhone || !amount) {
-      return NextResponse.json({ error: 'Data tidak lengkap' }, { status: 400 });
+      return NextResponse.json({ error: 'Data tidak lengkap' }, { status: 400 })
     }
 
-    const formattedSenderPhone = normalizePhone(phoneNumber);
-    const formattedReceiverPhone = normalizePhone(receiverPhone);
+    const senderPhone = normalizePhone(phoneNumber)
+    const receiverPhoneNormalized = normalizePhone(receiverPhone)
 
+    // Ambil profile sender
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('encrypted_private_key, encryption_iv, auth_tag')
-      .eq('phone_number', formattedSenderPhone)
-      .single();
+      .select('encrypted_private_key, encryption_iv, auth_tag, wallet_address')
+      .eq('phone_number', senderPhone)
+      .single()
 
     if (profileError || !profile) {
-      return NextResponse.json({ error: 'Sender wallet not found' }, { status: 401 });
+      console.error('❌ Sender profile not found:', profileError)
+      return NextResponse.json({ error: 'Wallet sender tidak ditemukan' }, { status: 401 })
     }
 
-    const provider = new ethers.JsonRpcProvider(
-      process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org',
-      undefined,
-      { staticNetwork: true }
-    );
-    
-    const privateKey = decrypt(profile.encrypted_private_key, profile.encryption_iv, profile.auth_tag);
-    const wallet = new ethers.Wallet(privateKey, provider);
+    const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL)
+    const privateKey = decrypt(profile.encrypted_private_key, profile.encryption_iv, profile.auth_tag)
+    const wallet = new ethers.Wallet(privateKey, provider)
 
-    const registryContract = new ethers.Contract(CONTRACTS.REGISTRY_ADDRESS, SAKU_REGISTRY_ABI, wallet);
-    const idrxContract = new ethers.Contract(CONTRACTS.IDRX_ADDRESS, IDRX_ABI, wallet);
+    const registryContract = new ethers.Contract(CONTRACTS.REGISTRY_ADDRESS, SAKU_REGISTRY_ABI, wallet)
+    const idrxContract = new ethers.Contract(CONTRACTS.IDRX_ADDRESS, IDRX_ABI, wallet)
 
-    const receiverHash = hashPhoneNumber(formattedReceiverPhone);
-    const amountBigInt = ethers.parseUnits(amount, 6);
+    const receiverHash = hashPhoneNumber(receiverPhoneNormalized)
+    const amountBigInt = ethers.parseUnits(amount, 6)
 
-    const receiverAddress = await registryContract.getAccount(receiverHash);
+    const receiverAddress = await registryContract.getAccount(receiverHash)
     if (receiverAddress === ethers.ZeroAddress) {
-      return NextResponse.json({ error: 'Penerima tidak terdaftar' }, { status: 400 });
+      return NextResponse.json({ error: 'Penerima tidak terdaftar' }, { status: 400 })
     }
 
-    let currentNonce = await provider.getTransactionCount(wallet.address, "pending");
-
-    const currentAllowance = await idrxContract.allowance(wallet.address, CONTRACTS.REGISTRY_ADDRESS);
-    if (currentAllowance < amountBigInt) {
-      console.log(`🔄 [Transfer API] Auto-approve dengan nonce: ${currentNonce}`);
-      const approveTx = await idrxContract.approve(CONTRACTS.REGISTRY_ADDRESS, ethers.MaxUint256, {
-        nonce: currentNonce
-      });
-      await approveTx.wait();
-      currentNonce++; // Naikkan nonce setelah approve
+    // Handle allowance & approve
+    let nonce = await provider.getTransactionCount(wallet.address, 'pending')
+    const allowance = await idrxContract.allowance(wallet.address, CONTRACTS.REGISTRY_ADDRESS)
+    if (allowance < amountBigInt) {
+      console.log(`🔄 Approving IDRX for registry with nonce ${nonce}`)
+      const approveTx = await idrxContract.approve(CONTRACTS.REGISTRY_ADDRESS, ethers.MaxUint256, { nonce })
+      await approveTx.wait()
+      nonce++
     }
 
-    console.log(`🚀 [Transfer API] Executing transferIDRX dengan nonce: ${currentNonce}`);
-    
-    const txPromise = registryContract.transferIDRX(receiverHash, amountBigInt, {
-      nonce: currentNonce
-    });
+    // Transfer IDRX
+    console.log(`🚀 Executing transferIDRX with nonce ${nonce}`)
+    const tx = await registryContract.transferIDRX(receiverHash, amountBigInt, { nonce })
+    const receipt = await tx.wait()
+    if (!receipt || receipt.status !== 1) throw new Error('Transaksi blockchain gagal')
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('timeout')), 15000) // Timeout 15 detik
-    );
+    console.log('✅ Blockchain transaction successful:', receipt.hash)
 
-    // Race antara transaksi blockchain dan timeout
-    const tx = await Promise.race([txPromise, timeoutPromise]) as ethers.ContractTransactionResponse;
-    const receipt = await tx.wait();
+    // Insert ke Supabase
+    const { data: txData, error: txError } = await supabaseAdmin
+      .from('transactions')
+      .insert({
+        sender_phone: senderPhone,
+        receiver_phone: receiverPhoneNormalized,
+        sender_wallet: wallet.address,
+        receiver_wallet: receiverAddress,
+        amount: parseFloat(amount),
+        tx_hash: receipt.hash,
+        block_number: receipt.blockNumber,
+        type: 'transfer_sent',
+        timestamp: new Date().toISOString()
+      })
 
-    if (!receipt || receipt.status !== 1) {
-      throw new Error('Blockchain transaction failed');
+    if (txError) {
+      console.error('❌ Supabase insert error:', txError)
+    } else {
+      console.log('✅ Transaction saved to DB:', txData)
     }
 
     return NextResponse.json({
       success: true,
       transactionHash: receipt.hash,
+      blockNumber: receipt.blockNumber,
       amount,
-      receiver: formattedReceiverPhone
-    });
-
-  } catch (error: any) {
-    console.error('❌ [Transfer API] Error:', error);
-
-    if (error.message === 'timeout' || error.message.includes('ETIMEDOUT')) {
-      return NextResponse.json({ 
-        error: "Koneksi blockchain lemot, transaksi mungkin sedang diproses di background. Cek riwayat beberapa saat lagi." 
-      }, { status: 504 });
-    }
-
-    if (error.code === 'NONCE_EXPIRED') {
-      return NextResponse.json({ error: "Transaksi tabrakan (nonce expired). Coba lagi ya bos." }, { status: 409 });
-    }
-
-    return NextResponse.json({ 
-      error: error.message || 'Transfer gagal diproses' 
-    }, { status: 500 });
+      receiver: receiverPhoneNormalized,
+      receiverWallet: receiverAddress
+    })
+  } catch (err: any) {
+    console.error('❌ Transfer API error:', err)
+    return NextResponse.json({ error: err.message || 'Transfer gagal' }, { status: 500 })
   }
 }

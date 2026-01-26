@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { useSakuTransfer } from "@/hooks/useSakuTransfer"
 import { useBalance } from "@/hooks/useBalance"
@@ -23,11 +23,11 @@ export default function TransferModal({ onClose }: { onClose: () => void }) {
   const [txHash, setTxHash] = useState<string | null>(null)
 
   const normalizePhone = (phone: string) => {
-    let normalized = phone.replace(/\D/g, '');
+    let normalized = phone.replace(/\D/g, '')
     if (normalized.startsWith('0')) {
-      normalized = '62' + normalized.substring(1);
+      normalized = '62' + normalized.substring(1)
     }
-    return normalized;
+    return normalized
   }
 
   const handleReceiverSelect = (name: string, phone: string) => {
@@ -44,28 +44,32 @@ export default function TransferModal({ onClose }: { onClose: () => void }) {
     try {
       setError(null)
 
-      if (!receiver || !user?.phone_number) {
-        throw new Error("Missing required information. Please re-login.")
+      if (!receiver) {
+        throw new Error("Missing receiver information. Please re-login.")
       }
 
       if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
         throw new Error("Invalid amount")
       }
 
+      // Panggil hook useSakuTransfer
       const result = await transferByPhone({
-        senderPhone: normalizePhone(user.phone_number), // Tambahkan parameter senderPhone jika hook membutuhkannya
-        receiverPhone: receiver.phone, // Sudah dinormalisasi di handleReceiverSelect
-        amount: amount,
+        receiverPhone: receiver.phone,
+        amount: amount, // Tetap string
       })
 
       if (result.success) {
         setTxHash(result.transactionHash || null)
 
-        // Emit global balance refresh event for all components
+        // Emit event untuk refresh semua balance
         eventBus.emit(EVENTS.BALANCE_REFRESH)
 
-        // Also refetch local balance for this modal instance
+        // Refetch local balance
         await refetchBalance()
+
+        // Emit event untuk refresh transaction history
+        eventBus.emit(EVENTS.TRANSACTIONS_REFRESH)
+
         setStep("success")
       } else {
         throw new Error(result.error || "Transfer failed")
@@ -79,9 +83,15 @@ export default function TransferModal({ onClose }: { onClose: () => void }) {
     onClose()
   }
 
-  // Progress indicator logic
+  // Progress indicator
   const steps = ["receiver", "amount", "review", "success"]
   const currentStepIndex = steps.indexOf(step)
+
+  // Cleanup listener ketika modal di-unmount
+  useEffect(() => {
+    const cleanup = () => {}
+    return cleanup
+  }, [])
 
   return (
     <div className="w-full rounded-3xl sm:rounded-4xl overflow-hidden bg-background">
@@ -109,7 +119,7 @@ export default function TransferModal({ onClose }: { onClose: () => void }) {
         {step === "review" && (
           <ReviewStep
             receiver={receiver!}
-            amount={Number.parseInt(amount)}
+            amount={amount} // tetap string, review step bisa parseInt hanya untuk display
             isLoading={loading}
             onConfirm={handleConfirm}
             onBack={() => setStep("amount")}

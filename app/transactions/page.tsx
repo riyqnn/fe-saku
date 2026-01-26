@@ -1,12 +1,11 @@
 "use client"
 
-import { ArrowLeft, ArrowDownLeft, ArrowUpRight, Wallet, Receipt, DollarSign, QrCode, ExternalLink, RefreshCw, Bot } from "lucide-react"
+import { ArrowLeft, ArrowDownLeft, ArrowUpRight, Wallet, Receipt, DollarSign, QrCode, ExternalLink, RefreshCw } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { useTransactions, Transaction } from "@/hooks/useTransactions"
 import { NETWORK_CONFIG } from "@/lib/config"
 import BottomNavigation from "@/components/home/bottom-navigation"
-
 
 const TRANSACTION_CONFIG: Record<string, { icon: any; bgClass: string; textClass: string; label: string }> = {
   transfer_sent: {
@@ -91,22 +90,23 @@ export default function TransactionsPage() {
     const config = TRANSACTION_CONFIG[tx.type]
     if (!config) return tx.type
 
-    if (tx.type === "transfer_sent" && tx.toName) {
-      return `Sent to ${tx.toName === "You" ? "yourself" : tx.toName}`
+    const isSent = tx.sender_phone === user?.phone_number
+    if (tx.type === "transfer_sent" && isSent) {
+      return `Sent to ${tx.receiver_name || tx.receiver_phone}`
     }
-    if (tx.type === "transfer_received" && tx.fromName) {
-      return `Received from ${tx.fromName === "You" ? "yourself" : tx.fromName}`
+    if (tx.type === "transfer_received" && !isSent) {
+      return `Received from ${tx.sender_name || tx.sender_phone}`
     }
 
     return config.label
   }
 
   const getAmountDisplay = (tx: Transaction) => {
-    const isPositive = ["transfer_received", "topup", "qr_claimed"].includes(tx.type)
+    const isSent = tx.sender_phone === user?.phone_number
     return {
-      prefix: isPositive ? "+" : "-",
+      prefix: isSent ? "-" : "+",
       amount: tx.amount,
-      class: isPositive ? "text-green-600 dark:text-green-400" : "text-foreground",
+      class: isSent ? "text-red-600" : "text-green-600",
     }
   }
 
@@ -117,11 +117,7 @@ export default function TransactionsPage() {
         <div className="max-w-lg mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <button
-                onClick={handleBack}
-                className="p-2 hover:bg-muted rounded-full transition-colors duration-200"
-                aria-label="Go back"
-              >
+              <button onClick={handleBack} className="p-2 hover:bg-muted rounded-full transition-colors duration-200" aria-label="Go back">
                 <ArrowLeft className="w-5 h-5 text-foreground" />
               </button>
               <div>
@@ -131,12 +127,7 @@ export default function TransactionsPage() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={refetch}
-              disabled={refreshing}
-              className="p-2 hover:bg-muted rounded-full transition-colors duration-200 disabled:opacity-50"
-              aria-label="Refresh"
-            >
+            <button onClick={refetch} disabled={refreshing} className="p-2 hover:bg-muted rounded-full transition-colors duration-200 disabled:opacity-50" aria-label="Refresh">
               <RefreshCw className={`w-5 h-5 text-foreground ${refreshing ? "animate-spin" : ""}`} />
             </button>
           </div>
@@ -144,7 +135,7 @@ export default function TransactionsPage() {
       </div>
 
       <main className="max-w-lg min-h-screen mx-auto px-4 py-6">
-        {/* Loading State */}
+        {/* Loading */}
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-20 space-y-4">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -152,20 +143,17 @@ export default function TransactionsPage() {
           </div>
         )}
 
-        {/* Error State */}
+        {/* Error */}
         {error && !isLoading && (
           <div className="p-8 text-center rounded-3xl bg-destructive/10 border border-destructive/20">
             <p className="text-sm font-semibold text-destructive">{error}</p>
-            <button
-              onClick={refetch}
-              className="mt-4 px-6 py-2 bg-destructive text-destructive-foreground rounded-xl font-semibold text-sm"
-            >
+            <button onClick={refetch} className="mt-4 px-6 py-2 bg-destructive text-destructive-foreground rounded-xl font-semibold text-sm">
               Try Again
             </button>
           </div>
         )}
 
-        {/* Empty State */}
+        {/* Empty */}
         {!isLoading && !error && transactions.length === 0 && (
           <div className="p-12 text-center rounded-3xl bg-muted/30 dark:bg-muted/10 border border-border/50">
             <Receipt className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
@@ -180,11 +168,12 @@ export default function TransactionsPage() {
               const config = TRANSACTION_CONFIG[tx.type]
               const Icon = config?.icon || Receipt
               const amountDisplay = getAmountDisplay(tx)
+              const isSent = tx.sender_phone === user?.phone_number
 
               return (
                 <a
                   key={tx.id}
-                  href={`${NETWORK_CONFIG.blockExplorer}/tx/${tx.txHash}`}
+                  href={`${NETWORK_CONFIG.blockExplorer}/tx/${tx.tx_hash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block animate-fade-in-up"
@@ -193,9 +182,7 @@ export default function TransactionsPage() {
                   <div className="p-5 rounded-2xl card-modern hover:card-elevated group cursor-pointer transition-all duration-200 border border-border/50 hover:border-primary/30">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-center gap-4 min-w-0 flex-1">
-                        <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${config?.bgClass} ${config?.textClass}`}
-                        >
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${config?.bgClass} ${config?.textClass}`}>
                           <Icon className="w-6 h-6" />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -209,9 +196,9 @@ export default function TransactionsPage() {
                             <span>•</span>
                             <span className="truncate">{formatFullDate(tx.timestamp)}</span>
                           </div>
-                          {tx.txHash && (
+                          {tx.tx_hash && (
                             <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                              <span className="font-mono truncate">{tx.txHash.slice(0, 10)}...</span>
+                              <span className="font-mono truncate">{tx.tx_hash.slice(0, 10)}...</span>
                               <ExternalLink className="w-3 h-3 flex-shrink-0" />
                             </div>
                           )}
@@ -219,8 +206,7 @@ export default function TransactionsPage() {
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className={`font-bold text-lg ${amountDisplay.class}`}>
-                          {amountDisplay.prefix}
-                          {amountDisplay.amount}
+                          {amountDisplay.prefix}{amountDisplay.amount}
                         </p>
                         <p className="text-xs text-muted-foreground mt-0.5">IDRX</p>
                       </div>
@@ -232,7 +218,8 @@ export default function TransactionsPage() {
           </div>
         )}
       </main>
-      <BottomNavigation/>
+
+      <BottomNavigation />
     </div>
   )
 }

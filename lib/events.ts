@@ -32,4 +32,5 @@ export const eventBus = new EventEmitter()
 export const EVENTS = {
   BALANCE_REFRESH: 'balance:refresh',
   TRANSFER_SUCCESS: 'transfer:success',
+  TRANSACTIONS_REFRESH: 'transactions:refresh', // tambahkan ini
 }
