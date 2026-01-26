@@ -65,11 +65,12 @@ export default function Home() {
         {/* Balance Card Section */}
         <BalanceCardSection />
 
-        <PendingBillsSection />
 
         {/* Action Buttons */}
         <QuickActions />
 
+        <PendingBillsSection />
+        
         {/* Recent Transactions */}
         <RecentTransactions />
       </main>
