@@ -12,7 +12,7 @@ export interface WithdrawResult {
 
 export function useDepositWithdraw(signer: ethers.Signer | null) {
   const [isLoading, setIsLoading] = useState(false);
-  const [isDepositing, setIsDepositing] = useState(false);
+  const [isToppingUp, setIsToppingUp] = useState(false);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,15 +21,15 @@ export function useDepositWithdraw(signer: ethers.Signer | null) {
     : null;
 
   /**
-   * Deposit IDRX tokens to the user's own wallet
+   * Topup IDRX tokens to the user's own wallet
    * User must approve the contract to spend their tokens first
    */
-  const deposit = async (
+  const topup = async (
     phoneNumber: string,
     amount: bigint
   ): Promise<ethers.ContractTransactionReceipt> => {
     try {
-      setIsDepositing(true);
+      setIsToppingUp(true);
       setError(null);
 
       if (!contract) throw new Error('Wallet not connected');
@@ -37,29 +37,29 @@ export function useDepositWithdraw(signer: ethers.Signer | null) {
 
       const phoneHash = hashPhoneNumber(phoneNumber);
 
-      const tx = await contract.deposit(phoneHash, amount);
+      const tx = await contract.topup(phoneHash, amount);
       const receipt = await tx.wait();
 
       return receipt;
     } catch (err: any) {
-      const errorMessage = err.message || 'Failed to deposit';
+      const errorMessage = err.message || 'Failed to topup';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
-      setIsDepositing(false);
+      setIsToppingUp(false);
     }
   };
 
   /**
-   * Deposit IDRX tokens to another user's wallet
-   * Useful for sending deposits directly to other users
+   * Topup IDRX tokens to another user's wallet
+   * Useful for sending topups directly to other users
    */
-  const depositTo = async (
+  const topupTo = async (
     receiverPhone: string,
     amount: bigint
   ): Promise<ethers.ContractTransactionReceipt> => {
     try {
-      setIsDepositing(true);
+      setIsToppingUp(true);
       setError(null);
 
       if (!contract) throw new Error('Wallet not connected');
@@ -67,16 +67,16 @@ export function useDepositWithdraw(signer: ethers.Signer | null) {
 
       const receiverHash = hashPhoneNumber(receiverPhone);
 
-      const tx = await contract.depositTo(receiverHash, amount);
+      const tx = await contract.topupTo(receiverHash, amount);
       const receipt = await tx.wait();
 
       return receipt;
     } catch (err: any) {
-      const errorMessage = err.message || 'Failed to deposit to recipient';
+      const errorMessage = err.message || 'Failed to topup to recipient';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
-      setIsDepositing(false);
+      setIsToppingUp(false);
     }
   };
 
@@ -219,13 +219,13 @@ export function useDepositWithdraw(signer: ethers.Signer | null) {
   return {
     // State
     isLoading,
-    isDepositing,
+    isToppingUp,
     isWithdrawing,
     error,
 
-    // Deposit functions
-    deposit,
-    depositTo,
+    // Topup functions
+    topup,
+    topupTo,
 
     // Withdraw functions
     withdraw,

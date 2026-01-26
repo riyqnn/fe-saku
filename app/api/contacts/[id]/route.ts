@@ -1,46 +1,72 @@
-import { createSakuServerClient } from '@/lib/supabaseServer';
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-// DELETE - Remove a contact
-export async function DELETE(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  const supabase = await createSakuServerClient();
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    global: {
+      fetch: (...args) => fetch(...args),
+    },
+  }
+);
+
+async function getSakuUserId(req: Request) {
+  const phone = req.headers.get('x-saku-phone');
+  if (!phone) return null;
 
   try {
-    // Check auth
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    const { data: profile, error } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('phone_number', phone)
+      .single();
+
+    if (error || !profile) return null;
+    return profile.id;
+  } catch (err) {
+    console.error("❌ Auth Lookup Failed:", err);
+    return null;
+  }
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> } 
+) {
+  try {
+    const resolvedParams = await params;
+    const contactId = resolvedParams.id;
+
+    const userId = await getSakuUserId(req);
+    
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const contactId = params.id;
-
-    if (!contactId) {
-      return NextResponse.json({ error: 'Contact ID is required' }, { status: 400 });
+    if (!contactId || contactId === "undefined") {
+      return NextResponse.json({ error: 'ID Kontak tidak valid' }, { status: 400 });
     }
 
-    // Delete contact (only if it belongs to the user)
-    const { error } = await supabase
+    const { error: dbError } = await supabaseAdmin
       .from('contacts')
       .delete()
       .eq('id', contactId)
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
+    if (dbError) throw new Error(dbError.message);
 
-    return NextResponse.json({
-      success: true,
-      message: 'Contact deleted successfully',
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Kontak berhasil dihapus' 
     });
 
   } catch (error: any) {
-    console.error('Delete Contact Error:', error);
-    return NextResponse.json({
-      error: error.message || 'Failed to delete contact'
+    console.error('Delete Contact API Final Error:', error.message);
+    
+    const isFetchError = error.message.includes('fetch');
+    return NextResponse.json({ 
+      error: isFetchError ? "Koneksi database terputus, coba lagi" : error.message 
     }, { status: 500 });
   }
 }

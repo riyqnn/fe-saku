@@ -94,10 +94,10 @@ importers:
         version: 1.1.6(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@supabase/ssr':
         specifier: ^0.8.0
-        version: 0.8.0(@supabase/supabase-js@2.90.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))
+        version: 0.8.0(@supabase/supabase-js@2.91.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))
       '@supabase/supabase-js':
-        specifier: ^2.90.1
-        version: 2.90.1(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+        specifier: ^2.91.1
+        version: 2.91.1(bufferutil@4.1.0)(utf-8-validate@5.0.10)
       '@vercel/analytics':
         specifier: 1.3.1
         version: 1.3.1(next@16.0.10(@opentelemetry/api@1.9.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react@19.2.0)
@@ -128,6 +128,9 @@ importers:
       firebase-admin:
         specifier: ^13.6.0
         version: 13.6.0
+      html5-qrcode:
+        specifier: ^2.3.8
+        version: 2.3.8
       input-otp:
         specifier: 1.4.1
         version: 1.4.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -140,6 +143,9 @@ importers:
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      qrcode.react:
+        specifier: ^4.2.0
+        version: 4.2.0(react@19.2.0)
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -1393,20 +1399,20 @@ packages:
   '@radix-ui/rect@1.1.0':
     resolution: {integrity: sha512-A9+lCBZoaMJlVKcRBz2YByCG+Cp2t6nAnMnNba+XiWxnj6r4JUFqfsgwocMBZU9LPtdxC6wB56ySYpc7LQIoJg==}
 
-  '@supabase/auth-js@2.90.1':
-    resolution: {integrity: sha512-vxb66dgo6h3yyPbR06735Ps+dK3hj0JwS8w9fdQPVZQmocSTlKUW5MfxSy99mN0XqCCuLMQ3jCEiIIUU23e9ng==}
+  '@supabase/auth-js@2.91.1':
+    resolution: {integrity: sha512-3gFGMPuif2BOuAHXLAGsoOlDa64PROct1v7G94pMnvUAhh75u6+vnx4MYz1wyoyDBN5lCkJPGQNg5+RIgqxnpA==}
     engines: {node: '>=20.0.0'}
 
-  '@supabase/functions-js@2.90.1':
-    resolution: {integrity: sha512-x9mV9dF1Lam9qL3zlpP6mSM5C9iqMPtF5B/tU1Jj/F0ufX5mjDf9ghVBaErVxmrQJRL4+iMKWKY2GnODkpS8tw==}
+  '@supabase/functions-js@2.91.1':
+    resolution: {integrity: sha512-xKepd3HZ6K6rKibriehKggIegsoz+jjV67tikN51q/YQq3AlUAkjUMSnMrqs8t5LMlAi+a3dJU812acXanR0cw==}
     engines: {node: '>=20.0.0'}
 
-  '@supabase/postgrest-js@2.90.1':
-    resolution: {integrity: sha512-jh6vqzaYzoFn3raaC0hcFt9h+Bt+uxNRBSdc7PfToQeRGk7PDPoweHsbdiPWREtDVTGKfu+PyPW9e2jbK+BCgQ==}
+  '@supabase/postgrest-js@2.91.1':
+    resolution: {integrity: sha512-UKumTC6SGHd65G/5Gj0V58u+SkUyiH4zEJ8OP2eb06+Tqnges1E/3Tl7lyq2qbcMP8nEyH/0M7m2bYjrn++haw==}
     engines: {node: '>=20.0.0'}
 
-  '@supabase/realtime-js@2.90.1':
-    resolution: {integrity: sha512-PWbnEMkcQRuor8jhObp4+Snufkq8C6fBp+MchVp2qBPY1NXk/c3Iv3YyiFYVzo0Dzuw4nAlT4+ahuPggy4r32w==}
+  '@supabase/realtime-js@2.91.1':
+    resolution: {integrity: sha512-Y4rifuvzekFgd2hUfiEvcMoh/JU3s1hmpWYS7tNGL2QHuFfWg8a4w/qg5qoSMVDvgGRz6G4L6yB1FaQRTplENQ==}
     engines: {node: '>=20.0.0'}
 
   '@supabase/ssr@0.8.0':
@@ -1414,12 +1420,12 @@ packages:
     peerDependencies:
       '@supabase/supabase-js': ^2.76.1
 
-  '@supabase/storage-js@2.90.1':
-    resolution: {integrity: sha512-GHY+Ps/K/RBfRj7kwx+iVf2HIdqOS43rM2iDOIDpapyUnGA9CCBFzFV/XvfzznGykd//z2dkGZhlZZprsVFqGg==}
+  '@supabase/storage-js@2.91.1':
+    resolution: {integrity: sha512-hMJNT2tSleOrWwx4FmHTpihIA2PRDixAsWflECuQ4YDkeduBZGX5m2txnstMnteWW+H+mm+92WRRFLuidXqbfA==}
     engines: {node: '>=20.0.0'}
 
-  '@supabase/supabase-js@2.90.1':
-    resolution: {integrity: sha512-U8KaKGLUgTIFHtwEW1dgw1gK7XrdpvvYo7nzzqPx721GqPe8WZbAiLh/hmyKLGBYQ/mmQNr20vU9tWSDZpii3w==}
+  '@supabase/supabase-js@2.91.1':
+    resolution: {integrity: sha512-57Fb4s5nfLn5ed2a1rPtl+LI1Wbtms8MS4qcUa0w6luaStBlFhmSeD2TLBgJWdMIupWRF6iFTH4QTrO2+pG/ZQ==}
     engines: {node: '>=20.0.0'}
 
   '@swc/helpers@0.5.15':
@@ -1951,6 +1957,9 @@ packages:
   html-entities@2.6.0:
     resolution: {integrity: sha512-kig+rMn/QOVRvr7c86gQ8lWXq+Hkv6CbAH1hLu+RG338StTpE8Z0b44SDVaqVu7HGKf27frdmUYEs9hTUX/cLQ==}
 
+  html5-qrcode@2.3.8:
+    resolution: {integrity: sha512-jsr4vafJhwoLVEDW3n1KvPnCCXWaQfRng0/EEYk1vNcQGcG/htAdhJX0be8YyqMoSz7+hZvOZSTAepsabiuhiQ==}
+
   http-parser-js@0.5.10:
     resolution: {integrity: sha512-Pysuw9XpUq5dVc/2SMHpuTY01RFl8fttgcyunjL7eEMhGM3cI4eOmiCycJDVCo/7O7ClfQD3SaI6ftDzqOXYMA==}
 
@@ -2257,6 +2266,11 @@ packages:
   protobufjs@7.5.4:
     resolution: {integrity: sha512-CvexbZtbov6jW2eXAvLukXjXUW1TzFaivC46BpWc/3BpcCysb5Vffu+B3XHMm8lVEuy2Mm4XGex8hBSg1yapPg==}
     engines: {node: '>=12.0.0'}
+
+  qrcode.react@4.2.0:
+    resolution: {integrity: sha512-QpgqWi8rD9DsS9EP3z7BT+5lY5SFhsqGjpgW5DY/i3mK4M9DTBNz3ErMi8BWYEfI3L0d8GIbGmcdFAS1uIRGjA==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   react-day-picker@9.8.0:
     resolution: {integrity: sha512-E0yhhg7R+pdgbl/2toTb0xBhsEAtmAx1l7qjIWYfcxOy8w4rTSVfbtBoSzVVhPwKP/5E9iL38LivzoE3AQDhCQ==}
@@ -3894,19 +3908,19 @@ snapshots:
 
   '@radix-ui/rect@1.1.0': {}
 
-  '@supabase/auth-js@2.90.1':
+  '@supabase/auth-js@2.91.1':
     dependencies:
       tslib: 2.8.1
 
-  '@supabase/functions-js@2.90.1':
+  '@supabase/functions-js@2.91.1':
     dependencies:
       tslib: 2.8.1
 
-  '@supabase/postgrest-js@2.90.1':
+  '@supabase/postgrest-js@2.91.1':
     dependencies:
       tslib: 2.8.1
 
-  '@supabase/realtime-js@2.90.1(bufferutil@4.1.0)(utf-8-validate@5.0.10)':
+  '@supabase/realtime-js@2.91.1(bufferutil@4.1.0)(utf-8-validate@5.0.10)':
     dependencies:
       '@types/phoenix': 1.6.7
       '@types/ws': 8.18.1
@@ -3916,23 +3930,23 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@supabase/ssr@0.8.0(@supabase/supabase-js@2.90.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))':
+  '@supabase/ssr@0.8.0(@supabase/supabase-js@2.91.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))':
     dependencies:
-      '@supabase/supabase-js': 2.90.1(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+      '@supabase/supabase-js': 2.91.1(bufferutil@4.1.0)(utf-8-validate@5.0.10)
       cookie: 1.1.1
 
-  '@supabase/storage-js@2.90.1':
+  '@supabase/storage-js@2.91.1':
     dependencies:
       iceberg-js: 0.8.1
       tslib: 2.8.1
 
-  '@supabase/supabase-js@2.90.1(bufferutil@4.1.0)(utf-8-validate@5.0.10)':
+  '@supabase/supabase-js@2.91.1(bufferutil@4.1.0)(utf-8-validate@5.0.10)':
     dependencies:
-      '@supabase/auth-js': 2.90.1
-      '@supabase/functions-js': 2.90.1
-      '@supabase/postgrest-js': 2.90.1
-      '@supabase/realtime-js': 2.90.1(bufferutil@4.1.0)(utf-8-validate@5.0.10)
-      '@supabase/storage-js': 2.90.1
+      '@supabase/auth-js': 2.91.1
+      '@supabase/functions-js': 2.91.1
+      '@supabase/postgrest-js': 2.91.1
+      '@supabase/realtime-js': 2.91.1(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+      '@supabase/storage-js': 2.91.1
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -4544,6 +4558,8 @@ snapshots:
   html-entities@2.6.0:
     optional: true
 
+  html5-qrcode@2.3.8: {}
+
   http-parser-js@0.5.10: {}
 
   http-proxy-agent@5.0.0:
@@ -4840,6 +4856,10 @@ snapshots:
       '@protobufjs/utf8': 1.1.0
       '@types/node': 22.19.3
       long: 5.3.2
+
+  qrcode.react@4.2.0(react@19.2.0):
+    dependencies:
+      react: 19.2.0
 
   react-day-picker@9.8.0(react@19.2.0):
     dependencies:

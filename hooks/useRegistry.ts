@@ -10,16 +10,14 @@ export function useRegistry(signer?: ethers.Signer | null) {
   const contract = useMemo(() => {
     const provider = getProvider();
     const registryAddress = CONTRACTS.REGISTRY_ADDRESS;
+    const runner = signer || provider; 
 
-    if (!registryAddress) {
-      console.error("Registry address is missing in config");
-      return null;
-    }
+    if (!registryAddress) return null;
 
     return new ethers.Contract(
       registryAddress, 
       SAKU_ABI, 
-      signer || provider
+      runner
     );
   }, [signer]);
 
@@ -94,15 +92,17 @@ export function useRegistry(signer?: ethers.Signer | null) {
 
   const getQRPayment = async (qrHash: string) => {
     try {
-      if (!contract) throw new Error('Wallet not connected');
-      const paymentDetails = await contract.getQRPayment(qrHash);
+      const activeContract = getActiveContract();
+      // Membaca mapping public 'qrPayments' di contract
+      const payment = await activeContract.qrPayments(qrHash); 
+      
       return {
-        merchantHash: paymentDetails.merchantHash,
-        payer: paymentDetails.payer,
-        amount: paymentDetails.amount,
-        timestamp: paymentDetails.timestamp,
-        claimed: paymentDetails.claimed,
-        exists: paymentDetails.exists,
+        exists: payment.exists,
+        merchantHash: payment.merchantHash,
+        payer: payment.payer,
+        amount: payment.amount,
+        claimed: payment.claimed,
+        timestamp: payment.timestamp
       };
     } catch (err: any) {
       console.error('Failed to get QR payment:', err);
@@ -126,6 +126,36 @@ export function useRegistry(signer?: ethers.Signer | null) {
       return await contract.QR_PAYMENT_EXPIRY();
     } catch (err: any) {
       console.error('Failed to get QR payment expiry:', err);
+      throw err;
+    }
+  };
+
+  const getRegistrationBonus = async (): Promise<bigint> => {
+    try {
+      if (!contract) throw new Error('Wallet not connected');
+      return await contract.REGISTRATION_BONUS();
+    } catch (err: any) {
+      console.error('Failed to get registration bonus:', err);
+      throw err;
+    }
+  };
+
+  const getContractETHBalance = async (): Promise<bigint> => {
+    try {
+      if (!contract) throw new Error('Wallet not connected');
+      return await contract.getContractETHBalance();
+    } catch (err: any) {
+      console.error('Failed to get contract ETH balance:', err);
+      throw err;
+    }
+  };
+
+  const getRemainingRegistrations = async (): Promise<bigint> => {
+    try {
+      if (!contract) throw new Error('Wallet not connected');
+      return await contract.getRemainingRegistrations();
+    } catch (err: any) {
+      console.error('Failed to get remaining registrations:', err);
       throw err;
     }
   };
@@ -247,10 +277,10 @@ export function useRegistry(signer?: ethers.Signer | null) {
   };
 
   // ============================================================
-  // WRITE FUNCTIONS - DEPOSIT
+  // WRITE FUNCTIONS - TOPUP
   // ============================================================
 
-  const deposit = async (phoneNumber: string, amount: bigint) => {
+  const topup = async (phoneNumber: string, amount: bigint) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -258,7 +288,7 @@ export function useRegistry(signer?: ethers.Signer | null) {
       if (!contract) throw new Error('Wallet not connected');
 
       const phoneHash = hashPhone(phoneNumber);
-      const tx = await contract.deposit(phoneHash, amount);
+      const tx = await contract.topup(phoneHash, amount);
       const receipt = await tx.wait();
 
       return receipt;
@@ -270,7 +300,7 @@ export function useRegistry(signer?: ethers.Signer | null) {
     }
   };
 
-  const depositTo = async (receiverPhone: string, amount: bigint) => {
+  const topupTo = async (receiverPhone: string, amount: bigint) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -278,7 +308,7 @@ export function useRegistry(signer?: ethers.Signer | null) {
       if (!contract) throw new Error('Wallet not connected');
 
       const receiverHash = hashPhone(receiverPhone);
-      const tx = await contract.depositTo(receiverHash, amount);
+      const tx = await contract.topupTo(receiverHash, amount);
       const receipt = await tx.wait();
 
       return receipt;
@@ -334,7 +364,7 @@ export function useRegistry(signer?: ethers.Signer | null) {
     }
   };
 
-  // ============================================================
+  /// ============================================================
   // WRITE FUNCTIONS - QR PAYMENT
   // ============================================================
 
@@ -343,18 +373,18 @@ export function useRegistry(signer?: ethers.Signer | null) {
       setIsLoading(true);
       setError(null);
 
-      if (!contract) throw new Error('Wallet not connected');
+      const activeContract = getActiveContract();
 
       const merchantHash = hashPhone(merchantPhone);
-      const tx = await contract.createQRPayment(merchantHash, amount);
+      
+      const tx = await activeContract.createQRPayment(merchantHash, amount);
       const receipt = await tx.wait();
 
-      // Extract qrHash from the receipt
       let qrHash = '';
       if (receipt && receipt.logs) {
         for (const log of receipt.logs) {
           try {
-            const parsed = contract.interface.parseLog(log);
+            const parsed = activeContract.interface.parseLog(log);
             if (parsed && parsed.name === 'QRPaymentCreated') {
               qrHash = parsed.args.qrHash;
               break;
@@ -365,7 +395,11 @@ export function useRegistry(signer?: ethers.Signer | null) {
         }
       }
 
-      return { receipt, qrHash };
+      return { 
+        success: true, 
+        qrHash, 
+        transactionHash: receipt.hash 
+      };
     } catch (err: any) {
       setError(err.message);
       throw err;
@@ -373,25 +407,28 @@ export function useRegistry(signer?: ethers.Signer | null) {
       setIsLoading(false);
     }
   };
+
 
   const claimQRPayment = async (qrHash: string) => {
     try {
       setIsLoading(true);
-      setError(null);
+      const activeContract = getActiveContract();
 
-      if (!contract) throw new Error('Wallet not connected');
-
-      const tx = await contract.claimQRPayment(qrHash);
+      const tx = await activeContract.claimQRPayment(qrHash); 
       const receipt = await tx.wait();
 
-      return receipt;
+      return {
+        success: true,
+        transactionHash: receipt.hash
+      };
     } catch (err: any) {
-      setError(err.message);
+      console.error("Payment failed:", err);
       throw err;
     } finally {
       setIsLoading(false);
     }
   };
+
 
   const refundQRPayment = async (qrHash: string) => {
     try {
@@ -454,6 +491,45 @@ export function useRegistry(signer?: ethers.Signer | null) {
     }
   };
 
+  const depositETH = async (amount: bigint) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      const tx = await contract.depositETH({ value: amount });
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const adminWithdrawETH = async (amount: bigint) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      if (!contract) throw new Error('Wallet not connected');
+
+      const tx = await contract.adminWithdrawETH(amount);
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+
   return {
     // View functions
     isRegistered,
@@ -465,6 +541,9 @@ export function useRegistry(signer?: ethers.Signer | null) {
     getQRPayment,
     getWithdrawFeeBps,
     getQRPaymentExpiry,
+    getRegistrationBonus,
+    getContractETHBalance,
+    getRemainingRegistrations,
 
     // Registry functions
     register,
@@ -475,9 +554,9 @@ export function useRegistry(signer?: ethers.Signer | null) {
     transferByAddress,
     batchTransferByPhone,
 
-    // Deposit functions
-    deposit,
-    depositTo,
+    // Topup functions
+    topup,
+    topupTo,
 
     // Withdraw functions
     withdraw,
@@ -491,6 +570,8 @@ export function useRegistry(signer?: ethers.Signer | null) {
     // Admin functions
     updateAdminWallet,
     emergencyWithdraw,
+    depositETH,
+    adminWithdrawETH,
 
     isLoading,
     error,

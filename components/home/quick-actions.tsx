@@ -7,11 +7,11 @@ import { useAuth } from "@/hooks/useAuth"
 
 const quickActions = [
   {
-    id: "deposit",
-    label: "Deposit",
+    id: "topup",
+    label: "Top Up",
     icon: ArrowDownLeft,
     color: "from-primary to-secondary",
-    href: "/deposit",
+    href: "/topup",
     description: "Add funds to your wallet",
   },
   {

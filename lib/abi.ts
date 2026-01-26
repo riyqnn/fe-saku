@@ -15,11 +15,10 @@ export const SAKU_REGISTRY_ABI = [
   {
     "anonymous": false,
     "inputs": [
-      {"indexed": true, "internalType": "bytes32", "name": "phoneHash", "type": "bytes32"},
-      {"indexed": true, "internalType": "address", "name": "wallet", "type": "address"},
+      {"indexed": true, "internalType": "address", "name": "depositor", "type": "address"},
       {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
     ],
-    "name": "Deposited",
+    "name": "ETHDeposited",
     "type": "event"
   },
   {
@@ -50,6 +49,26 @@ export const SAKU_REGISTRY_ABI = [
       {"indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256"}
     ],
     "name": "Registered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "bytes32", "name": "phoneHash", "type": "bytes32"},
+      {"indexed": true, "internalType": "address", "name": "recipient", "type": "address"},
+      {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "RegistrationBonusSent",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "bytes32", "name": "phoneHash", "type": "bytes32"},
+      {"indexed": true, "internalType": "address", "name": "wallet", "type": "address"},
+      {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "ToppedUp",
     "type": "event"
   },
   {
@@ -93,6 +112,13 @@ export const SAKU_REGISTRY_ABI = [
   },
   {
     "inputs": [],
+    "name": "REGISTRATION_BONUS",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "WITHDRAW_FEE_BPS",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
@@ -103,6 +129,13 @@ export const SAKU_REGISTRY_ABI = [
     "name": "adminWallet",
     "outputs": [{"internalType": "address", "name": "", "type": "address"}],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "amount", "type": "uint256"}],
+    "name": "adminWithdrawETH",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -133,23 +166,10 @@ export const SAKU_REGISTRY_ABI = [
     "type": "function"
   },
   {
-    "inputs": [
-      {"internalType": "bytes32", "name": "phoneHash", "type": "bytes32"},
-      {"internalType": "uint256", "name": "amount", "type": "uint256"}
-    ],
-    "name": "deposit",
+    "inputs": [],
+    "name": "depositETH",
     "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {"internalType": "bytes32", "name": "receiverHash", "type": "bytes32"},
-      {"internalType": "uint256", "name": "amount", "type": "uint256"}
-    ],
-    "name": "depositTo",
-    "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
     "type": "function"
   },
   {
@@ -163,6 +183,13 @@ export const SAKU_REGISTRY_ABI = [
     "inputs": [{"internalType": "bytes32", "name": "phoneHash", "type": "bytes32"}],
     "name": "getAccount",
     "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getContractETHBalance",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
   },
@@ -183,6 +210,13 @@ export const SAKU_REGISTRY_ABI = [
   {
     "inputs": [{"internalType": "bytes32", "name": "phoneHash", "type": "bytes32"}],
     "name": "getRegistrationTime",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getRemainingRegistrations",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
@@ -255,6 +289,26 @@ export const SAKU_REGISTRY_ABI = [
   },
   {
     "inputs": [
+      {"internalType": "bytes32", "name": "phoneHash", "type": "bytes32"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "topup",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "bytes32", "name": "receiverHash", "type": "bytes32"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "topupTo",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
       {"internalType": "bytes32", "name": "receiverHash", "type": "bytes32"},
       {"internalType": "uint256", "name": "amount", "type": "uint256"}
     ],
@@ -310,6 +364,10 @@ export const SAKU_REGISTRY_ABI = [
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "receive"
   }
 ] as const;
 

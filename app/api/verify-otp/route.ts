@@ -1,150 +1,138 @@
 import { NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { createClient } from '@supabase/supabase-js';
-import { SAKU_REGISTRY_ABI } from '@/lib/abi';
+import { SAKU_REGISTRY_ABI, IDRX_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/lib/config';
 import { hashPhoneNumber } from '@/utils/phoneHash';
-import { encrypt } from '@/utils/encrypt'; // Pastikan utilitas enkripsi tersedia
+import { encrypt, decrypt } from '@/utils/encrypt';
 
-// Helper untuk menormalkan nomor HP agar sesuai dengan format database/Fonnte
 function normalizePhone(phone: string): string {
   let normalized = phone.replace(/\D/g, '');
-  if (normalized.startsWith('0')) {
-    normalized = '62' + normalized.substring(1);
-  }
+  if (normalized.startsWith('0')) normalized = '62' + normalized.substring(1);
   return normalized;
 }
 
 export async function POST(request: Request) {
   try {
     const { phone, otp } = await request.json();
-
-    if (!phone || !otp) {
-      return NextResponse.json(
-        { error: 'Nomor HP dan OTP wajib diisi' },
-        { status: 400 }
-      );
-    }
-
     const formattedPhone = normalizePhone(phone);
-    console.log('🔐 [VerifyOTP API] Verifying OTP for:', formattedPhone);
-
-    // Inisialisasi Supabase Admin untuk akses tabel kustom
+    
     const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_URL!, 
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // 1. Verifikasi OTP dari tabel otp_verifications
-    const { data: otpData, error: otpError } = await supabaseAdmin
+    console.info(`[Auth API] Verifying OTP for identifier: ${formattedPhone}`);
+    const { data: records } = await supabaseAdmin
       .from('otp_verifications')
       .select('*')
       .eq('phone_number', formattedPhone)
-      .eq('otp_code', otp)
       .eq('is_used', false)
       .gt('expired_at', new Date().toISOString())
-      .single();
+      .order('created_at', { ascending: false });
 
-    if (otpError || !otpData) {
-      console.error('❌ [VerifyOTP API] OTP invalid atau expired');
-      return NextResponse.json(
-        { error: 'Kode OTP salah atau sudah kedaluwarsa' },
-        { status: 400 }
-      );
-    }
-
-    // 2. Tandai OTP sudah digunakan agar tidak bisa dipakai ulang
-    await supabaseAdmin
-      .from('otp_verifications')
-      .update({ is_used: true })
-      .eq('id', otpData.id);
-
-    console.log('✅ [VerifyOTP API] OTP verified successfully');
-
-    // 3. Logika Pembuatan Dompet Kripto (Ethers.js)
-    const randomPrivateKey = ethers.hexlify(ethers.randomBytes(32));
-    const wallet = new ethers.Wallet(randomPrivateKey);
-    const walletAddress = wallet.address;
-    const phoneHash = hashPhoneNumber(formattedPhone);
-
-    // 4. Registrasi On-Chain ke Smart Contract
-    const provider = new ethers.JsonRpcProvider(
-      process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org'
-    );
-    const adminPrivateKey = process.env.ADMIN_PRIVATE_KEY;
-    if (!adminPrivateKey) throw new Error('ADMIN_PRIVATE_KEY belum dikonfigurasi');
-
-    const adminSigner = new ethers.Wallet(adminPrivateKey, provider);
-    const registry = new ethers.Contract(
-      CONTRACTS.REGISTRY_ADDRESS,
-      SAKU_REGISTRY_ABI,
-      adminSigner
-    );
-
-    // Cek apakah sudah terdaftar di blockchain
-    const alreadyRegistered = await registry.isRegistered(phoneHash);
-    let txHash = null;
-
-    if (!alreadyRegistered) {
-      console.log('📝 [VerifyOTP API] Registering new wallet on-chain...');
-      const tx = await registry.register(phoneHash, walletAddress);
-      const receipt = await tx.wait();
-      txHash = receipt.hash;
-    } else {
-      console.log('⚠️ [VerifyOTP API] Phone hash already registered on-chain');
-    }
-
-    // 5. Sinkronisasi ke tabel profiles
-    const { data: existingProfile } = await supabaseAdmin
-      .from('profiles')
-      .select('id')
-      .eq('phone_number', formattedPhone)
-      .maybeSingle();
-
-    let userId;
-
-    if (!existingProfile) {
-      userId = crypto.randomUUID();
-      
-      // Enkripsi Private Key sebelum disimpan demi keamanan
-      const encryptedData = encrypt(randomPrivateKey);
-
-      const { error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .insert([{
-          id: userId,
-          phone_number: formattedPhone,
-          phone_hash: phoneHash,
-          wallet_address: walletAddress,
-          encrypted_private_key: encryptedData.encryptedData,
-          encryption_iv: encryptedData.iv,
-          auth_tag: encryptedData.authTag,
-          is_verified: true,
-          created_at: new Date().toISOString()
-        }]);
-
-      if (profileError) {
-        console.error('❌ [VerifyOTP API] Profile creation error:', profileError.message);
-        throw profileError;
+    let validRecord = null;
+    if (records) {
+      for (const record of records) {
+        try {
+          const decrypted = decrypt(record.otp_code, record.encryption_iv, record.auth_tag);
+          if (decrypted === otp) {
+            validRecord = record;
+            break;
+          }
+        } catch (e) { continue; }
       }
-    } else {
-      userId = existingProfile.id;
     }
+
+    if (!validRecord) {
+      console.warn(`[Auth API] Invalid or expired OTP attempt for: ${formattedPhone}`);
+      return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 400 });
+    }
+    
+    await supabaseAdmin.from('otp_verifications').update({ is_used: true }).eq('id', validRecord.id);
+
+    const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL, undefined, { staticNetwork: true });
+    const phoneHash = hashPhoneNumber(formattedPhone);
+    const { data: profile } = await supabaseAdmin.from('profiles').select('*').eq('phone_number', formattedPhone).maybeSingle();
+
+    let walletAddress;
+    let privKey;
+    const isNew = !profile;
+
+    if (isNew) {
+      console.info(`[Wallet API] Generating new non-custodial wallet for: ${formattedPhone}`);
+      const wallet = ethers.Wallet.createRandom();
+      walletAddress = wallet.address;
+      privKey = wallet.privateKey;
+
+      const enc = encrypt(privKey);
+      await supabaseAdmin.from('profiles').insert([{
+        id: crypto.randomUUID(),
+        phone_number: formattedPhone,
+        phone_hash: phoneHash,
+        wallet_address: walletAddress,
+        encrypted_private_key: enc.encryptedData,
+        encryption_iv: enc.iv,
+        auth_tag: enc.authTag,
+        is_verified: true
+      }]);
+    } else {
+      console.info(`[Wallet API] Retrieving existing wallet for: ${formattedPhone}`);
+      walletAddress = profile.wallet_address;
+      privKey = decrypt(profile.encrypted_private_key, profile.encryption_iv, profile.auth_tag);
+    }
+
+    (async () => {
+      try {
+        const admin = new ethers.Wallet(process.env.ADMIN_PRIVATE_KEY!, provider);
+        const registry = new ethers.Contract(CONTRACTS.REGISTRY_ADDRESS, SAKU_REGISTRY_ABI, admin);
+        
+        // Gas Funding
+        const balance = await provider.getBalance(walletAddress);
+        if (balance === BigInt(0)) {
+          console.info(`[Worker] Funding gas (ETH) for account: ${walletAddress}`);
+          const txGas = await admin.sendTransaction({
+            to: walletAddress,
+            value: ethers.parseEther("0.005")
+          });
+          await txGas.wait();
+        }
+
+        // On-chain Registry Mapping
+        const registered = await registry.isRegistered(phoneHash);
+        if (!registered) {
+          console.info(`[Worker] Registering phone hash on-chain for: ${formattedPhone}`);
+          const txReg = await registry.register(phoneHash, walletAddress);
+          await txReg.wait();
+        }
+
+        // Approval
+        const userWallet = new ethers.Wallet(privKey, provider);
+        const idrx = new ethers.Contract(CONTRACTS.IDRX_ADDRESS, IDRX_ABI, userWallet);
+        const allowance = await idrx.allowance(walletAddress, CONTRACTS.REGISTRY_ADDRESS);
+        
+        if (allowance < ethers.parseUnits("1000000", 6)) {
+          console.info(`[Worker] Executing pre-emptive IDRX approval for Registry`);
+          const appTx = await idrx.approve(CONTRACTS.REGISTRY_ADDRESS, ethers.MaxUint256);
+          await appTx.wait();
+        }
+        
+        console.info(`[Worker] Provisioning complete for identifier: ${formattedPhone}`);
+      } catch (e) {
+        console.error('[Worker Error] Blockchain setup failed:', e);
+      }
+    })();
 
     return NextResponse.json({
       success: true,
-      message: alreadyRegistered ? 'Welcome back!' : 'Wallet created and registered',
-      phone: formattedPhone,
-      walletAddress: alreadyRegistered ? await registry.getAccount(phoneHash) : walletAddress,
-      isNewRegistration: !alreadyRegistered,
-      txHash: txHash
+      message: isNew ? 'Wallet created and setup initiated' : 'Authentication successful',
+      walletAddress,
+      privateKey: privKey,
+      isNewRegistration: isNew
     });
 
   } catch (err: any) {
-    console.error('❌ [VerifyOTP API] Global Error:', err);
-    return NextResponse.json(
-      { error: err.message || 'Gagal memverifikasi OTP' },
-      { status: 500 }
-    );
+    console.error(`[Fatal Error] Verification process aborted: ${err.message}`);
+    return NextResponse.json({ error: 'Internal verification failure' }, { status: 500 });
   }
 }

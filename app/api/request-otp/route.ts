@@ -1,13 +1,10 @@
-// app/api/request-otp/route.ts
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { encrypt } from '@/utils/encrypt'; 
 
-// Helper khusus Fonnte: Hanya angka, 08xxx jadi 628xxx
 function normalizePhoneForFonnte(phone: string): string {
-  let normalized = phone.replace(/\D/g, ''); // Hapus semua non-angka
-  if (normalized.startsWith('0')) {
-    normalized = '62' + normalized.substring(1);
-  }
+  let normalized = phone.replace(/\D/g, ''); 
+  if (normalized.startsWith('0')) normalized = '62' + normalized.substring(1);
   return normalized;
 }
 
@@ -15,80 +12,90 @@ export async function POST(request: Request) {
   try {
     const { phone } = await request.json();
 
-    if (!phone) {
-      return NextResponse.json(
-        { error: 'Nomor HP wajib diisi bos!' },
-        { status: 400 }
-      );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+    const fonnteToken = process.env.FONNTE_TOKEN?.trim();
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("[Auth API] Missing Supabase configuration");
+      return NextResponse.json({ error: 'Gagal memproses permintaan (Server Config Error)' }, { status: 500 });
     }
 
-    console.log('📱 [RequestOTP API] Phone Raw:', phone);
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false },
+      global: { fetch: (...args) => fetch(...args) },
+    });
+    
     const formattedPhone = normalizePhoneForFonnte(phone);
-    console.log('📋 [RequestOTP API] Formatted for Fonnte:', formattedPhone);
+    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); 
+    const encryptedOTP = encrypt(otpCode);
 
-    // 1. Inisialisasi Supabase Admin (Bypass RLS)
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    // 2. Generate OTP (6 Digit acak)
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // Berlaku 5 menit
-
-    console.log(`🔐 [RequestOTP API] Generated OTP: ${otpCode} for ${formattedPhone}`);
-
-    // 3. Simpan OTP ke tabel otp_verifications
+    console.info(`[Auth API] Initiating OTP storage for identifier: ${formattedPhone}`);
     const { error: dbError } = await supabaseAdmin
       .from('otp_verifications')
-      .insert([
-        { 
-          phone_number: formattedPhone, 
-          otp_code: otpCode, 
-          expired_at: expiresAt.toISOString(),
-          is_used: false 
-        }
-      ]);
+      .insert([{ 
+        phone_number: formattedPhone, 
+        otp_code: encryptedOTP.encryptedData,
+        encryption_iv: encryptedOTP.iv,      
+        auth_tag: encryptedOTP.authTag,       
+        expired_at: expiresAt.toISOString(),
+        is_used: false 
+      }]);
 
     if (dbError) {
-      console.error('❌ [Database Error]:', dbError.message);
-      throw new Error('Gagal menyimpan data OTP ke database');
+      console.error(`[Database Error] Persistence failure: ${dbError.message}`);
+      return NextResponse.json({ error: 'Gagal menyimpan data verifikasi' }, { status: 500 });
     }
 
-    // 4. Tembak API Fonnte
-    console.log('🚀 [RequestOTP API] Sending via Fonnte...');
-    
-    const fonnteResponse = await fetch('https://api.fonnte.com/send', {
-      method: 'POST',
-      headers: { 
-        'Authorization': process.env.FONNTE_TOKEN || '' 
-      },
-      body: new URLSearchParams({
-        target: formattedPhone,
-        message: `*[ SAKU - Security Verification ]*\n\nYour One-Time Password (OTP) is: *${otpCode}*\n\nThis code is valid for the next 5 minutes. For your security, never share this code with anyone. Saku representatives will never ask for your OTP.`
-      }),
-    });
+    console.info(`[Gateway API] Dispatching OTP payload via Fonnte service`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-    const fonnteData = await fonnteResponse.json();
+    try {
+      const fonnteResponse = await fetch('https://api.fonnte.com/send', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 
+          'Authorization': fonnteToken || '',
+          'Accept': 'application/json' 
+        },
+        body: new URLSearchParams({
+          target: formattedPhone,
+          message: `*[ SAKU ]*\n\nYour OTP code is: *${otpCode}*\n\nDo not share this code with anyone. Valid for 5 minutes.`
+        }),
+      });
 
-    if (!fonnteData.status) {
-      console.error('❌ [Fonnte Error]:', fonnteData.reason);
-      throw new Error(fonnteData.reason || 'Fonnte gagal kirim pesan');
+      clearTimeout(timeoutId);
+
+      if (!fonnteResponse.ok) {
+        const errorText = await fonnteResponse.text();
+        throw new Error(`External service responded with ${fonnteResponse.status}: ${errorText}`);
+      }
+
+      const fonnteData = await fonnteResponse.json();
+
+      if (!fonnteData.status) {
+        throw new Error(fonnteData.reason || 'Fonnte provider rejected the dispatch');
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'OTP terkirim!',
+        phone: formattedPhone
+      });
+
+    } catch (fetchErr: any) {
+      if (fetchErr.name === 'AbortError') {
+        console.error("[Gateway Error] Fonnte request timeout");
+        return NextResponse.json({ error: 'Koneksi ke gateway Fonnte timeout (12s)' }, { status: 504 });
+      }
+      console.error(`[Gateway Error] Dispatch failed: ${fetchErr.message}`);
+      return NextResponse.json({ error: 'Gagal mengirim OTP ke nomor Anda' }, { status: 502 });
     }
-
-    console.log('✅ [RequestOTP API] OTP berhasil dikirim ke WhatsApp!');
-
-    return NextResponse.json({
-      success: true,
-      message: 'OTP sudah dikirim via WhatsApp',
-      phone: formattedPhone
-    });
 
   } catch (err: any) {
-    console.error('❌ [RequestOTP API] Error:', err);
-    return NextResponse.json(
-      { error: err.message || 'Gagal memproses permintaan OTP' },
-      { status: 500 }
-    );
+    console.error(`[Internal Server Error] Process aborted: ${err.message}`);
+    return NextResponse.json({ error: 'Terjadi kesalahan sistem' }, { status: 500 });
   }
 }
