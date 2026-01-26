@@ -65,11 +65,12 @@ export default function Home() {
         {/* Balance Card Section */}
         <BalanceCardSection />
 
-        <PendingBillsSection />
 
         {/* Action Buttons */}
         <QuickActions onTransferClick={() => setShowTransferModal(true)} />
 
+        <PendingBillsSection />
+        
         {/* Recent Transactions */}
         <RecentTransactions />
       </main>
