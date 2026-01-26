@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter, usePathname } from "next/navigation" 
-import { Wallet, History, User, Home as HomeIcon } from "lucide-react"
+import { User, Home as HomeIcon, Receipt } from "lucide-react"
 
 export default function BottomNavigation() {
   const router = useRouter()
@@ -9,12 +9,12 @@ export default function BottomNavigation() {
 
   const navItems = [
     { id: "home", label: "Home", icon: HomeIcon, path: "/home" },
-    { id: "transactions", label: "Activity", icon: History, path: "/transactions" },
+    { id: "transactions", label: "Transaction", icon: Receipt, path: "/transactions" },
     { id: "profile", label: "Profile", icon: User, path: "/profile" },
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-background/80 dark:from-background dark:via-background dark:to-background/80 border-t border-border/50 backdrop-blur-lg">
+    <nav className="sticky bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-background/80 dark:from-background dark:via-background dark:to-background/80 border-t border-border/50 backdrop-blur-lg">
       <div className="max-w-lg mx-auto w-full px-3 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-around gap-1">
           {navItems.map((item) => {

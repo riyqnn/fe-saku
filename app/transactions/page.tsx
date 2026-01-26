@@ -1,10 +1,12 @@
 "use client"
 
-import { ArrowLeft, ArrowDownLeft, ArrowUpRight, Wallet, Receipt, DollarSign, QrCode, ExternalLink, RefreshCw } from "lucide-react"
+import { ArrowLeft, ArrowDownLeft, ArrowUpRight, Wallet, Receipt, DollarSign, QrCode, ExternalLink, RefreshCw, Bot } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { useTransactions, Transaction } from "@/hooks/useTransactions"
 import { NETWORK_CONFIG } from "@/lib/config"
+import BottomNavigation from "@/components/home/bottom-navigation"
+
 
 const TRANSACTION_CONFIG: Record<string, { icon: any; bgClass: string; textClass: string; label: string }> = {
   transfer_sent: {
@@ -109,7 +111,7 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background dark:bg-background pb-24">
+    <div className="bg-background dark:bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/80 dark:bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="max-w-lg mx-auto px-4 py-4">
@@ -141,7 +143,7 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <main className="max-w-lg mx-auto px-4 py-6">
+      <main className="max-w-lg min-h-screen mx-auto px-4 py-6">
         {/* Loading State */}
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-20 space-y-4">
@@ -230,6 +232,7 @@ export default function TransactionsPage() {
           </div>
         )}
       </main>
+      <BottomNavigation/>
     </div>
   )
 }

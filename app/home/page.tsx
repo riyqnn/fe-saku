@@ -56,7 +56,7 @@ export default function Home() {
   if (!isAuthenticated) return null
 
   return (
-    <div className="min-h-screen bg-background pb-24 animate-in fade-in duration-500 font-sans">
+    <div className="min-h-screen bg-background animate-in fade-in duration-500 font-sans">
       {/* Header */}
       <HomeHeader />
 
