@@ -6,6 +6,13 @@ import { decrypt } from '@/utils/encrypt';
 import { SAKU_REGISTRY_ABI, IDRX_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/lib/config';
 
+// Normalize phone to match registration format
+function normalizePhone(phone: string): string {
+  let normalized = phone.replace(/\D/g, ''); // Remove all non-digits
+  if (normalized.startsWith('0')) normalized = '62' + normalized.substring(1);
+  return normalized;
+}
+
 export async function POST(req: Request) {
   const supabase = await createSakuServerClient();
 
@@ -31,20 +38,34 @@ export async function POST(req: Request) {
     }
 
     // 3. Get user's profile with encrypted private key
-    const phoneHash = hashPhoneNumber(phoneNumber);
+    const normalizedPhone = normalizePhone(phoneNumber);
+
+    console.log('=== WITHDRAW DEBUG ===');
+    console.log('Input phone:', phoneNumber);
+    console.log('Normalized phone:', normalizedPhone);
+
+    // First, get the profile by phone_number to get the stored phone_hash
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('wallet_address, encrypted_private_key, encryption_iv, auth_tag')
-      .eq('phone_hash', phoneHash)
+      .select('wallet_address, encrypted_private_key, encryption_iv, auth_tag, phone_hash')
+      .eq('phone_number', normalizedPhone)
       .single();
 
     if (profileError || !profile) {
+      console.error('Profile lookup error:', profileError);
+      console.error('Looking for phone:', normalizedPhone);
       return NextResponse.json({ error: 'Wallet not found' }, { status: 404 });
     }
 
     if (!profile.wallet_address) {
       return NextResponse.json({ error: 'Wallet address not found' }, { status: 400 });
     }
+
+    console.log('DB wallet_address:', profile.wallet_address);
+    console.log('DB phone_hash:', profile.phone_hash);
+
+    // Use the phone_hash from database (ensures it matches what was registered)
+    const phoneHash = profile.phone_hash;
 
     // 4. Decrypt private key server-side
     let privateKey: string;
@@ -63,12 +84,21 @@ export async function POST(req: Request) {
     const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org');
     const wallet = new ethers.Wallet(privateKey, provider);
 
+    console.log('Wallet address from private key:', wallet.address);
+    console.log('Phone hash being used:', phoneHash);
+    console.log('Do they match?', wallet.address === profile.wallet_address);
+
     // 6. Setup contract instances
     const registryContract = new ethers.Contract(
       CONTRACTS.REGISTRY_ADDRESS,
       SAKU_REGISTRY_ABI,
       wallet
     );
+
+    // Check what the contract has for this phoneHash
+    const contractOwner = await registryContract.phoneToAccount(phoneHash);
+    console.log('Contract owner for phoneHash:', contractOwner);
+    console.log('Contract owner == wallet?', contractOwner.toLowerCase() === wallet.address.toLowerCase());
 
     const idrxContract = new ethers.Contract(
       CONTRACTS.IDRX_ADDRESS,

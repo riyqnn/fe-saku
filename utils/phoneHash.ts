@@ -10,12 +10,18 @@ import { ethers } from 'ethers';
  * // returns '0x...' (32 bytes hash)
  */
 export function hashPhoneNumber(phoneNumber: string): string {
-  // Normalize phone number: remove spaces, dashes, parentheses
-  const normalized = phoneNumber.replace(/[\s\-\(\)]/g, '');
-  
+  // Normalize phone number to match registration format
+  // Remove all non-digits to match verify-otp normalizePhone function
+  let normalized = phoneNumber.replace(/\D/g, '');
+
+  // Convert 0xxx to 62xxx (Indonesia format)
+  if (normalized.startsWith('0')) {
+    normalized = '62' + normalized.substring(1);
+  }
+
   // Hash using keccak256 (same as Solidity's keccak256)
   const hash = ethers.keccak256(ethers.toUtf8Bytes(normalized));
-  
+
   return hash;
 }
 
