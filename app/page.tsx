@@ -15,7 +15,7 @@ export default function Home() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative w-full flex flex-col gap-10 md:gap-20 py-10 justify-center bg-gradient-to-b from-primary to-background items-center text-center pt-24 md:pt-35">
+      <section className="relative w-full flex flex-col gap-20 md:gap-30 py-10 justify-center bg-gradient-to-b from-primary to-background items-center text-center pt-24 md:pt-35">
         <h1
           className="
             text-[88px] sm:text-[100px] md:text-[120px] lg:text-[150px]
@@ -24,7 +24,7 @@ export default function Home() {
           "
         >
           <span className="whitespace-nowrap">
-            Your trusted
+            Your
             <video
               className="w-18 sm:w-22 md:w-28 lg:w-50 inline mx-2 align-middle"
               src="/logo.webm"
@@ -34,6 +34,7 @@ export default function Home() {
               playsInline
             />
           </span>
+          trusted
           <br />
           wallet shit
         </h1>
@@ -55,7 +56,7 @@ export default function Home() {
 
       {/* Promotion Section */}
       <section className="relative w-full flex flex-col gap-12 md:gap-20 py-10 justify-center items-center text-center">
-        <div className="flex flex-col gap-4 md:gap-6">
+        <div className="flex flex-col max-w-md gap-4 md:gap-6">
           <h1 className="text-4xl sm:text-5xl md:text-[80px] text-black/85 font-medium leading-normal">
             Transfer crypto <br /> with phone number
           </h1>

@@ -30,7 +30,7 @@ export default function Slider() {
         onMounted={() => {
           setTimeout(() => {
             setActive(true)
-          }, 1500);
+          }, 2000);
         }}
         onMoved={() => setActive(true)}
         aria-label="My Favorite Images"
