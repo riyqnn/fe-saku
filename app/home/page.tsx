@@ -12,6 +12,7 @@ import QuickActions from "@/components/home/quick-actions"
 import RecentTransactions from "@/components/home/recent-transactions"
 import BottomNavigation from "@/components/home/bottom-navigation"
 import TransferModal from "@/components/transfer/transfer-modal"
+import PendingBillsSection from "@/components/home/pending-bills"
 
 export default function Home() {
   const router = useRouter()
@@ -63,6 +64,8 @@ export default function Home() {
       <main className="max-w-lg mx-auto px-4 space-y-6 py-6">
         {/* Balance Card Section */}
         <BalanceCardSection />
+
+        <PendingBillsSection />
 
         {/* Action Buttons */}
         <QuickActions onTransferClick={() => setShowTransferModal(true)} />
