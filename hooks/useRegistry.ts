@@ -10,16 +10,14 @@ export function useRegistry(signer?: ethers.Signer | null) {
   const contract = useMemo(() => {
     const provider = getProvider();
     const registryAddress = CONTRACTS.REGISTRY_ADDRESS;
+    const runner = signer || provider; 
 
-    if (!registryAddress) {
-      console.error("Registry address is missing in config");
-      return null;
-    }
+    if (!registryAddress) return null;
 
     return new ethers.Contract(
       registryAddress, 
       SAKU_ABI, 
-      signer || provider
+      runner
     );
   }, [signer]);
 
@@ -94,15 +92,17 @@ export function useRegistry(signer?: ethers.Signer | null) {
 
   const getQRPayment = async (qrHash: string) => {
     try {
-      if (!contract) throw new Error('Wallet not connected');
-      const paymentDetails = await contract.getQRPayment(qrHash);
+      const activeContract = getActiveContract();
+      // Membaca mapping public 'qrPayments' di contract
+      const payment = await activeContract.qrPayments(qrHash); 
+      
       return {
-        merchantHash: paymentDetails.merchantHash,
-        payer: paymentDetails.payer,
-        amount: paymentDetails.amount,
-        timestamp: paymentDetails.timestamp,
-        claimed: paymentDetails.claimed,
-        exists: paymentDetails.exists,
+        exists: payment.exists,
+        merchantHash: payment.merchantHash,
+        payer: payment.payer,
+        amount: payment.amount,
+        claimed: payment.claimed,
+        timestamp: payment.timestamp
       };
     } catch (err: any) {
       console.error('Failed to get QR payment:', err);
@@ -364,7 +364,7 @@ export function useRegistry(signer?: ethers.Signer | null) {
     }
   };
 
-  // ============================================================
+  /// ============================================================
   // WRITE FUNCTIONS - QR PAYMENT
   // ============================================================
 
@@ -373,18 +373,18 @@ export function useRegistry(signer?: ethers.Signer | null) {
       setIsLoading(true);
       setError(null);
 
-      if (!contract) throw new Error('Wallet not connected');
+      const activeContract = getActiveContract();
 
       const merchantHash = hashPhone(merchantPhone);
-      const tx = await contract.createQRPayment(merchantHash, amount);
+      
+      const tx = await activeContract.createQRPayment(merchantHash, amount);
       const receipt = await tx.wait();
 
-      // Extract qrHash from the receipt
       let qrHash = '';
       if (receipt && receipt.logs) {
         for (const log of receipt.logs) {
           try {
-            const parsed = contract.interface.parseLog(log);
+            const parsed = activeContract.interface.parseLog(log);
             if (parsed && parsed.name === 'QRPaymentCreated') {
               qrHash = parsed.args.qrHash;
               break;
@@ -395,7 +395,11 @@ export function useRegistry(signer?: ethers.Signer | null) {
         }
       }
 
-      return { receipt, qrHash };
+      return { 
+        success: true, 
+        qrHash, 
+        transactionHash: receipt.hash 
+      };
     } catch (err: any) {
       setError(err.message);
       throw err;
@@ -403,25 +407,28 @@ export function useRegistry(signer?: ethers.Signer | null) {
       setIsLoading(false);
     }
   };
+
 
   const claimQRPayment = async (qrHash: string) => {
     try {
       setIsLoading(true);
-      setError(null);
+      const activeContract = getActiveContract();
 
-      if (!contract) throw new Error('Wallet not connected');
-
-      const tx = await contract.claimQRPayment(qrHash);
+      const tx = await activeContract.claimQRPayment(qrHash); 
       const receipt = await tx.wait();
 
-      return receipt;
+      return {
+        success: true,
+        transactionHash: receipt.hash
+      };
     } catch (err: any) {
-      setError(err.message);
+      console.error("Payment failed:", err);
       throw err;
     } finally {
       setIsLoading(false);
     }
   };
+
 
   const refundQRPayment = async (qrHash: string) => {
     try {
@@ -521,6 +528,7 @@ export function useRegistry(signer?: ethers.Signer | null) {
       setIsLoading(false);
     }
   };
+  
 
   return {
     // View functions

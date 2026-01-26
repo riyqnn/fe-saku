@@ -1,8 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
+import { useRegistry } from "@/hooks/useRegistry"
+import { ethers } from "ethers"
+import { getProvider } from "@/lib/blockchain"
 import HomeHeader from "@/components/home/header"
 import BalanceCardSection from "@/components/home/balance-card-section"
 import QuickActions from "@/components/home/quick-actions"
@@ -12,16 +15,27 @@ import TransferModal from "@/components/transfer/transfer-modal"
 
 export default function Home() {
   const router = useRouter()
-  const { isAuthenticated, isLoading, user } = useAuth() 
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth() 
   const [showTransferModal, setShowTransferModal] = useState(false)
+  
+  const signer = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const pKey = localStorage.getItem('saku_private_key');
+    if (!pKey) return null;
+    try {
+      return new ethers.Wallet(pKey, getProvider());
+    } catch { return null; }
+  }, []);
+
+  const { withdrawAll, isLoading: isWithdrawing } = useRegistry(signer)
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
       router.replace('/get-started')
     }
-  }, [isAuthenticated, isLoading, router])
+  }, [isAuthenticated, authLoading, router])
 
-  if (isLoading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-[#F9EFE5] flex items-center justify-center">
         <div className="animate-pulse text-[#7F8790] font-medium text-lg text-center">
@@ -35,12 +49,12 @@ export default function Home() {
   if (!isAuthenticated) return null
 
   return (
-    <div className="min-h-screen bg-background pb-24 animate-in fade-in duration-500">
+    <div className="min-h-screen bg-background pb-24 animate-in fade-in duration-500 font-sans">
       {/* Header */}
       <HomeHeader />
 
       <main className="max-w-lg mx-auto px-4 space-y-6 py-6">
-        {/* Balance Card - Sekarang datanya sync dengan DB via useAuth */}
+        {/* Balance Card Section */}
         <BalanceCardSection />
 
         {/* Action Buttons */}

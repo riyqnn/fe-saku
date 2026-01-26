@@ -1,465 +1,247 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { QrCode, Scan, CheckCircle, Clock, ArrowLeft, RefreshCw } from "lucide-react"
+import { QrCode, Scan, CheckCircle, ArrowLeft, Loader2, Copy, Camera, X } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { useSakuQRPayment } from "@/hooks/useSakuQRPayment"
 import { useBalance } from "@/hooks/useBalance"
-
-type TabType = "create" | "scan" | "refund" | "status"
+import { QRCodeSVG } from "qrcode.react" 
+import { toast } from "sonner"
+import { Html5Qrcode } from "html5-qrcode"
 
 export default function PayPage() {
   const router = useRouter()
   const { user } = useAuth()
-  const walletAddress = user?.wallet_address || null
-  const { createQRPayment, claimQRPayment, refundQRPayment, getQRPayment, creating, claiming, refunding } = useSakuQRPayment()
-  const { formattedBalance, refetch: refetchBalance } = useBalance(walletAddress)
+  const { generateQR, claimPayment, loading } = useSakuQRPayment()
+  const { formattedBalance, refetch: refetchBalance } = useBalance(user?.wallet_address || null)
 
-  const [activeTab, setActiveTab] = useState<TabType>("create")
-  const [merchantPhone, setMerchantPhone] = useState("")
+  const [activeTab, setActiveTab] = useState<"create" | "scan">("create")
   const [amount, setAmount] = useState("")
-  const [qrHash, setQrHash] = useState("")
-  const [scanQrHash, setScanQrHash] = useState("")
-  const [refundQrHash, setRefundQrHash] = useState("")
-  const [statusQrHash, setStatusQrHash] = useState("")
-  const [paymentDetails, setPaymentDetails] = useState<any>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [qrData, setQrData] = useState<string | null>(null)
+  const [payInput, setPayInput] = useState("")
   const [success, setSuccess] = useState(false)
-  const [txHash, setTxHash] = useState<string | null>(null)
+  const [isScannerActive, setIsScannerActive] = useState(false)
+  
+  const scannerRef = useRef<Html5Qrcode | null>(null)
+
+  useEffect(() => {
+    if (activeTab === "scan") {
+      // Kasih delay dikit biar DOM "reader" beneran siap
+      const timer = setTimeout(() => startScanner(), 500);
+      return () => {
+        clearTimeout(timer);
+        stopScanner();
+      }
+    } else {
+      stopScanner();
+    }
+  }, [activeTab]);
+
+  const startScanner = async () => {
+    try {
+      const html5QrCode = new Html5Qrcode("reader");
+      scannerRef.current = html5QrCode;
+      setIsScannerActive(true);
+      
+      // QRBox dibikin proporsional biar gampang scan
+      const config = { 
+        fps: 15, // Naikin FPS biar lebih responsif
+        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+            return { width: viewfinderWidth * 0.7, height: viewfinderWidth * 0.7 };
+        },
+        aspectRatio: 1.0 
+      };
+      
+      await html5QrCode.start(
+        { facingMode: "environment" }, 
+        config, 
+        (decodedText) => {
+          // Kalo dapet kode, langsung masukin ke input
+          setPayInput(decodedText);
+          toast.success("QR Code detected! ✅");
+          // Jangan langsung stop biar user bisa liat kodenya masuk dulu
+          setTimeout(() => stopScanner(), 1000);
+        },
+        () => {} // Silent fail buat frame yang gak ada QR-nya
+      );
+    } catch (err) {
+      console.error("Camera error:", err);
+      setIsScannerActive(false);
+    }
+  };
+
+  const stopScanner = async () => {
+    if (scannerRef.current && scannerRef.current.isScanning) {
+      try {
+        await scannerRef.current.stop();
+        scannerRef.current = null;
+        setIsScannerActive(false);
+      } catch (e) {
+        console.error("Stop failed", e);
+      }
+    }
+  };
 
   const handleCreatePayment = async () => {
-    try {
-      setError(null)
-
-      if (!merchantPhone || !amount) {
-        throw new Error("Please fill in all fields")
-      }
-
-      const result = await createQRPayment({ merchantPhone, amount })
-
-      if (result.success) {
-        setQrHash(result.qrHash || "")
-        setTxHash(result.transactionHash || null)
-        setSuccess(true)
-
-        setTimeout(() => {
-          refetchBalance()
-        }, 2000)
-      } else {
-        throw new Error(result.error || "Failed to create payment")
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to create payment")
+    if (!amount || Number(amount) <= 0) return toast.error("Please enter a valid amount")
+    if (!user?.phone_number) return toast.error("Session expired.")
+    const result = await generateQR(user.phone_number, amount)
+    if (result.success) {
+      setQrData(result.qrHash)
+      toast.success("Payment Request Created!")
     }
   }
 
   const handleClaimPayment = async () => {
-    try {
-      setError(null)
-
-      if (!scanQrHash) {
-        throw new Error("Please enter a QR hash")
-      }
-
-      const result = await claimQRPayment({ qrHash: scanQrHash })
-
-      if (result.success) {
-        setTxHash(result.transactionHash || null)
-        setSuccess(true)
-
-        setTimeout(() => {
+    if (!payInput) return toast.error("Please provide a payment code")
+    
+    toast.promise(claimPayment(payInput), {
+      loading: 'Securing transaction on-chain...',
+      success: (result) => {
+        if (result && result.success) {
+          setSuccess(true)
           refetchBalance()
-        }, 2000)
-      } else {
-        throw new Error(result.error || "Failed to claim payment")
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to claim payment")
-    }
-  }
-
-  const handleRefundPayment = async () => {
-    try {
-      setError(null)
-
-      if (!refundQrHash) {
-        throw new Error("Please enter a QR hash")
-      }
-
-      const result = await refundQRPayment({ qrHash: refundQrHash })
-
-      if (result.success) {
-        setTxHash(result.transactionHash || null)
-        setSuccess(true)
-        setActiveTab("create") // Reset to default tab
-
-        setTimeout(() => {
-          refetchBalance()
-        }, 2000)
-      } else {
-        throw new Error(result.error || "Failed to refund payment")
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to refund payment")
-    }
-  }
-
-  const handleCheckStatus = async () => {
-    try {
-      setError(null)
-      setPaymentDetails(null)
-
-      if (!statusQrHash) {
-        throw new Error("Please enter a QR hash")
-      }
-
-      const result = await getQRPayment({ qrHash: statusQrHash })
-
-      if (result.success && result.payment) {
-        setPaymentDetails(result.payment)
-      } else {
-        throw new Error(result.error || "Failed to get payment details")
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to get payment details")
-    }
-  }
-
-  const handleBack = () => {
-    router.push("/home")
+          return "Payment successful! 💸"
+        }
+        throw new Error("Transaction failed")
+      },
+      error: (err) => err.message || "Payment failed."
+    })
   }
 
   if (success) {
     return (
-      <div className="min-h-screen bg-background dark:bg-background flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-card dark:bg-card rounded-3xl p-8 shadow-2xl animate-fade-in-up">
-          <div className="flex flex-col items-center text-center space-y-6">
-            <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center">
-              <CheckCircle className="w-12 h-12 text-green-500" />
-            </div>
-
-            <div className="space-y-2">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                {activeTab === "create" ? "Payment Created!" :
-                 activeTab === "scan" ? "Payment Claimed!" :
-                 activeTab === "refund" ? "Refund Successful!" :
-                 "Success!"}
-              </h1>
-              <p className="text-muted-foreground">
-                {activeTab === "create"
-                  ? `Payment of ${Number(amount).toLocaleString()} IDRX created successfully`
-                  : activeTab === "scan"
-                  ? "Payment claimed successfully"
-                  : activeTab === "refund"
-                  ? "Payment refunded successfully"
-                  : "Operation completed successfully"}
-              </p>
-            </div>
-
-            {qrHash && (
-              <div className="w-full p-4 rounded-2xl bg-muted/50 space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">QR Hash</p>
-                <p className="text-sm font-mono text-foreground break-all">{qrHash || scanQrHash}</p>
-              </div>
-            )}
-
-            {txHash && (
-              <div className="w-full p-4 rounded-2xl bg-muted/50 space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transaction Hash</p>
-                <p className="text-sm font-mono text-foreground break-all">{txHash}</p>
-              </div>
-            )}
-
-            <button
-              onClick={handleBack}
-              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-primary to-secondary text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95"
-            >
-              Done
-            </button>
-          </div>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 font-sans">
+        <div className="max-w-md w-full bg-card rounded-[2.5rem] p-10 shadow-2xl text-center space-y-6 animate-in fade-in zoom-in">
+          <CheckCircle className="w-20 h-20 text-green-500 mx-auto" />
+          <h1 className="text-3xl font-black">Transfer Success!</h1>
+          <p className="text-muted-foreground font-medium">Your IDRX has been sent securely.</p>
+          <button onClick={() => router.push("/home")} className="w-full py-4 rounded-2xl bg-black text-white font-bold shadow-lg active:scale-95 transition-all">Back Home</button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background dark:bg-background">
-      <div className="max-w-lg mx-auto min-h-screen bg-background dark:bg-background flex flex-col">
-        {/* Header */}
-        <div className="p-4 sm:p-6 flex items-center justify-between border-b border-border">
-          <button
-            onClick={handleBack}
-            className="p-2 rounded-xl hover:bg-muted/50 transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6 text-foreground" />
-          </button>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">QR Payment</h1>
-          <div className="w-10" />
+    <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans">
+      <div className="p-6 flex items-center gap-4 border-b border-border bg-card/30 backdrop-blur-md sticky top-0 z-10">
+        <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-xl transition-colors">
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+        <h1 className="text-xl font-black tracking-tight">QR Payment</h1>
+      </div>
+
+      <div className="p-6 space-y-6 flex-1">
+        <div className="p-6 rounded-[2rem] bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 text-center shadow-sm">
+          <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Total Balance</p>
+          <p className="text-3xl font-black">{formattedBalance}</p>
         </div>
 
-        {/* Tabs */}
-        <div className="p-2 sm:p-3 flex gap-1.5 border-b border-border overflow-x-auto">
-          <button
-            onClick={() => setActiveTab("create")}
-            className={`flex-1 min-w-fit py-2.5 px-3 sm:px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all whitespace-nowrap ${
-              activeTab === "create"
-                ? "bg-primary text-white"
-                : "bg-muted/50 text-muted-foreground hover:bg-muted"
-            }`}
+        <div className="flex p-1.5 bg-muted rounded-3xl">
+          <button 
+            onClick={() => setActiveTab("create")} 
+            className={`flex-1 py-3 rounded-2xl font-bold text-sm transition-all ${activeTab === "create" ? "bg-white shadow-sm text-black" : "text-muted-foreground"}`}
           >
-            Create QR
+            Receive
           </button>
-          <button
-            onClick={() => setActiveTab("scan")}
-            className={`flex-1 min-w-fit py-2.5 px-3 sm:px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all whitespace-nowrap ${
-              activeTab === "scan"
-                ? "bg-primary text-white"
-                : "bg-muted/50 text-muted-foreground hover:bg-muted"
-            }`}
+          <button 
+            onClick={() => setActiveTab("scan")} 
+            className={`flex-1 py-3 rounded-2xl font-bold text-sm transition-all ${activeTab === "scan" ? "bg-white shadow-sm text-black" : "text-muted-foreground"}`}
           >
-            Claim QR
-          </button>
-          <button
-            onClick={() => setActiveTab("refund")}
-            className={`flex-1 min-w-fit py-2.5 px-3 sm:px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all whitespace-nowrap ${
-              activeTab === "refund"
-                ? "bg-primary text-white"
-                : "bg-muted/50 text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            Refund
-          </button>
-          <button
-            onClick={() => setActiveTab("status")}
-            className={`flex-1 min-w-fit py-2.5 px-3 sm:px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all whitespace-nowrap ${
-              activeTab === "status"
-                ? "bg-primary text-white"
-                : "bg-muted/50 text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            Status
+            Pay
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto">
-          {/* Balance Card */}
-          <div className="p-6 rounded-3xl bg-gradient-to-br from-secondary/20 to-accent/20 border border-secondary/20 space-y-2">
-            <p className="text-sm font-semibold text-muted-foreground">Your Balance</p>
-            <p className="text-3xl sm:text-4xl font-bold text-foreground">{formattedBalance}</p>
+        {activeTab === "create" ? (
+          <div className="space-y-6 animate-in slide-in-from-left duration-500">
+            {!qrData ? (
+              <div className="space-y-5">
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-2">Amount to Request</label>
+                    <input 
+                      type="number" 
+                      value={amount} 
+                      onChange={(e) => setAmount(e.target.value)} 
+                      placeholder="0.00" 
+                      className="w-full bg-muted/50 border-2 border-transparent focus:border-black/5 rounded-[2rem] px-8 py-5 text-2xl font-black outline-none transition-all" 
+                    />
+                </div>
+                <button onClick={handleCreatePayment} disabled={!amount || loading} className="w-full py-5 rounded-[2rem] bg-black text-white font-bold text-lg shadow-xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-30 transition-all shadow-black/20">
+                  <QrCode className="w-5 h-5" /> Generate QR Code
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center p-8 bg-card rounded-[2.5rem] border border-border shadow-2xl space-y-6 animate-in zoom-in duration-300">
+                <div className="p-6 bg-white rounded-[2rem] shadow-inner border-[12px] border-muted/20">
+                    <QRCodeSVG value={qrData} size={220} level="H" />
+                </div>
+                <div className="text-center">
+                    <p className="text-sm font-bold text-muted-foreground">Request Amount</p>
+                    <p className="text-3xl font-black text-black">Rp {Number(amount).toLocaleString()}</p>
+                </div>
+                <button onClick={() => setQrData(null)} className="text-[10px] font-black text-muted-foreground hover:text-black uppercase tracking-widest transition-colors underline underline-offset-4">Create New</button>
+              </div>
+            )}
           </div>
-
-          {/* Create QR Tab */}
-          {activeTab === "create" && (
-            <>
-              <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 space-y-2">
-                <div className="flex items-start gap-3">
-                  <QrCode className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-blue-500 dark:text-blue-400">Create QR Payment</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Create a QR payment that locks funds for a merchant to claim. Valid for 24 hours.
-                    </p>
+        ) : (
+          <div className="space-y-6 animate-in slide-in-from-right duration-500">
+            <div className="relative w-full aspect-square overflow-hidden rounded-[3rem] bg-black border-4 border-muted/10 shadow-2xl flex items-center justify-center">
+              <div id="reader" className="w-full h-full object-cover"></div>
+              
+              {!isScannerActive && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white p-8 text-center space-y-5">
+                  <Camera className="w-14 h-14 opacity-40 animate-pulse" />
+                  <div>
+                    <p className="text-lg font-black">Camera Inactive</p>
+                    <p className="text-xs text-muted-foreground px-4">Ensure camera permissions are allowed in your browser.</p>
                   </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-sm font-semibold text-foreground">Merchant Phone Number</label>
-                <input
-                  type="tel"
-                  value={merchantPhone}
-                  onChange={(e) => setMerchantPhone(e.target.value)}
-                  placeholder="+62..."
-                  className="w-full p-4 rounded-2xl bg-muted/50 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
-                  disabled={creating}
-                />
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-sm font-semibold text-foreground">Amount (IDRX)</label>
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="Enter amount"
-                  className="w-full p-4 rounded-2xl bg-muted/50 border border-border text-foreground text-lg font-semibold placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
-                  disabled={creating}
-                />
-              </div>
-
-              <button
-                onClick={handleCreatePayment}
-                disabled={!merchantPhone || !amount || creating}
-                className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-secondary to-accent text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
-              >
-                {creating ? "Creating..." : "Create Payment QR"}
-              </button>
-            </>
-          )}
-
-          {/* Scan QR Tab */}
-          {activeTab === "scan" && (
-            <>
-              <div className="p-4 rounded-2xl bg-green-500/10 border border-green-500/20 space-y-2">
-                <div className="flex items-start gap-3">
-                  <Scan className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-green-500 dark:text-green-400">Claim QR Payment</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Enter the QR hash to claim a payment sent to you. Only you (the merchant) can claim it.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-sm font-semibold text-foreground">QR Hash</label>
-                <input
-                  type="text"
-                  value={scanQrHash}
-                  onChange={(e) => setScanQrHash(e.target.value)}
-                  placeholder="0x..."
-                  className="w-full p-4 rounded-2xl bg-muted/50 border border-border text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-green-500/50"
-                  disabled={claiming}
-                />
-              </div>
-
-              <button
-                onClick={handleClaimPayment}
-                disabled={!scanQrHash || claiming}
-                className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
-              >
-                {claiming ? "Claiming..." : "Claim Payment"}
-              </button>
-            </>
-          )}
-
-          {/* Refund Tab */}
-          {activeTab === "refund" && (
-            <>
-              <div className="p-4 rounded-2xl bg-orange-500/10 border border-orange-500/20 space-y-2">
-                <div className="flex items-start gap-3">
-                  <RefreshCw className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-orange-500 dark:text-orange-400">Refund QR Payment</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Refund an expired QR payment (after 24 hours if not claimed). Only the original payer can refund.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-sm font-semibold text-foreground">QR Hash</label>
-                <input
-                  type="text"
-                  value={refundQrHash}
-                  onChange={(e) => setRefundQrHash(e.target.value)}
-                  placeholder="0x..."
-                  className="w-full p-4 rounded-2xl bg-muted/50 border border-border text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/50"
-                  disabled={refunding}
-                />
-              </div>
-
-              <button
-                onClick={handleRefundPayment}
-                disabled={!refundQrHash || refunding}
-                className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
-              >
-                {refunding ? "Refunding..." : "Refund Payment"}
-              </button>
-            </>
-          )}
-
-          {/* Status Tab */}
-          {activeTab === "status" && (
-            <>
-              <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 space-y-2">
-                <div className="flex items-start gap-3">
-                  <Clock className="w-5 h-5 text-purple-500 mt-0.5 flex-shrink-0" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-purple-500 dark:text-purple-400">Check Payment Status</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Check the status and details of any QR payment using its hash.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-sm font-semibold text-foreground">QR Hash</label>
-                <input
-                  type="text"
-                  value={statusQrHash}
-                  onChange={(e) => setStatusQrHash(e.target.value)}
-                  placeholder="0x..."
-                  className="w-full p-4 rounded-2xl bg-muted/50 border border-border text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                  disabled={false}
-                />
-              </div>
-
-              <button
-                onClick={handleCheckStatus}
-                disabled={!statusQrHash}
-                className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-purple-500 to-violet-500 text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
-              >
-                Check Status
-              </button>
-
-              {paymentDetails && (
-                <div className="p-4 rounded-2xl bg-muted/50 border border-border space-y-3">
-                  <p className="text-sm font-semibold text-foreground">Payment Details</p>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Amount</span>
-                      <span className="font-semibold">{Number(paymentDetails.amount).toLocaleString()} IDRX</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Status</span>
-                      <span className={`font-semibold ${paymentDetails.claimed ? 'text-green-500' : 'text-orange-500'}`}>
-                        {paymentDetails.claimed ? 'Claimed' : 'Pending'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Exists</span>
-                      <span className="font-semibold">{paymentDetails.exists ? 'Yes' : 'No'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Can Refund</span>
-                      <span className={`font-semibold ${paymentDetails.canRefund ? 'text-green-500' : 'text-gray-500'}`}>
-                        {paymentDetails.canRefund ? 'Yes' : 'No'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Expires At</span>
-                      <span className="font-semibold text-xs">
-                        {new Date(paymentDetails.expiresAt * 1000).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
+                  <button onClick={startScanner} className="px-8 py-3 bg-white text-black rounded-2xl font-black text-[10px] shadow-lg active:scale-95 transition-all">ENABLE CAMERA</button>
                 </div>
               )}
-            </>
-          )}
 
-          {/* Error Message */}
-          {error && (
-            <div className="p-4 rounded-2xl bg-destructive/10 border border-destructive/20">
-              <p className="text-sm font-medium text-destructive">{error}</p>
+              {isScannerActive && (
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                   {/* Scanning Overlay Area */}
+                   <div className="w-64 h-64 border-2 border-white/50 rounded-[2rem] relative shadow-[0_0_0_1000px_rgba(0,0,0,0.4)]">
+                        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-2xl"></div>
+                        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-2xl"></div>
+                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-2xl"></div>
+                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-2xl"></div>
+                   </div>
+                </div>
+              )}
             </div>
-          )}
 
-          {/* Cancel Button */}
-          <button
-            onClick={handleBack}
-            disabled={creating || claiming || refunding}
-            className="w-full py-4 px-6 rounded-2xl bg-muted/50 text-foreground font-semibold text-lg hover:bg-muted transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Cancel
-          </button>
-        </div>
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-2">Payment Code (Manual)</label>
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    value={payInput} 
+                    onChange={(e) => setPayInput(e.target.value)} 
+                    placeholder="saku:pay:..." 
+                    className="w-full bg-muted/50 border-2 border-transparent focus:border-black/5 rounded-[2rem] px-8 py-5 font-mono text-xs font-bold outline-none transition-all" 
+                  />
+                  {payInput && (
+                    <button onClick={() => setPayInput("")} className="absolute right-6 top-1/2 -translate-y-1/2 p-2 hover:bg-black/5 rounded-full">
+                        <X className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <button 
+                onClick={handleClaimPayment} 
+                disabled={loading || !payInput} 
+                className="w-full py-5 rounded-[2rem] bg-black text-white font-bold text-lg shadow-xl shadow-black/20 flex items-center justify-center gap-3 active:scale-95 disabled:opacity-30 transition-all"
+              >
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Scan className="w-5 h-5" />} 
+                Confirm Payment
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

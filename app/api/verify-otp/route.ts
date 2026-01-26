@@ -17,13 +17,12 @@ export async function POST(request: Request) {
     const { phone, otp } = await request.json();
     const formattedPhone = normalizePhone(phone);
     
-    // Inisialisasi Supabase Admin
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!, 
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // 1. Verifikasi OTP (Ambil data terenkripsi dari DB)
+    console.info(`[Auth API] Verifying OTP for identifier: ${formattedPhone}`);
     const { data: records } = await supabaseAdmin
       .from('otp_verifications')
       .select('*')
@@ -45,12 +44,13 @@ export async function POST(request: Request) {
       }
     }
 
-    if (!validRecord) return NextResponse.json({ error: 'OTP Salah atau Expired' }, { status: 400 });
+    if (!validRecord) {
+      console.warn(`[Auth API] Invalid or expired OTP attempt for: ${formattedPhone}`);
+      return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 400 });
+    }
     
-    // Tandai OTP digunakan
     await supabaseAdmin.from('otp_verifications').update({ is_used: true }).eq('id', validRecord.id);
 
-    // 2. Persiapan Wallet & Provider
     const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL, undefined, { staticNetwork: true });
     const phoneHash = hashPhoneNumber(formattedPhone);
     const { data: profile } = await supabaseAdmin.from('profiles').select('*').eq('phone_number', formattedPhone).maybeSingle();
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     const isNew = !profile;
 
     if (isNew) {
-      // Generate wallet baru untuk user baru
+      console.info(`[Wallet API] Generating new non-custodial wallet for: ${formattedPhone}`);
       const wallet = ethers.Wallet.createRandom();
       walletAddress = wallet.address;
       privKey = wallet.privateKey;
@@ -77,63 +77,62 @@ export async function POST(request: Request) {
         is_verified: true
       }]);
     } else {
+      console.info(`[Wallet API] Retrieving existing wallet for: ${formattedPhone}`);
       walletAddress = profile.wallet_address;
       privKey = decrypt(profile.encrypted_private_key, profile.encryption_iv, profile.auth_tag);
     }
 
-    // 3. BACKGROUND WORKER (Proses Blockchain Tanpa Await)
-    // Biar API langsung merespon sukses ke user sementara blockchain diproses
     (async () => {
       try {
         const admin = new ethers.Wallet(process.env.ADMIN_PRIVATE_KEY!, provider);
         const registry = new ethers.Contract(CONTRACTS.REGISTRY_ADDRESS, SAKU_REGISTRY_ABI, admin);
         
-        // A. Kirim Saldo ETH (Bensin Gas) jika saldo user masih 0
+        // Gas Funding
         const balance = await provider.getBalance(walletAddress);
         if (balance === BigInt(0)) {
-          console.log(`⛽ [BG] Sending gas money (ETH) to ${formattedPhone}...`);
+          console.info(`[Worker] Funding gas (ETH) for account: ${walletAddress}`);
           const txGas = await admin.sendTransaction({
             to: walletAddress,
-            value: ethers.parseEther("0.005") // Kirim 0.005 ETH modal transaksi
+            value: ethers.parseEther("0.005")
           });
           await txGas.wait();
         }
 
-        // B. Registrasi On-Chain ke Smart Contract
+        // On-chain Registry Mapping
         const registered = await registry.isRegistered(phoneHash);
         if (!registered) {
-          console.log(`⛓️ [BG] Registering ${formattedPhone} on-chain...`);
+          console.info(`[Worker] Registering phone hash on-chain for: ${formattedPhone}`);
           const txReg = await registry.register(phoneHash, walletAddress);
           await txReg.wait();
         }
 
-        // C. Auto-Approve IDRX (Biar transfer lancar)
+        // Approval
         const userWallet = new ethers.Wallet(privKey, provider);
         const idrx = new ethers.Contract(CONTRACTS.IDRX_ADDRESS, IDRX_ABI, userWallet);
         const allowance = await idrx.allowance(walletAddress, CONTRACTS.REGISTRY_ADDRESS);
         
-        if (allowance < ethers.parseUnits("1000000", 6)) { // Jika izin kurang dari 1jt IDRX
-          console.log(`🔓 [BG] Auto-approving IDRX...`);
+        if (allowance < ethers.parseUnits("1000000", 6)) {
+          console.info(`[Worker] Executing pre-emptive IDRX approval for Registry`);
           const appTx = await idrx.approve(CONTRACTS.REGISTRY_ADDRESS, ethers.MaxUint256);
           await appTx.wait();
         }
         
-        console.log(`✅ [BG] Setup Selesai untuk ${formattedPhone}`);
+        console.info(`[Worker] Provisioning complete for identifier: ${formattedPhone}`);
       } catch (e) {
-        console.error('❌ [BG Error]:', e);
+        console.error('[Worker Error] Blockchain setup failed:', e);
       }
     })();
 
-    // 4. Respon Instan ke Frontend
     return NextResponse.json({
       success: true,
-      message: isNew ? 'Wallet created and setup started!' : 'Welcome back!',
+      message: isNew ? 'Wallet created and setup initiated' : 'Authentication successful',
       walletAddress,
+      privateKey: privKey,
       isNewRegistration: isNew
     });
 
   } catch (err: any) {
-    console.error('❌ [VerifyOTP API] Global Error:', err);
-    return NextResponse.json({ error: 'Gagal memproses verifikasi' }, { status: 500 });
+    console.error(`[Fatal Error] Verification process aborted: ${err.message}`);
+    return NextResponse.json({ error: 'Internal verification failure' }, { status: 500 });
   }
 }
