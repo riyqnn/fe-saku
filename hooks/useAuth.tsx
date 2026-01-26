@@ -198,7 +198,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Auth Refresh Error:", err)
       setUser(null)
     } finally {
-      setIsLoading(false)
+      setTimeout(() => {
+        setIsLoading(false)
+      }, 3000)
     }
   }, [])
 
