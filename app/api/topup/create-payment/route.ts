@@ -1,93 +1,136 @@
-import { createSakuServerClient } from '@/lib/supabaseServer';
-import { NextResponse } from 'next/server';
-import { createMidtransTransaction, idrxToIdr } from '@/lib/midtrans';
-import { generateOrderId } from '@/lib/orderIdGenerator';
+// File: app/api/topup/faucet/route.ts
+// Pastikan struktur folder: app/api/topup/faucet/route.ts
 
-export async function POST(req: Request) {
-  const supabase = await createSakuServerClient();
+import { NextRequest, NextResponse } from 'next/server'
+import { ethers } from 'ethers'
 
+const IDRX_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_IDRX_ADDRESS || "0x9c33242D93Bc4BCA866dFcB36FEeF81482383A56"
+const PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY // Admin wallet private key
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://rpc-amoy.polygon.technology"
+
+// ERC20 Token ABI - minimal untuk mint function
+const TOKEN_ABI = [
+  "function mint(address to, uint256 amount) public",
+  "function decimals() public view returns (uint8)"
+]
+
+export async function POST(request: NextRequest) {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await request.json()
+    const { walletAddress, amount } = body
+
+    console.log('📥 Faucet request received:', { walletAddress, amount })
+
+    // Validation
+    if (!walletAddress) {
+      return NextResponse.json(
+        { error: 'Wallet address is required' },
+        { status: 400 }
+      )
     }
 
-    const { amount, paymentMethod } = await req.json();
-
-    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-      return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
+    if (!ethers.isAddress(walletAddress)) {
+      return NextResponse.json(
+        { error: 'Invalid wallet address format' },
+        { status: 400 }
+      )
     }
 
-    if (!['gopay', 'ovo', 'dana'].includes(paymentMethod)) {
-      return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 });
+    if (!amount || isNaN(amount) || amount <= 0) {
+      return NextResponse.json(
+        { error: 'Amount must be greater than 0' },
+        { status: 400 }
+      )
     }
 
-    const amountNum = parseFloat(amount);
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('phone_number, phone_hash, wallet_address, full_name, email')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profile) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    if (!PRIVATE_KEY) {
+      console.error('❌ FAUCET_PRIVATE_KEY not set in environment variables')
+      return NextResponse.json(
+        { error: 'Faucet not configured. Please contact administrator.' },
+        { status: 500 }
+      )
     }
 
-    const orderId = generateOrderId(user.id);
+    console.log('🔧 Initializing blockchain connection...')
+    console.log('RPC URL:', RPC_URL)
+    console.log('Token Address:', IDRX_TOKEN_ADDRESS)
 
-    const midtransResponse = await createMidtransTransaction({
-      transaction_details: {
-        order_id: orderId,
-        gross_amount: idrxToIdr(amountNum),
-      },
-      customer_details: {
-        first_name: profile.full_name || 'User',
-        last_name: '',
-        email: profile.email || `${user.id}@sakuwallet.id`,
-        phone: profile.phone_number,
-      },
-      item_details: [
-        {
-          id: 'IDRX_TOPUP',
-          price: idrxToIdr(amountNum),
-          quantity: 1,
-          name: `IDRX Top Up - ${amountNum} IDRX`,
-        },
-      ],
-      enabled_payments: [paymentMethod],
-    });
+    // Setup provider and signer
+    const provider = new ethers.JsonRpcProvider(RPC_URL)
+    const signer = new ethers.Wallet(PRIVATE_KEY, provider)
+    
+    console.log('👛 Faucet wallet:', await signer.getAddress())
 
-    const { error: insertError } = await supabase
-      .from('topup_requests')
-      .insert({
-        order_id: orderId,
-        user_id: user.id,
-        phone_hash: profile.phone_hash,
-        wallet_address: profile.wallet_address,
-        amount: amountNum,
-        payment_method: paymentMethod,
-        midtrans_transaction_id: orderId,
-        midtrans_payment_url: midtransResponse.redirect_url,
-        status: 'pending',
-      });
+    // Connect to token contract
+    const tokenContract = new ethers.Contract(
+      IDRX_TOKEN_ADDRESS,
+      TOKEN_ABI,
+      signer
+    )
 
-    if (insertError) {
-      console.error('Database insert error:', insertError);
-      return NextResponse.json({ error: 'Failed to save topup request' }, { status: 500 });
-    }
+    // Get token decimals
+    console.log('🔍 Getting token decimals...')
+    const decimals = await tokenContract.decimals()
+    console.log('Token decimals:', decimals)
+
+    // Convert amount to token units (with decimals)
+    const amountInWei = ethers.parseUnits(amount.toString(), decimals)
+    console.log(`💰 Minting ${amount} IDRX (${amountInWei.toString()} wei) to ${walletAddress}`)
+
+    // Mint tokens to user's wallet
+    const tx = await tokenContract.mint(walletAddress, amountInWei)
+    console.log(`📤 Transaction sent: ${tx.hash}`)
+    
+    // Wait for transaction confirmation
+    const receipt = await tx.wait()
+    console.log(`✅ Transaction confirmed: ${receipt.hash}`)
 
     return NextResponse.json({
       success: true,
-      orderId,
-      token: midtransResponse.token,
-      redirectUrl: midtransResponse.redirect_url,
-    });
+      txHash: receipt.hash,
+      amount: amount,
+      walletAddress: walletAddress
+    })
 
   } catch (error: any) {
-    console.error('Create payment error:', error);
-    return NextResponse.json({
-      error: error.message || 'Failed to create payment'
-    }, { status: 500 });
+    console.error('❌ Faucet error:', error)
+    
+    // Better error messages
+    let errorMessage = 'Failed to process top up'
+    
+    if (error.code === 'CALL_EXCEPTION') {
+      errorMessage = 'Contract call failed. Check if faucet wallet has minting permissions.'
+      console.error('Contract call exception. Possible causes:')
+      console.error('1. Faucet wallet does not have MINTER_ROLE')
+      console.error('2. Contract does not have mint function')
+      console.error('3. Token contract address is wrong')
+    } else if (error.code === 'INSUFFICIENT_FUNDS') {
+      errorMessage = 'Faucet wallet has insufficient gas. Please add MATIC/ETH to faucet wallet.'
+    } else if (error.code === 'NETWORK_ERROR') {
+      errorMessage = 'Network error. Please check RPC URL configuration.'
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    return NextResponse.json(
+      { 
+        error: errorMessage,
+        code: error.code,
+        details: error.toString()
+      },
+      { status: 500 }
+    )
   }
+}
+
+// Optional: GET method untuk testing
+export async function GET() {
+  return NextResponse.json({
+    message: 'IDRX Faucet API',
+    endpoint: '/api/topup/faucet',
+    method: 'POST',
+    tokenAddress: IDRX_TOKEN_ADDRESS,
+    rpcUrl: RPC_URL,
+    configured: !!process.env.FAUCET_PRIVATE_KEY
+  })
 }
