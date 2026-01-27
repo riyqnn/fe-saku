@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { ArrowDownLeft, Wallet, CheckCircle, Loader2, Coins } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { useBalance } from "@/hooks/useBalance"
+import Header from "@/components/layout/Header"
 
 const IDRX_TOKEN_ADDRESS = "0x9c33242D93Bc4BCA866dFcB36FEeF81482383A56"
 
@@ -141,19 +142,7 @@ export default function TopupPage() {
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
       <div className="max-w-lg mx-auto min-h-screen flex flex-col">
         {/* Header */}
-        <div className="p-4 sm:p-6 flex items-center justify-between bg-card/80 backdrop-blur-lg border-b border-border">
-          <button
-            onClick={handleBack}
-            className="p-2 rounded-xl hover:bg-muted transition-colors"
-            disabled={loading}
-          >
-            <ArrowDownLeft className="w-6 h-6 text-foreground" />
-          </button>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">
-            Top Up IDRX
-          </h1>
-          <div className="w-10" />
-        </div>
+        <Header />
 
         {/* Content */}
         <div className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto">

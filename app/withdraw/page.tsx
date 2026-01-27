@@ -8,6 +8,7 @@ import { useSakuWithdraw } from "@/hooks/useSakuWithdraw"
 import { useBalance } from "@/hooks/useBalance"
 import { fromTokenAmount } from "@/lib/blockchain"
 import { IDRX_DECIMALS } from "@/lib/config"
+import Header from "@/components/layout/Header"
 
 export default function WithdrawPage() {
   const router = useRouter()
@@ -132,16 +133,7 @@ export default function WithdrawPage() {
     <div className="min-h-screen bg-background dark:bg-background">
       <div className="max-w-lg mx-auto min-h-screen bg-background dark:bg-background flex flex-col">
         {/* Header */}
-        <div className="p-4 sm:p-6 flex items-center justify-between border-b border-border">
-          <button
-            onClick={handleBack}
-            className="p-2 rounded-xl hover:bg-muted/50 transition-colors"
-          >
-            <ArrowUpRight className="w-6 h-6 text-foreground" />
-          </button>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Withdraw</h1>
-          <div className="w-10" />
-        </div>
+        <Header />
 
         {/* Content */}
         <div className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto">

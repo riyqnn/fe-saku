@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { 
   QrCode, Scan, CheckCircle, ArrowLeft, Loader2, 
-  Camera, X, Plus, Trash2, Search, UserPlus, Send, Check, Receipt 
+  Camera, X, Plus, Trash2, Search, UserPlus, Send, Check, Receipt, Wallet, Sparkles, ChevronRight
 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { useSakuQRPayment } from "@/hooks/useSakuQRPayment"
@@ -13,6 +13,7 @@ import { useSakuTransfer } from "@/hooks/useSakuTransfer"
 import { QRCodeSVG } from "qrcode.react" 
 import { toast } from "sonner"
 import { Html5Qrcode } from "html5-qrcode"
+import Header from "@/components/layout/Header"
 
 interface Member { phone_number: string; full_name: string; }
 interface BillItem { id: string; name: string; price: number; }
@@ -23,7 +24,7 @@ export default function PayPage() {
   const { generateQR, claimPayment, loading: qrLoading } = useSakuQRPayment()
   const { formattedBalance, refetch: refetchBalance } = useBalance(user?.wallet_address || null)
 
-  const [activeTab, setActiveTab] = useState<"receive" | "pay" | "split">("pay")
+  const [activeTab, setActiveTab] = useState<"receive" | "pay" | "split">("receive")
 
   const [amount, setAmount] = useState("")
   const [qrData, setQrData] = useState<string | null>(null)
@@ -35,7 +36,7 @@ export default function PayPage() {
   const [description, setDescription] = useState("")
   const [tax, setTax] = useState("0")
   const [discount, setDiscount] = useState("0")
-  const [items, setItems] = useState<BillItem[]>([{ id: crypto.randomUUID(), name: "", price: 0 }])
+  const [items, setItems] = useState<BillItem[]>([{ id: Math.random().toString(36).substring(2, 9), name: "", price: 0 }])
   const [members, setMembers] = useState<Member[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<Member[]>([])
@@ -43,7 +44,6 @@ export default function PayPage() {
   const [assignments, setAssignments] = useState<Record<string, string[]>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const isTransitioning = useRef(false);
-
 
   const startScanner = async () => {
     try {
@@ -65,8 +65,8 @@ export default function PayPage() {
         config,
         (text) => { 
           setPayInput(text); 
-          toast.success("QR Detected! ✅"); 
-          setTimeout(() => stopScanner(), 1000); 
+          toast.success("QR Code detected! ✅"); 
+          stopScanner();
         },
         () => {}
       )
@@ -157,31 +157,58 @@ export default function PayPage() {
     )
   }
 
+  const handleClaimPayment = async () => {
+    if (!payInput) return toast.error("Please provide a payment code")
+    
+    toast.promise(claimPayment(payInput), {
+      loading: 'Securing transaction on-chain...',
+      success: (result) => {
+        if (result && result.success) {
+          setSuccess(true)
+          refetchBalance()
+          return "Payment successful! 💸"
+        }
+        throw new Error("Transaction failed")
+      },
+      error: (err) => err.message || "Payment failed."
+    })
+  }
+
   if (success) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4 font-sans">
-        <div className="max-w-md w-full bg-card rounded-[3rem] p-12 shadow-2xl text-center space-y-6 animate-in zoom-in duration-500">
-          <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mx-auto">
-            <CheckCircle className="w-12 h-12 text-green-500" />
+      <div className="min-h-screen bg-background flex items-center justify-center p-6 font-sans overflow-hidden">
+        <div className="max-w-md w-full bg-white rounded-[2.5rem] p-10 shadow-2xl text-center space-y-6 animate-in zoom-in duration-500 border border-primary/20">
+          <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle className="w-10 h-10 text-amber-600" />
           </div>
-          <h1 className="text-3xl font-black italic">Payment Sent!</h1>
-          <button onClick={() => router.push("/home")} className="w-full py-5 rounded-3xl bg-black text-white font-bold active:scale-95 transition-all">Back to Home</button>
+          <h1 className="text-3xl font-bold italic text-black/85">Success!</h1>
+          <p className="text-black/50 font-medium">Your funds have been processed securely on-chain.</p>
+          <button onClick={() => router.push("/home")} className="w-full py-4 rounded-2xl bg-primary text-black font-semibold shadow-lg shadow-primary/30 active:scale-95 transition-all">Back Home</button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans pb-32">
-      <div className="p-6 flex items-center gap-4 border-b border-border bg-card/30 backdrop-blur-md sticky top-0 z-30">
-        <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-xl transition-colors"><ArrowLeft /></button>
-        <h1 className="text-xl font-black italic tracking-tighter">Finance Hub</h1>
-      </div>
+    <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans pb-32 overflow-x-hidden">
+      <Header />
 
-      <div className="p-6 space-y-6 flex-1">
-        <div className="p-8 rounded-[3rem] bg-gradient-to-br from-black to-zinc-800 text-white text-center shadow-xl border border-white/5">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80 mb-1">Available IDRX</p>
-          <p className="text-4xl font-black italic tracking-tighter">{formattedBalance}</p>
+      <div className="p-6 space-y-6 flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="relative p-8 rounded-[2.5rem] bg-gradient-to-br from-primary via-amber-200 to-primary/80 overflow-hidden shadow-xl shadow-primary/20 group">
+          <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform duration-500">
+            <Wallet size={80} className="text-amber-900" />
+          </div>
+          <div className="relative z-10 space-y-1">
+            <div className="flex items-center gap-2">
+              <Sparkles size={14} className="text-amber-900/60" />
+              <p className="text-[10px] font-bold text-amber-900/60 tracking-[0.2em]">Saku Wallet Balance</p>
+            </div>
+            <p className="text-4xl font-bold text-black/85 tracking-tighter">{formattedBalance}</p>
+            <div className="pt-4 flex items-center gap-2 text-xs font-semibold text-amber-900/60">
+              <span className="px-2 py-1 bg-black/5 rounded-lg">IDRX Protocol</span>
+              <span>Active</span>
+            </div>
+          </div>
         </div>
 
         <div className="flex p-1.5 bg-muted rounded-[2rem] sticky top-20 z-20 border border-black/5 shadow-inner">
@@ -189,7 +216,7 @@ export default function PayPage() {
             <button 
               key={tab}
               onClick={() => setActiveTab(tab)} 
-              className={`flex-1 py-3 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === tab ? "bg-white shadow-sm text-black" : "text-muted-foreground"}`}
+              className={`flex-1 py-3 rounded-[1.5rem] font-semibold text-[10px] tracking-widest capitalize transition-all ${activeTab === tab ? "bg-white shadow-sm text-black" : "text-muted-foreground hover:text-black/70"}`}
             >
               {tab}
             </button>
@@ -201,18 +228,40 @@ export default function PayPage() {
              {!qrData ? (
               <div className="space-y-5">
                 <div className="space-y-2 px-2">
-                  <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Amount to Request</label>
-                  <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-muted/50 border-2 border-transparent focus:border-black/5 rounded-[2.5rem] px-8 py-5 text-2xl font-black outline-none transition-all" />
+                  <label className="text-[10px] font-bold text-black/40 tracking-widest ml-2">Amount to Request</label>
+                  <div className="relative">
+                    <span className="absolute left-6 top-1/2 -translate-y-1/2 font-bold text-black/20 text-xl">Rp</span>
+                    <input 
+                      type="number" 
+                      value={amount} 
+                      onChange={(e) => setAmount(e.target.value)} 
+                      placeholder="0" 
+                      className="w-full bg-muted/50 border-2 border-transparent focus:border-primary/50 focus:bg-white rounded-[2rem] pl-16 pr-8 py-6 text-3xl font-bold outline-none transition-all placeholder:text-black/5" 
+                    />
+                  </div>
                 </div>
-                <button onClick={() => { if(!amount || Number(amount) <= 0) return; generateQR(user?.phone_number!, amount).then(r => r.success && setQrData(r.qrHash)) }} disabled={!amount || qrLoading} className="w-full py-6 rounded-[2.5rem] bg-black text-white font-black shadow-xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-30">
-                  <QrCode size={18} /> Generate QR Link
+                <button 
+                  onClick={() => { if(!amount || Number(amount) <= 0) return; generateQR(user?.phone_number!, amount).then(r => r.success && setQrData(r.qrHash)) }} 
+                  disabled={!amount || qrLoading} 
+                  className="w-full py-6 rounded-[2rem] bg-black text-white font-semibold text-lg shadow-xl shadow-black/10 flex items-center justify-center gap-3 active:scale-95 disabled:opacity-30 transition-all"
+                >
+                  {qrLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <QrCode className="w-5 h-5" />} 
+                  Generate Payment QR
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col items-center p-10 bg-card rounded-[3.5rem] border border-border shadow-2xl space-y-6 animate-in zoom-in">
-                <div className="p-8 bg-white rounded-[3rem] border-[16px] border-muted/20"><QRCodeSVG value={qrData} size={220} level="H" /></div>
-                <div className="text-center"><p className="text-sm font-bold text-muted-foreground italic">Request: IDR {Number(amount).toLocaleString()}</p></div>
-                <button onClick={() => setQrData(null)} className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] underline underline-offset-8">Generate New</button>
+              <div className="flex flex-col items-center p-10 bg-white rounded-[3rem] border border-primary/10 shadow-2xl space-y-8 animate-in zoom-in duration-300">
+                <div className="p-8 bg-white rounded-[2.5rem] shadow-inner border-[12px] border-primary/5 relative">
+                    <div className="absolute -top-2 -right-2 w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-lg animate-bounce">
+                      <Sparkles size={16} className="text-white" />
+                    </div>
+                    <QRCodeSVG value={qrData} size={220} level="H" />
+                </div>
+                <div className="text-center space-y-1">
+                    <p className="text-xs font-semibold text-black/40 tracking-widest italic">Requesting Payment</p>
+                    <p className="text-4xl font-bold text-black/85 tracking-tighter">IDR {Number(amount).toLocaleString()}</p>
+                </div>
+                <button onClick={() => setQrData(null)} className="text-[10px] font-bold text-black/40 hover:text-black tracking-widest transition-colors underline underline-offset-8">Create New Request</button>
               </div>
             )}
           </div>
@@ -220,74 +269,126 @@ export default function PayPage() {
 
         {activeTab === "pay" && (
           <div className="space-y-6 animate-in slide-in-from-bottom duration-500">
-            <div className="relative w-full aspect-square overflow-hidden rounded-[4rem] bg-black border-4 border-muted/10 shadow-2xl flex items-center justify-center">
+            <div className="relative w-full aspect-square overflow-hidden rounded-[3.5rem] bg-black border-4 border-muted/20 shadow-2xl flex items-center justify-center group">
               <div id="reader" className="w-full h-full object-cover"></div>
+              
               {!isScannerActive && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 text-white p-8 text-center space-y-6">
-                  <Camera className="w-16 h-16 opacity-20 animate-pulse" />
-                  <button onClick={startScanner} className="px-10 py-4 bg-white text-black rounded-3xl font-black text-[10px] tracking-widest uppercase">Wake Camera</button>
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 text-white p-10 text-center space-y-6">
+                  <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center">
+                    <Camera className="w-10 h-10 opacity-30 animate-pulse text-primary" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xl font-bold italic">Camera Ready</p>
+                    <p className="text-xs text-white/40 px-6">Scan any Saku QR Code to process your payment instantly.</p>
+                  </div>
+                  <button onClick={startScanner} className="px-10 py-4 bg-primary text-black rounded-2xl font-bold text-[10px] shadow-lg shadow-primary/20 active:scale-95 transition-all">START SCANNING</button>
+                </div>
+              )}
+
+              {isScannerActive && (
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                   <div className="w-64 h-64 border-2 border-white/20 rounded-[2.5rem] relative shadow-[0_0_0_1000px_rgba(0,0,0,0.5)]">
+                        <div className="absolute top-0 left-0 w-10 h-10 border-t-4 border-l-4 border-primary rounded-tl-2xl"></div>
+                        <div className="absolute top-0 right-0 w-10 h-10 border-t-4 border-r-4 border-primary rounded-tr-2xl"></div>
+                        <div className="absolute bottom-0 left-0 w-10 h-10 border-b-4 border-l-4 border-primary rounded-bl-2xl"></div>
+                        <div className="absolute bottom-0 right-0 w-10 h-10 border-b-4 border-r-4 border-primary rounded-br-2xl"></div>
+                        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-primary/30 animate-pulse shadow-[0_0_15px_rgba(255,211,98,0.5)]"></div>
+                   </div>
                 </div>
               )}
             </div>
+
             <div className="space-y-5">
-              <div className="relative">
-                <input value={payInput} onChange={(e) => setPayInput(e.target.value)} placeholder="saku:pay:hash..." className="w-full bg-muted/50 rounded-[2.5rem] px-8 py-6 font-mono text-[10px] font-black outline-none border-2 border-transparent focus:border-black/5" />
-                {payInput && <button onClick={() => setPayInput("")} className="absolute right-8 top-1/2 -translate-y-1/2 opacity-30"><X size={18} /></button>}
+              <div className="space-y-3 px-2">
+                <label className="text-[10px] font-bold text-black/40 tracking-widest ml-2">Manual Payment Hash</label>
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    value={payInput} 
+                    onChange={(e) => setPayInput(e.target.value)} 
+                    placeholder="saku:pay:0x..." 
+                    className="w-full bg-muted/50 border-2 border-transparent focus:border-primary/50 focus:bg-white rounded-[2rem] px-8 py-5 font-mono text-[10px] font-semibold outline-none transition-all" 
+                  />
+                  {payInput && (
+                    <button onClick={() => setPayInput("")} className="absolute right-6 top-1/2 -translate-y-1/2 p-2 hover:bg-black/5 rounded-full">
+                        <X className="w-4 h-4 text-black/30" />
+                    </button>
+                  )}
+                </div>
               </div>
-              <button onClick={() => claimPayment(payInput).then(r => r.success && setSuccess(true))} disabled={qrLoading || !payInput} className="w-full py-6 rounded-[2.5rem] bg-black text-white font-black shadow-2xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-30">
-                <Scan size={18} /> Confirm Payment
+              <button 
+                onClick={handleClaimPayment} 
+                disabled={qrLoading || !payInput} 
+                className="w-full py-6 rounded-[2.5rem] bg-black text-white font-semibold text-lg shadow-xl shadow-black/10 flex items-center justify-center gap-3 active:scale-95 disabled:opacity-30 transition-all"
+              >
+                {qrLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Scan className="w-5 h-5" />} 
+                Verify & Pay
               </button>
             </div>
           </div>
         )}
 
         {activeTab === "split" && (
-          <div className="space-y-8 animate-in slide-in-from-right duration-500">
-            <section className="p-8 rounded-[3rem] bg-primary/5 border border-primary/10 space-y-5 shadow-inner">
-              <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Event Description..." className="w-full bg-transparent text-2xl font-black outline-none italic placeholder:opacity-10" />
-              <div className="flex gap-6 border-t border-black/5 pt-5 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
-                <div className="flex-1">Tax: <input type="number" value={tax} onChange={(e) => setTax(e.target.value)} className="w-full bg-transparent text-black outline-none font-black text-sm" /></div>
-                <div className="flex-1">Discount (%): <input type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} className="w-full bg-transparent text-black outline-none font-black text-sm" /></div>
+          <div className="space-y-8 animate-in slide-in-from-right duration-500 overflow-x-hidden">
+            <section className="p-8 rounded-[3rem] bg-primary/5 border border-primary/20 space-y-6 shadow-inner relative overflow-hidden">
+              <div className="absolute -top-10 -left-10 w-32 h-32 bg-primary/10 rounded-full blur-3xl"></div>
+              <input 
+                value={description} 
+                onChange={(e) => setDescription(e.target.value)} 
+                placeholder="Where's the dinner?" 
+                className="w-full bg-transparent text-3xl font-bold outline-none italic placeholder:text-black/5 relative z-10" 
+              />
+              <div className="flex gap-6 border-t border-black/5 pt-6 text-[10px] font-bold tracking-widest text-black/40 relative z-10">
+                <div className="flex-1 space-y-1">
+                    <p>Tax Amount</p>
+                    <input type="number" value={tax} onChange={(e) => setTax(e.target.value)} className="w-full bg-black/5 rounded-xl px-4 py-2 text-black outline-none font-bold" />
+                </div>
+                <div className="flex-1 space-y-1">
+                    <p>Discount (%)</p>
+                    <input type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} className="w-full bg-black/5 rounded-xl px-4 py-2 text-black outline-none font-bold" />
+                </div>
               </div>
             </section>
 
-            <section className="space-y-5">
+            <section className="space-y-4">
               <div className="flex justify-between items-center px-4">
-                <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.2em]">1. Add Menu</h3>
-                <button onClick={() => setItems([...items, { id: crypto.randomUUID(), name: "", price: 0 }])} className="p-3 bg-black text-white rounded-[1.2rem] active:scale-90 transition-transform"><Plus size={16}/></button>
+                <h3 className="text-[10px] font-bold text-black/40 tracking-[0.2em]">1. The Menu List</h3>
+                <button onClick={() => setItems([...items, { id: Math.random().toString(36).substring(2, 9), name: "", price: 0 }])} className="p-2.5 bg-primary text-black rounded-xl shadow-lg shadow-primary/20 active:scale-90 transition-transform"><Plus size={16} strokeWidth={3}/></button>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-3 px-1">
                 {items.map((item) => (
-                  <div key={item.id} className="flex gap-3 px-2">
-                    <input placeholder="Item name" value={item.name} onChange={(e) => setItems(items.map(i => i.id === item.id ? {...i, name: e.target.value} : i))} className="flex-1 bg-muted/50 rounded-2xl px-5 py-4 font-black text-xs outline-none" />
-                    <input type="number" placeholder="Price" value={item.price || ""} onChange={(e) => setItems(items.map(i => i.id === item.id ? {...i, price: Number(e.target.value)} : i))} className="w-32 bg-muted/50 rounded-2xl px-5 py-4 font-black text-xs outline-none" />
-                    <button onClick={() => setItems(items.filter(i => i.id !== item.id))} className="opacity-10 hover:opacity-100 transition-opacity"><Trash2 size={16}/></button>
+                  <div key={item.id} className="flex gap-2 items-center group">
+                    <input placeholder="Menu name" value={item.name} onChange={(e) => setItems(items.map(i => i.id === item.id ? {...i, name: e.target.value} : i))} className="flex-1 bg-muted/50 rounded-[1.5rem] px-4 py-4 font-semibold text-xs outline-none focus:bg-white focus:border-primary/30 border-2 border-transparent transition-all capitalize" />
+                    <input type="number" placeholder="Price" value={item.price || ""} onChange={(e) => setItems(items.map(i => i.id === item.id ? {...i, price: Number(e.target.value)} : i))} className="w-24 bg-muted/50 rounded-[1.5rem] px-4 py-4 font-semibold text-xs outline-none focus:bg-white focus:border-primary/30 border-2 border-transparent transition-all" />
+                    <button onClick={() => setItems(items.filter(i => i.id !== item.id))} className="opacity-30 hover:!opacity-100 transition-opacity p-1"><Trash2 size={14}/></button>
                   </div>
                 ))}
               </div>
             </section>
 
             <section className="space-y-5">
-              <h3 className="text-[11px] font-black uppercase text-muted-foreground tracking-[0.2em] px-4">2. Assign Party</h3>
+              <h3 className="text-[10px] font-bold text-black/40 tracking-[0.2em] px-4">2. Assign the Squad</h3>
               <div className="relative px-2">
-                <Search className="absolute left-7 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search Saku profiles..." className="w-full bg-muted/50 rounded-[2rem] pl-14 pr-6 py-5 font-black text-xs outline-none" />
+                <Search className="absolute left-8 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20" />
+                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search Saku friends..." className="w-full bg-muted/50 rounded-[2rem] pl-14 pr-8 py-5 font-semibold text-sm outline-none focus:bg-white focus:border-primary/30 border-2 border-transparent transition-all" />
                 {searchResults.length > 0 && (
-                  <div className="absolute top-full left-2 right-2 mt-3 bg-white border border-black/5 rounded-[2.5rem] shadow-2xl z-30 p-3 animate-in fade-in duration-200">
+                  <div className="absolute top-full left-2 right-2 mt-3 bg-white border border-primary/10 rounded-[2.5rem] shadow-2xl z-30 p-3 animate-in fade-in duration-200">
                     {searchResults.map(p => (
-                      <button key={p.phone_number} onClick={() => { setMembers([...members, p]); setSearchQuery(""); setSearchResults([]); setSelectedMemberPhone(p.phone_number); }} className="w-full text-left p-4 hover:bg-primary/5 rounded-[1.8rem] flex items-center gap-4 transition-colors">
-                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center font-black text-primary text-[10px]">{p.full_name.charAt(0)}</div>
-                        <span className="font-black text-xs italic">{p.full_name}</span>
-                        <UserPlus size={14} className="ml-auto opacity-20" />
+                      <button key={p.phone_number} onClick={() => { setMembers([...members, p]); setSearchQuery(""); setSearchResults([]); setSelectedMemberPhone(p.phone_number); }} className="w-full text-left p-4 hover:bg-primary/10 rounded-[1.8rem] flex items-center justify-between transition-all group">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center font-bold text-amber-700">{p.full_name.charAt(0)}</div>
+                            <span className="font-semibold text-sm capitalize">{p.full_name}</span>
+                        </div>
+                        <UserPlus size={16} className="text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                       </button>
                     ))}
                   </div>
                 )}
               </div>
-              <div className="flex flex-wrap gap-3 px-2">
+              <div className="flex flex-wrap gap-2 px-4">
                 {members.map(m => (
-                  <button key={m.phone_number} onClick={() => setSelectedMemberPhone(m.phone_number)} className={`px-6 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all ${selectedMemberPhone === m.phone_number ? "bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "bg-muted text-muted-foreground"}`}>
-                    {m.full_name} ({assignments[m.phone_number]?.length || 0})
+                  <button key={m.phone_number} onClick={() => setSelectedMemberPhone(m.phone_number)} className={`px-4 py-2.5 rounded-full font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${selectedMemberPhone === m.phone_number ? "bg-black text-white scale-105 shadow-md" : "bg-muted text-black/40 hover:bg-black/5"}`}>
+                    <span className="capitalize">{m.full_name}</span> <span className="opacity-50">({assignments[m.phone_number]?.length || 0})</span>
                   </button>
                 ))}
               </div>
@@ -295,9 +396,8 @@ export default function PayPage() {
 
             {selectedMemberPhone && (
               <section className="space-y-4 animate-in fade-in duration-500 pb-10">
-                <div className="flex items-center gap-2 justify-center py-2 bg-primary/10 rounded-full mx-10">
-                    <CheckCircle size={10} className="text-primary" />
-                    <p className="text-[10px] font-black uppercase text-primary tracking-widest">Assigning to {members.find(m => m.phone_number === selectedMemberPhone)?.full_name}</p>
+                <div className="flex items-center gap-2 justify-center py-2 px-6 bg-primary/20 rounded-full w-fit mx-auto">
+                    <p className="text-[10px] font-bold text-amber-900 tracking-widest italic">Assigning to {members.find(m => m.phone_number === selectedMemberPhone)?.full_name}</p>
                 </div>
                 <div className="grid grid-cols-1 gap-3 px-2">
                   {items.filter(i => i.name).map(item => {
@@ -311,10 +411,19 @@ export default function PayPage() {
                             return { ...prev, [selectedMemberPhone]: cur.includes(item.id) ? cur.filter(id => id !== item.id) : [...cur, item.id] }
                           })
                         }}
-                        className={`flex items-center justify-between p-6 rounded-[2.5rem] border-2 transition-all ${isSelected ? "bg-primary/5 border-primary shadow-inner" : "bg-white border-black/5"}`}
+                        className={`flex items-center justify-between p-6 rounded-[2.5rem] border-2 transition-all ${isSelected ? "bg-white border-primary shadow-xl scale-[1.01]" : "bg-white border-black/5 grayscale opacity-60"}`}
                       >
-                        <div className="text-left"><p className="font-black text-sm italic">{item.name}</p></div>
-                        {isSelected && <div className="p-1 bg-primary rounded-full text-white"><Check size={14} strokeWidth={4}/></div>}
+                        <div className="text-left">
+                            <p className="font-bold text-sm italic text-black/85 capitalize">{item.name}</p>
+                            <p className="text-[10px] font-semibold text-black/30">IDR {item.price.toLocaleString()}</p>
+                        </div>
+                        {isSelected ? (
+                            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-black shadow-lg shadow-primary/30">
+                                <Check size={18} strokeWidth={4}/>
+                            </div>
+                        ) : (
+                            <Plus size={20} className="text-black/10" />
+                        )}
                       </button>
                     )
                   })}
@@ -325,16 +434,18 @@ export default function PayPage() {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto p-6 bg-background/80 backdrop-blur-xl border-t border-border z-30">
-        {activeTab === "split" ? (
-          <button onClick={handleSplitSubmit} disabled={isSubmitting} className="w-full py-6 rounded-[3rem] bg-black text-white font-black text-xs shadow-2xl flex items-center justify-center gap-4 active:scale-95 disabled:opacity-30">
-            {isSubmitting ? <Loader2 className="animate-spin" size={18}/> : <Send size={18}/>} DISPATCH SETTLEMENT REQUEST
+      <div className={`fixed bottom-0 left-0 right-0 max-w-lg mx-auto p-6 transition-all duration-500 z-30 ${
+        activeTab === "split" ? "bg-white/80 backdrop-blur-xl border-t border-border translate-y-0" : "bg-transparent pointer-events-none translate-y-10 opacity-0"
+      }`}>
+        {activeTab === "split" && (
+          <button 
+            onClick={handleSplitSubmit} 
+            disabled={isSubmitting} 
+            className="w-full py-6 rounded-[3rem] bg-primary text-black font-bold text-xs shadow-xl shadow-primary/20 flex items-center justify-center gap-4 active:scale-95 disabled:opacity-30 transition-all tracking-widest italic uppercase"
+          >
+            {isSubmitting ? <Loader2 className="animate-spin" size={18}/> : <Send size={18}/>} 
+            Create Split Session
           </button>
-        ) : (
-          <div className="flex items-center justify-center gap-2 opacity-20 py-2">
-            <Receipt size={10} />
-            <span className="text-[8px] font-black uppercase tracking-[0.5em]">Saku Social Protocol</span>
-          </div>
         )}
       </div>
     </div>
