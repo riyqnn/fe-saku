@@ -1,0 +1,10 @@
+{
+  "version": "1",
+  "name": "Saku",
+  "subtitle": "Crypto payments made simple.",
+  "description": "Send and receive crypto using just a phone number. No wallet addresses or complicated setup.",
+  "iconUrl": "https://sakku.netlify.app/logo.png",
+  "homeUrl": "https://sakku.netlify.app",
+  "webhookUrl": "https://sakku.netlify.app/api/webhook",
+  "primaryCategory": "finance"
+}
