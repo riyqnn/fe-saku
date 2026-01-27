@@ -47,7 +47,7 @@ export default function Home() {
             font-medium text-lg md:text-xl
             hover:bg-white rounded-full
           "
-          href=""
+          href="/get-started"
         >
           <Wallet className="inline mr-2 w-6 h-6 md:w-7 md:h-7 text-black" />
           Try Saku Now!
@@ -138,7 +138,7 @@ export default function Home() {
               bg-gradient-to-r from-amber-300 border border-black to-primary
               rounded-3xl shadow-2xl
             "
-            href=""
+            href="/get-started"
           >
             <Wallet className="inline mr-3" />
             Try Saku Now

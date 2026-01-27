@@ -35,7 +35,7 @@ export default function Navbar({ className = "" }: NavbarProps) {
 
         {/* Logo */}
         <div className="flex items-center justify-between py-3 md:py-5 md:block">
-          <a href="#" className="text-green text-2xl font-bold">
+          <a href="/" className="text-green text-2xl font-bold">
             <img className="w-10 inline" src="/logo.png" alt="" /> Saku
           </a>
 
@@ -101,7 +101,7 @@ export default function Navbar({ className = "" }: NavbarProps) {
         {/* Action Button */}
         <div className="hidden md:inline-block">
           <a
-            href="#"
+            href="/get-started"
             className="py-3 px-4 bg-custom3 border border-black text-custom1 hover:bg-custom3/80 rounded-full shadow"
           >
             Sign In

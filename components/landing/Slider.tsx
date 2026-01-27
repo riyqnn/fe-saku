@@ -46,7 +46,7 @@ export default function Slider() {
             `}
           >
             <p className="text-4xl font-medium">
-              Transfer tokens without worry.
+              No more long wallet addresses.
             </p>
             <img className="mx-auto w-full" src="/landing/card1.png" alt="" />
           </div>
@@ -62,7 +62,7 @@ export default function Slider() {
             `}
           >
             <p className="text-4xl font-medium">
-              Transfer tokens without worry.
+              Send money with just a phone number.
             </p>
             <img className="mx-auto w-full" src="/landing/card2.png" alt="" />
           </div>
@@ -94,7 +94,7 @@ export default function Slider() {
             `}
           >
             <p className="text-4xl font-medium">
-              Transfer tokens without worry.
+              Secure by design.
             </p>
             <img
               className="mx-auto absolute bottom-0 left-0"
