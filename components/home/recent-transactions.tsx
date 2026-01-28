@@ -35,6 +35,13 @@ export default function RecentTransactions() {
             const config = TRANSACTION_CONFIG[type] || {}
             const Icon = config.icon || Receipt
 
+            // LOGIC PERUBAHAN NAMA DISINI
+            // Jika user mengirim (Sent), tampilkan nama penerima.
+            // Jika user menerima (Received), tampilkan nama pengirim.
+            const displayName = isSent 
+              ? (tx.receiver_name || tx.receiver_phone) 
+              : (tx.sender_name || tx.sender_phone)
+
             return (
               <a key={tx.id} href={`${NETWORK_CONFIG.blockExplorer}/tx/${tx.tx_hash}`} target="_blank" rel="noopener noreferrer" className="flex justify-between p-3 border rounded-lg">
                 <div className="flex items-center gap-2">
@@ -42,7 +49,8 @@ export default function RecentTransactions() {
                     <Icon className={`${config.textClass}`} />
                   </div>
                   <div>
-                    <p>{isSent ? `Sent to ${tx.receiver_phone}` : `Received from ${tx.sender_phone}`}</p>
+                    {/* TAMPILKAN HASIL LOGIC DIATAS */}
+                    <p>{isSent ? `Sent to ${displayName}` : `Received from ${displayName}`}</p>
                     <p className="text-xs text-gray-500">{formatTime(tx.timestamp)}</p>
                   </div>
                 </div>
