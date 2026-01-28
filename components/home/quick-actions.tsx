@@ -1,4 +1,4 @@
- "use client"
+"use client"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -10,7 +10,7 @@ const quickActions = [
     id: "topup",
     label: "Top Up",
     icon: ArrowDownLeft,
-    color: "from-primary to-secondary",
+    color: "from-primary to-amber-200",
     href: "/topup",
     description: "Add funds to your wallet",
   },
@@ -18,7 +18,7 @@ const quickActions = [
     id: "withdraw",
     label: "Withdraw",
     icon: ArrowUpRight,
-    color: "from-accent to-primary",
+    color: "from-primary/80 to-primary",
     href: "/withdraw",
     description: "Withdraw to bank account",
   },
@@ -26,7 +26,7 @@ const quickActions = [
     id: "transfer",
     label: "Transfer",
     icon: Send,
-    color: "from-secondary to-accent",
+    color: "from-amber-200 to-primary/80",
     href: "/transfer",
     description: "Send to another wallet",
   },
@@ -34,7 +34,7 @@ const quickActions = [
     id: "pay",
     label: "Pay",
     icon: QrCode,
-    color: "from-accent to-secondary",
+    color: "from-primary/80 to-amber-200",
     href: "/pay",
     description: "Pay with QR code",
   },
@@ -69,14 +69,14 @@ export default function QuickActions() {
   }
 
   return (
-    <div className="animate-fade-in-up" style={{ animationDelay: "100ms" }}>
+    <div className="animate-fade-in-up font-sans" style={{ animationDelay: "100ms" }}>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-xs sm:text-sm font-bold text-foreground uppercase tracking-widest">Quick Actions</p>
+        <p className="text-xs sm:text-sm font-bold text-black/85 uppercase tracking-widest">Quick Actions</p>
         <div className="h-px flex-1 ml-3 bg-gradient-to-r from-border to-transparent" />
       </div>
 
       {error && (
-        <div className="mb-4 p-3 sm:p-4 rounded-2xl bg-destructive/10 dark:bg-destructive/5 border border-destructive/20 animate-fade-in-up">
+        <div className="mb-4 p-3 sm:p-4 rounded-2xl bg-destructive/10 border border-destructive/20 animate-fade-in-up">
           <p className="text-xs sm:text-sm font-medium text-destructive">{error}</p>
         </div>
       )}
@@ -97,17 +97,17 @@ export default function QuickActions() {
               title={action.description}
             >
               <div
-                className={`w-full aspect-square rounded-2xl sm:rounded-3xl bg-gradient-to-br ${action.color} p-3 sm:p-4 flex items-center justify-center shadow-lg hover:shadow-2xl group-hover:scale-105 group-active:scale-95 transition-all duration-200 ${
+                className={`w-full aspect-square rounded-2xl sm:rounded-3xl bg-gradient-to-br ${action.color} p-3 sm:p-4 flex items-center justify-center shadow-lg hover:shadow-2xl shadow-primary/20 group-hover:scale-105 group-active:scale-95 transition-all duration-200 ${
                   isDisabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
                 }`}
               >
                 {isLoading ? (
-                  <Loader2 className="w-6 h-6 sm:w-7 sm:h-7 text-white animate-spin" />
+                  <Loader2 className="w-6 h-6 sm:w-7 sm:h-7 text-black animate-spin" />
                 ) : (
-                  <Icon className="w-6 h-6 sm:w-7 sm:h-7 text-white group-hover:scale-110 transition-transform" />
+                  <Icon className="w-6 h-6 sm:w-7 sm:h-7 text-black group-hover:scale-110 transition-transform" />
                 )}
               </div>
-              <p className="text-xs sm:text-sm font-semibold text-foreground mt-2 sm:mt-2.5 text-center">{action.label}</p>
+              <p className="text-xs sm:text-sm font-semibold text-black/85 mt-2 sm:mt-2.5 text-center">{action.label}</p>
             </button>
           )
         })}

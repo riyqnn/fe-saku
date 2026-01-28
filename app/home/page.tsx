@@ -38,8 +38,8 @@ export default function Home() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#F9EFE5] flex items-center justify-center">
-        <div className="animate-pulse text-[#7F8790] font-medium text-lg text-center">
+      <div className="min-h-screen bg-background flex items-center justify-center font-sans">
+        <div className="animate-pulse text-black/50 font-medium text-lg text-center">
           <video
             className="w-50"
             src="/logo.webm"

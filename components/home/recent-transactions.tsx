@@ -1,5 +1,5 @@
 "use client"
-import { ArrowDownLeft, ArrowUpRight, ChevronRight, Wallet, DollarSign, Receipt, QrCode } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, ChevronRight, Wallet, DollarSign, Receipt, QrCode, Loader2 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { useTransactions } from "@/hooks/useTransactions"
 import { NETWORK_CONFIG } from "@/lib/config"
@@ -23,10 +23,19 @@ export default function RecentTransactions() {
   }
 
   return (
-    <div>
-      <h3>Recent Transactions {refreshing && "(Refreshing...)"}</h3>
+    <div className="space-y-4 font-sans">
+      <div className="flex items-center justify-between px-2">
+        <h3 className="text-xs sm:text-sm font-bold text-black/85 uppercase tracking-widest">
+          Recent Transactions {refreshing && <Loader2 className="inline w-3 h-3 animate-spin ml-2" />}
+        </h3>
+      </div>
+
       {transactions.length === 0 ? (
-        <p>No transactions yet</p>
+        <div className="text-center py-10 px-6 bg-muted/30 rounded-[2.5rem] border border-dashed border-black/5">
+          <Receipt className="w-12 h-12 text-black/10 mx-auto mb-3" />
+          <p className="text-sm font-semibold text-black/40">No transactions yet</p>
+          <p className="text-xs text-black/30 mt-1">Your transaction history will appear here</p>
+        </div>
       ) : (
         <div className="space-y-2">
           {transactions.map(tx => {
@@ -43,19 +52,29 @@ export default function RecentTransactions() {
               : (tx.sender_name || tx.sender_phone)
 
             return (
-              <a key={tx.id} href={`${NETWORK_CONFIG.blockExplorer}/tx/${tx.tx_hash}`} target="_blank" rel="noopener noreferrer" className="flex justify-between p-3 border rounded-lg">
-                <div className="flex items-center gap-2">
-                  <div className={`${config.bgClass} p-2 rounded-full`}>
-                    <Icon className={`${config.textClass}`} />
+              <a 
+                key={tx.id} 
+                href={`${NETWORK_CONFIG.blockExplorer}/tx/${tx.tx_hash}`} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="flex justify-between items-center p-4 bg-white border border-black/5 rounded-2xl hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`${config.bgClass} p-3 rounded-xl group-hover:scale-110 transition-transform`}>
+                    <Icon className={`w-5 h-5 ${config.textClass}`} />
                   </div>
                   <div>
-                    {/* TAMPILKAN HASIL LOGIC DIATAS */}
-                    <p>{isSent ? `Sent to ${displayName}` : `Received from ${displayName}`}</p>
-                    <p className="text-xs text-gray-500">{formatTime(tx.timestamp)}</p>
+                    <p className="text-sm font-bold text-black/85 capitalize">
+                      {isSent ? `Sent to ${displayName}` : `Received from ${displayName}`}
+                    </p>
+                    <p className="text-xs text-black/40 font-medium">{formatTime(tx.timestamp)}</p>
                   </div>
                 </div>
-                <div>
-                  <p className="font-bold">{tx.amount} IDRX</p>
+                <div className="text-right">
+                  <p className={`font-bold text-sm ${isSent ? 'text-red-600' : 'text-green-600'}`}>
+                    {isSent ? '-' : '+'}{tx.amount} IDRX
+                  </p>
+                  <ChevronRight className="w-4 h-4 text-black/20 ml-auto group-hover:translate-x-1 transition-transform" />
                 </div>
               </a>
             )

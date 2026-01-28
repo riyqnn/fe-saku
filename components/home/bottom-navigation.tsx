@@ -14,7 +14,7 @@ export default function BottomNavigation() {
   ]
 
   return (
-    <nav className="sticky bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-background/80 dark:from-background dark:via-background dark:to-background/80 border-t border-border/50 backdrop-blur-lg">
+    <nav className="sticky bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-background/80 border-t border-border/50 backdrop-blur-lg font-sans">
       <div className="max-w-lg mx-auto w-full px-3 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-around gap-1">
           {navItems.map((item) => {
@@ -28,22 +28,22 @@ export default function BottomNavigation() {
                 onClick={() => router.push(item.path)}
                 className={`flex flex-col items-center gap-1.5 px-3 sm:px-4 py-2.5 sm:py-3 flex-1 rounded-2xl transition-all duration-200 group ${
                   isActive
-                    ? "bg-primary/10 dark:bg-primary/20"
-                    : "hover:bg-muted dark:hover:bg-muted/50"
+                    ? "bg-primary/10"
+                    : "hover:bg-muted"
                 }`}
               >
                 <Icon
                   className={`w-5 h-5 sm:w-6 sm:h-6 transition-all duration-200 ${
                     isActive 
                       ? "text-primary scale-110" 
-                      : "text-muted-foreground group-hover:text-foreground"
+                      : "text-black/40 group-hover:text-black/85"
                   }`}
                 />
                 <span
                   className={`text-xs sm:text-xs font-semibold transition-all duration-200 ${
                     isActive 
                       ? "text-primary" 
-                      : "text-muted-foreground group-hover:text-foreground"
+                      : "text-black/40 group-hover:text-black/85"
                   }`}
                 >
                   {item.label}

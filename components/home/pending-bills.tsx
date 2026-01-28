@@ -45,7 +45,7 @@ export default function PendingBillsSection() {
   if (bills.length === 0) return null
 
   return (
-    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 font-sans">
       <div className="flex items-center justify-between px-4">
         <h3 className="text-[11px] font-semibold text-black/40 tracking-widest uppercase">
           Pending Split Bills ({bills.length})
