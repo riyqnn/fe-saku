@@ -63,12 +63,12 @@ export default function ReceiverStep({
   }
 
   return (
-    <div className="p-5 sm:p-7 space-y-5 sm:space-y-6">
+    <div className="p-5 sm:p-7 space-y-5 sm:space-y-6 font-sans">
       {/* Header - Tetap Sama */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg sm:text-xl font-bold text-foreground">Send to</h2>
+        <h2 className="text-lg sm:text-xl font-bold text-black/85">Send to</h2>
         <button onClick={onClose} className="p-2 sm:p-2.5 hover:bg-muted rounded-full transition-colors">
-          <X className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground" />
+          <X className="w-5 h-5 sm:w-6 sm:h-6 text-black/40" />
         </button>
       </div>
 
@@ -77,7 +77,7 @@ export default function ReceiverStep({
         <button
           onClick={() => setActiveTab("phone")}
           className={`flex-1 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
-            activeTab === "phone" ? "bg-primary text-white shadow-sm" : "text-muted-foreground"
+            activeTab === "phone" ? "bg-primary text-black shadow-sm" : "text-black/40"
           }`}
         >
           <Phone className="w-4 h-4" /> Phone Input
@@ -85,7 +85,7 @@ export default function ReceiverStep({
         <button
           onClick={() => setActiveTab("contacts")}
           className={`flex-1 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
-            activeTab === "contacts" ? "bg-primary text-white shadow-sm" : "text-muted-foreground"
+            activeTab === "contacts" ? "bg-primary text-black shadow-sm" : "text-black/40"
           }`}
         >
           <Users className="w-4 h-4" /> Contacts
@@ -95,7 +95,7 @@ export default function ReceiverStep({
       {activeTab === "phone" ? (
         <div className="space-y-4">
           <div className="space-y-3">
-            <label className="text-sm font-semibold text-foreground">Phone Number</label>
+            <label className="text-sm font-semibold text-black/85">Phone Number</label>
             <input
               type="tel"
               placeholder="+62 812-3456-7890"
@@ -108,7 +108,7 @@ export default function ReceiverStep({
           <button
             onClick={handlePhoneSubmit}
             disabled={!phoneInput.trim()}
-            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-primary to-accent text-white font-bold"
+            className="w-full py-3.5 rounded-xl bg-black text-white font-bold shadow-xl shadow-black/10 active:scale-95 transition-all disabled:opacity-30"
           >
             Continue
           </button>
@@ -116,7 +116,7 @@ export default function ReceiverStep({
       ) : (
         <div className="space-y-4">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black/30 pointer-events-none" />
             <input
               type="text"
               placeholder="Search name or phone"
@@ -135,14 +135,14 @@ export default function ReceiverStep({
               <button
                 key={contact.id}
                 onClick={() => onSelect(contact.name, contact.phone_number)}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-card/50 border border-border/50 hover:border-primary/30 transition-all text-left group"
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border border-black/5 hover:border-primary/30 transition-all text-left group"
               >
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-amber-700 font-bold">
                   {contact.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 truncate">
-                  <p className="font-bold text-sm text-foreground truncate group-hover:text-primary">{contact.name}</p>
-                  <p className="text-xs text-muted-foreground">{contact.phone_number}</p>
+                  <p className="font-bold text-sm text-black/85 truncate group-hover:text-primary">{contact.name}</p>
+                  <p className="text-xs text-black/50">{contact.phone_number}</p>
                 </div>
                 {contact.wallet_address && (
                   <div className="px-2 py-1 rounded-lg bg-green-500/10 border border-green-500/20">
@@ -159,12 +159,12 @@ export default function ReceiverStep({
                 onClick={() => onSelect(user.full_name || user.phone_number, user.phone_number)}
                 className="w-full flex items-center gap-4 p-4 rounded-2xl bg-primary/5 border border-dashed border-primary/20 hover:bg-primary/10 transition-all text-left"
               >
-                <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-full bg-primary text-black flex items-center justify-center font-bold">
                   {(user.full_name || "S").charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 truncate">
-                  <p className="font-bold text-sm text-foreground">{user.full_name || "Saku User"}</p>
-                  <p className="text-xs text-muted-foreground">{user.phone_number}</p>
+                  <p className="font-bold text-sm text-black/85">{user.full_name || "Saku User"}</p>
+                  <p className="text-xs text-black/50">{user.phone_number}</p>
                 </div>
                 <div className="px-2 py-1 rounded-lg bg-blue-500 text-white">
                   <p className="text-[10px] font-bold uppercase">Find</p>
@@ -175,8 +175,8 @@ export default function ReceiverStep({
             {/* Empty State */}
             {!loading && localFiltered.length === 0 && globalResults.length === 0 && search.length >= 3 && (
                <div className="text-center py-10">
-                 <Search className="w-12 h-12 text-muted-foreground/30 mx-auto mb-2" />
-                 <p className="text-sm text-muted-foreground">User not found</p>
+                 <Search className="w-12 h-12 text-black/10 mx-auto mb-2" />
+                 <p className="text-sm text-black/50">User not found</p>
                </div>
             )}
           </div>
@@ -184,7 +184,7 @@ export default function ReceiverStep({
       )}
 
       <div className="pt-4 border-t border-border/50">
-        <p className="text-xs text-muted-foreground text-center">
+        <p className="text-xs text-black/40 text-center">
           💡 You can find any Saku user by their name or phone number
         </p>
       </div>

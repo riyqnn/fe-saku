@@ -91,56 +91,51 @@ export default function WithdrawPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-background dark:bg-background flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-card dark:bg-card rounded-3xl p-8 shadow-2xl animate-fade-in-up">
-          <div className="flex flex-col items-center text-center space-y-6">
-            <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center">
-              <CheckCircle className="w-12 h-12 text-green-500" />
-            </div>
-
-            <div className="space-y-2">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Withdrawal Successful!</h1>
-              <p className="text-muted-foreground">
-                {withdrawAllFlag
-                  ? 'All funds withdrawn'
-                  : withdrawResult
-                    ? `${Number(withdrawResult.amountAfterFee).toLocaleString()} IDRX withdrawn`
-                    : `${Number(estimatedAmountAfterFee).toLocaleString()} IDRX withdrawn`
-                }
-              </p>
-            </div>
-
-            {txHash && (
-              <div className="w-full p-4 rounded-2xl bg-muted/50 space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transaction Hash</p>
-                <p className="text-sm font-mono text-foreground break-all">{txHash}</p>
-              </div>
-            )}
-
-            <button
-              onClick={handleDone}
-              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-primary to-secondary text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95"
-            >
-              Done
-            </button>
+      <div className="min-h-screen bg-background font-sans flex items-center justify-center p-6 overflow-hidden">
+        <div className="max-w-md w-full bg-white rounded-[2.5rem] p-10 shadow-2xl text-center space-y-6 animate-in zoom-in duration-500 border border-primary/20">
+          <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle className="w-10 h-10 text-amber-600" />
           </div>
+          <h1 className="text-3xl font-bold italic text-black/85">Success!</h1>
+          <p className="text-black/50 font-medium">
+            {withdrawAllFlag
+              ? 'All funds have been withdrawn successfully.'
+              : withdrawResult
+                ? `${Number(withdrawResult.amountAfterFee).toLocaleString()} IDRX withdrawn`
+                : `${Number(estimatedAmountAfterFee).toLocaleString()} IDRX withdrawn`
+            }
+          </p>
+
+          {txHash && (
+            <div className="w-full p-4 rounded-2xl bg-muted/50 space-y-2">
+              <p className="text-xs font-semibold text-black/40 uppercase tracking-wider">Transaction Hash</p>
+              <p className="text-sm font-mono text-black/85 break-all">{txHash}</p>
+            </div>
+          )}
+
+          <button
+            onClick={handleDone}
+            className="w-full py-4 rounded-2xl bg-primary text-black font-semibold shadow-lg shadow-primary/30 active:scale-95 transition-all"
+          >
+            Back Home
+          </button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background dark:bg-background">
-      <div className="max-w-lg mx-auto min-h-screen bg-background dark:bg-background flex flex-col">
+    <div className="min-h-screen bg-background font-sans">
+      <div className="max-w-lg mx-auto min-h-screen bg-background flex flex-col">
         {/* Header */}
         <Header />
 
         {/* Content */}
         <div className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto">
           {/* Balance Card */}
-          <div className="p-6 rounded-3xl bg-gradient-to-br from-accent/20 to-primary/20 border border-accent/20 space-y-2">
-            <p className="text-sm font-semibold text-muted-foreground">Available Balance</p>
-            <p className="text-3xl sm:text-4xl font-bold text-foreground">{formattedBalance}</p>
+          <div className="p-6 rounded-3xl bg-gradient-to-br from-primary via-amber-200 to-primary/80 border border-primary/20 space-y-2 shadow-xl shadow-primary/20">
+            <p className="text-sm font-semibold text-amber-900/60">Available Balance</p>
+            <p className="text-3xl sm:text-4xl font-bold text-black/85">{formattedBalance}</p>
           </div>
 
           {/* Info Card */}
@@ -148,8 +143,8 @@ export default function WithdrawPage() {
             <div className="flex items-start gap-3">
               <Info className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
               <div className="space-y-1">
-                <p className="text-sm font-semibold text-orange-500 dark:text-orange-400">Withdrawal Fee</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-sm font-semibold text-orange-500">Withdrawal Fee</p>
+                <p className="text-xs text-black/50 leading-relaxed">
                   A 1% fee applies to all withdrawals. This fee helps maintain the network and services.
                 </p>
               </div>
@@ -158,20 +153,20 @@ export default function WithdrawPage() {
 
           {/* Destination Address */}
           <div className="space-y-3">
-            <label className="text-sm font-semibold text-foreground">Destination Address</label>
+            <label className="text-sm font-semibold text-black/85">Destination Address</label>
             <input
               type="text"
               value={toAddress}
               onChange={(e) => setToAddress(e.target.value)}
               placeholder="0x..."
-              className="w-full p-4 rounded-2xl bg-muted/50 border border-border text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
+              className="w-full p-4 rounded-2xl bg-muted/50 border border-border text-black/85 text-sm font-mono placeholder:text-black/30 focus:outline-none focus:ring-2 focus:ring-primary/50"
               disabled={loading}
             />
           </div>
 
           {/* Amount Input */}
           <div className="space-y-3">
-            <label className="text-sm font-semibold text-foreground">Amount (IDRX)</label>
+            <label className="text-sm font-semibold text-black/85">Amount (IDRX)</label>
             <div className="relative">
               <input
                 type="text"
@@ -181,13 +176,13 @@ export default function WithdrawPage() {
                   setWithdrawAllFlag(false)
                 }}
                 placeholder="Enter amount"
-                className="w-full p-4 rounded-2xl bg-muted/50 border border-border text-foreground text-lg font-semibold placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
+                className="w-full p-4 rounded-2xl bg-muted/50 border border-border text-black/85 text-lg font-semibold placeholder:text-black/30 focus:outline-none focus:ring-2 focus:ring-primary/50"
                 disabled={loading || withdrawAllFlag}
               />
               <div className="absolute right-4 top-1/2 -translate-y-1/2">
                 <button
                   onClick={handleMax}
-                  className="px-3 py-1 rounded-lg bg-accent/20 text-accent text-xs font-semibold hover:bg-accent/30 transition-colors"
+                  className="px-3 py-1 rounded-lg bg-primary/20 text-amber-900 text-xs font-semibold hover:bg-primary/30 transition-colors"
                   disabled={loading}
                 >
                   MAX
@@ -200,18 +195,18 @@ export default function WithdrawPage() {
           {amount && !withdrawAllFlag && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0 && (
             <div className="p-4 rounded-2xl bg-muted/50 border border-border space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Amount</span>
-                <span className="text-sm font-semibold text-foreground">{Number(amount).toLocaleString()} IDRX</span>
+                <span className="text-sm text-black/50">Amount</span>
+                <span className="text-sm font-semibold text-black/85">{Number(amount).toLocaleString()} IDRX</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Fee (1%)</span>
+                <span className="text-sm text-black/50">Fee (1%)</span>
                 <span className="text-sm font-semibold text-orange-500">
                   -{Number(estimatedFee).toLocaleString()} IDRX
                 </span>
               </div>
               <div className="h-px bg-border" />
               <div className="flex justify-between items-center">
-                <span className="text-sm font-semibold text-foreground">You'll Receive</span>
+                <span className="text-sm font-semibold text-black/85">You'll Receive</span>
                 <span className="text-lg font-bold text-green-500">
                   {Number(estimatedAmountAfterFee).toLocaleString()} IDRX
                 </span>
@@ -222,11 +217,11 @@ export default function WithdrawPage() {
           {withdrawAllFlag && (
             <div className="p-4 rounded-2xl bg-muted/50 border border-border space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Total Balance</span>
-                <span className="text-sm font-semibold text-foreground">{formattedBalance}</span>
+                <span className="text-sm text-black/50">Total Balance</span>
+                <span className="text-sm font-semibold text-black/85">{formattedBalance}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Est. Fee (1%)</span>
+                <span className="text-sm text-black/50">Est. Fee (1%)</span>
                 <span className="text-sm font-semibold text-orange-500">
                   ~{(parseFloat(formattedBalance) * 0.01).toFixed(6)} IDRX
                 </span>
@@ -250,7 +245,7 @@ export default function WithdrawPage() {
                 !toAddress ||
                 (!amount && !withdrawAllFlag)
               }
-              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-accent to-primary text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+              className="w-full py-4 px-6 rounded-2xl bg-black text-white font-semibold text-lg shadow-xl shadow-black/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
             >
               {loading ? 'Withdrawing...' : `Withdraw ${withdrawAllFlag ? 'All' : amount} IDRX`}
             </button>
@@ -258,7 +253,7 @@ export default function WithdrawPage() {
             <button
               onClick={handleBack}
               disabled={loading}
-              className="w-full py-4 px-6 rounded-2xl bg-muted/50 text-foreground font-semibold text-lg hover:bg-muted transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 px-6 rounded-2xl bg-muted/50 text-black/85 font-semibold text-lg hover:bg-muted transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>

@@ -67,7 +67,7 @@ export default function SuccessStep({ txHash, receiverName, receiverPhone, amoun
   }
 
   return (
-    <div className="p-5 sm:p-8 space-y-6 sm:space-y-8 text-center animate-fade-in-scale">
+    <div className="p-5 sm:p-8 space-y-6 sm:space-y-8 text-center animate-fade-in-scale font-sans">
       {/* Success Icon & Animation */}
       <div className="py-4 sm:py-6">
         {showAnimation ? (
@@ -77,7 +77,7 @@ export default function SuccessStep({ txHash, receiverName, receiverPhone, amoun
               {[...Array(12)].map((_, i) => (
                 <div
                   key={i}
-                  className="absolute w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-br from-primary to-accent rounded-full animate-confetti"
+                  className="absolute w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-br from-primary to-primary/80 rounded-full animate-confetti"
                   style={{
                     left: `${20 + (i % 3) * 20}%`,
                     top: `${10 + (Math.floor(i / 3) * 20)}%`,
@@ -86,18 +86,18 @@ export default function SuccessStep({ txHash, receiverName, receiverPhone, amoun
                   }}
                 />
               ))}
-              <CheckCircle className="w-20 h-20 sm:w-24 sm:h-24 text-green-500 dark:text-green-400 animate-pulse-scale" />
+              <CheckCircle className="w-20 h-20 sm:w-24 sm:h-24 text-amber-600 animate-pulse-scale" />
             </div>
           </>
         ) : (
-          <CheckCircle className="w-20 h-20 sm:w-24 sm:h-24 text-green-500 dark:text-green-400 mx-auto" />
+          <CheckCircle className="w-20 h-20 sm:w-24 sm:h-24 text-amber-600 mx-auto" />
         )}
       </div>
 
       {/* Success Message */}
       <div className="space-y-2.5 sm:space-y-3">
-        <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Transfer Successful!</h2>
-        <p className="text-sm sm:text-base text-muted-foreground">
+        <h2 className="text-2xl sm:text-3xl font-bold text-black/85">Transfer Successful!</h2>
+        <p className="text-sm sm:text-base text-black/50">
           {Number(amount).toLocaleString()} IDRX sent to {receiverName}
         </p>
       </div>
@@ -124,11 +124,11 @@ export default function SuccessStep({ txHash, receiverName, receiverPhone, amoun
       )}
 
       {/* Transaction Details */}
-      <div className="bg-gradient-to-br from-primary/5 to-accent/5 dark:from-primary/10 dark:to-accent/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-primary/20 space-y-3 sm:space-y-4">
+      <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-primary/20 space-y-3 sm:space-y-4">
         <div className="space-y-2">
-          <p className="text-xs sm:text-sm font-bold text-muted-foreground uppercase tracking-widest">Transaction Hash</p>
+          <p className="text-xs sm:text-sm font-bold text-black/40 uppercase tracking-widest">Transaction Hash</p>
           <div className="flex items-center gap-2">
-            <p className="font-mono text-xs sm:text-sm font-semibold text-foreground break-all flex-1 text-left">
+            <p className="font-mono text-xs sm:text-sm font-semibold text-black/85 break-all flex-1 text-left">
               {txHash || "Processing..."}
             </p>
             {txHash && (
@@ -140,7 +140,7 @@ export default function SuccessStep({ txHash, receiverName, receiverPhone, amoun
                 {copied ? (
                   <Check className="w-4 h-4 text-green-500" />
                 ) : (
-                  <Copy className="w-4 h-4 text-muted-foreground" />
+                  <Copy className="w-4 h-4 text-black/40" />
                 )}
               </button>
             )}
@@ -151,7 +151,7 @@ export default function SuccessStep({ txHash, receiverName, receiverPhone, amoun
             href={getExplorerUrl()}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-primary hover:text-accent transition-colors"
+            className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-primary hover:text-amber-700 transition-colors"
           >
             <ExternalLink className="w-4 h-4" />
             View on Explorer
@@ -160,8 +160,8 @@ export default function SuccessStep({ txHash, receiverName, receiverPhone, amoun
       </div>
 
       {/* Info Alert */}
-      <div className="bg-green-100 dark:bg-green-900/30 rounded-2xl p-4 sm:p-5 border border-green-200 dark:border-green-800">
-        <p className="text-xs sm:text-sm font-medium text-green-800 dark:text-green-300">
+      <div className="bg-green-100 rounded-2xl p-4 sm:p-5 border border-green-200">
+        <p className="text-xs sm:text-sm font-medium text-green-800">
           ✓ Your wallet balance will update in a few moments
         </p>
       </div>
@@ -169,7 +169,7 @@ export default function SuccessStep({ txHash, receiverName, receiverPhone, amoun
       {/* Complete Button */}
       <button
         onClick={onComplete}
-        className="btn-primary w-full text-base sm:text-lg font-bold py-3 sm:py-4"
+        className="w-full py-4 rounded-2xl bg-primary text-black font-bold text-base sm:text-lg shadow-lg shadow-primary/30 active:scale-95 transition-all"
       >
         Done
       </button>

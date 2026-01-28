@@ -94,11 +94,11 @@ export default function TransferModal({ onClose }: { onClose: () => void }) {
   }, [])
 
   return (
-    <div className="w-full rounded-3xl sm:rounded-4xl overflow-hidden bg-background">
+    <div className="w-full rounded-3xl sm:rounded-4xl overflow-hidden bg-background font-sans">
       {/* Progress bar */}
-      <div className="h-1 sm:h-1.5 bg-muted/50 dark:bg-muted/20 overflow-hidden">
+      <div className="h-1 sm:h-1.5 bg-muted/50 overflow-hidden">
         <div
-          className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
+          className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-500"
           style={{ width: `${((currentStepIndex + 1) / steps.length) * 100}%` }}
         />
       </div>
