@@ -96,7 +96,7 @@ export default function ProfileCard() {
   return (
     <div className="rounded-3xl sm:rounded-4xl overflow-hidden border border-border/50 bg-gradient-to-br from-primary/10 via-card to-accent/5 dark:from-primary/5 dark:via-card/50 dark:to-accent/5 shadow-lg">
       {/* Header Section */}
-      <div className="bg-gradient-to-r from-primary/20 to-accent/20 dark:from-primary/10 dark:to-accent/10 px-6 sm:px-8 py-6 sm:py-8 space-y-4">
+      <div className="bg-gradient-to-br from-primary via-amber-200 to-primary/80 px-6 sm:px-8 py-6 sm:py-8 space-y-4">
         {/* Status Badge */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
