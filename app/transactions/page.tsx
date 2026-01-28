@@ -7,7 +7,9 @@ import { useTransactions } from "@/hooks/useTransactions"
 import { NETWORK_CONFIG } from "@/lib/config"
 import BottomNavigation from "@/components/home/bottom-navigation"
 
+// Pastikan tipe data mencakup field baru dari hook
 type Transaction = {
+  id: string
   type: string
   amount: number
   timestamp: string
@@ -97,21 +99,6 @@ export default function TransactionsPage() {
     })
   }
 
-  const getTransactionLabel = (tx: Transaction) => {
-    const config = TRANSACTION_CONFIG[tx.type]
-    if (!config) return tx.type
-
-    const isSent = tx.sender_phone === user?.phone_number
-    if (tx.type === "transfer_sent" && isSent) {
-      return `Sent to ${tx.receiver_name || tx.receiver_phone}`
-    }
-    if (tx.type === "transfer_received" && !isSent) {
-      return `Received from ${tx.sender_name || tx.sender_phone}`
-    }
-
-    return config.label
-  }
-
   const getAmountDisplay = (tx: Transaction) => {
     const isSent = tx.sender_phone === user?.phone_number
     return {
@@ -166,10 +153,38 @@ export default function TransactionsPage() {
         {!refreshing && transactions.length > 0 && (
           <div className="space-y-3">
             {transactions.map((tx, idx) => {
-              const config = TRANSACTION_CONFIG[tx.type]
+              // 1. Logic Identifikasi Arah Transaksi
+              const isSent = tx.sender_phone === user?.phone_number
+              
+              // 2. Logic Penentuan Tipe Icon/Warna
+              // Jika transaksi P2P (ada sender & receiver), tentukan sent/received. Jika tidak, gunakan tipe asli (topup/withdraw)
+              let type = tx.type
+              const isP2P = tx.sender_phone && tx.receiver_phone
+              if (isP2P) {
+                type = isSent ? 'transfer_sent' : 'transfer_received'
+              }
+              
+              const config = TRANSACTION_CONFIG[type] || TRANSACTION_CONFIG['topup'] // fallback safety
               const Icon = config?.icon || Receipt
               const amountDisplay = getAmountDisplay(tx)
-              const isSent = tx.sender_phone === user?.phone_number
+
+              // 3. Logic Nama & Subtext (Phone)
+              const targetName = isSent ? tx.receiver_name : tx.sender_name
+              const targetPhone = isSent ? tx.receiver_phone : tx.sender_phone
+              
+              // Display name: Prioritaskan Nama, jika null pakai No. HP
+              const displayName = targetName || targetPhone
+              
+              // Subtext phone: Hanya tampilkan jika Nama ada. Jika nama null, subtext null (karena HP sudah jadi judul)
+              const displaySubPhone = targetName ? targetPhone : null
+
+              // 4. Logic Label Judul
+              let mainLabel = config.label
+              if (type === 'transfer_sent') {
+                mainLabel = `Sent to ${displayName}`
+              } else if (type === 'transfer_received') {
+                mainLabel = `Received from ${displayName}`
+              }
 
               return (
                 <a
@@ -187,11 +202,20 @@ export default function TransactionsPage() {
                           <Icon className="w-6 h-6" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-1">
+                          {/* Label Utama */}
+                          <div className="flex flex-col mb-1">
                             <p className="font-semibold text-base text-foreground truncate group-hover:text-primary transition-colors">
-                              {getTransactionLabel(tx)}
+                              {mainLabel}
                             </p>
+                            {/* Subtext Phone Number (hanya muncul jika ada nama) */}
+                            {displaySubPhone && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {displaySubPhone}
+                              </p>
+                            )}
                           </div>
+
+                          {/* Timestamp & Hash */}
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span>{formatTransactionTime(tx.timestamp)}</span>
                             <span>•</span>
