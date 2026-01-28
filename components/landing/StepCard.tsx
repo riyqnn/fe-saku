@@ -16,7 +16,7 @@ export default function StepCard({
   imageAlt = "",
 }: StepCardProps) {
   return (
-    <div className="flex w-[362px] max-w-[362px] flex-col gap-6 text-left">
+    <div className="flex w-[380px] max-w-[362px] h-fit flex-col gap-6 text-left">
       <img
         className="w-80 rounded-3xl"
         src={imageSrc}

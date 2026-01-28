@@ -9,10 +9,10 @@ export default function Navbar({ className = "" }: NavbarProps) {
   const [state, setState] = useState(false);
 
   const navigation = [
-    { title: "Customers", path: "javascript:void(0)" },
-    { title: "Careers", path: "javascript:void(0)" },
-    { title: "Guides", path: "javascript:void(0)" },
-    { title: "Partners", path: "javascript:void(0)" }
+    { title: "Home", path: "/" },
+    { title: "Wallet", path: "/home" },
+    { title: "Transfer", path: "/transfer" },
+    { title: "Pay", path: "/pay" }
   ];
 
   return (
@@ -80,25 +80,48 @@ export default function Navbar({ className = "" }: NavbarProps) {
           </div>
         </div>
 
-        {/* Nav Links */}
+        {/* Nav Links Container with Animation */}
         <div
-          className={`flex-1 justify-self-center pb-3 mt-8 md:block md:pb-0 md:mt-0 ${
-            state ? "block" : "hidden"
-          }`}
+          className={`
+            flex-1 
+            md:block md:pb-0 md:mt-0
+            transition-all duration-300 ease-in-out overflow-hidden
+            ${
+              state 
+                ? "max-h-screen opacity-100 mt-8 pb-3" 
+                : "max-h-0 opacity-0 md:max-h-full md:opacity-100"
+            }
+          `}
         >
-          <ul className="justify-center items-center space-y-8 md:flex md:space-x-6 md:space-y-0">
+          {/* Perubahan Layout Mobile: 
+             - flex-col (mobile) -> md:flex-row (desktop)
+             - items-start (mobile kiri) -> md:items-center (desktop tengah)
+             - space-y-4 (jarak vertikal mobile) -> md:space-y-0 (reset desktop)
+             - w-full (mobile full width)
+          */}
+          <ul className="flex flex-col w-full items-start w-full space-y-4 md:flex-row md:items-center md:justify-center md:space-x-6 md:space-y-0 md:w-auto">
             {navigation.map((item, idx) => (
               <li
                 key={idx}
-                className="text-green hover:text-green/70"
+                className="text-green hover:text-green/70 w-full md:w-auto"
               >
-                <a href={item.path}>{item.title}</a>
+                <a href={item.path} className="block w-full">{item.title}</a>
               </li>
             ))}
+            
+            {/* Mobile Only Sign In Button */}
+            <li className="md:hidden w-full pt-2">
+              <a
+                href="/get-started"
+                className="py-3 px-4 bg-custom3 border border-black text-custom1 hover:bg-custom3/80 rounded-full shadow block text-center w-fit "
+              >
+                Sign In
+              </a>
+            </li>
           </ul>
         </div>
 
-        {/* Action Button */}
+        {/* Action Button (Desktop Only) */}
         <div className="hidden md:inline-block">
           <a
             href="/get-started"

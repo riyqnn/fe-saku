@@ -24,7 +24,7 @@ export default function Home() {
           "
         >
           <span className="whitespace-nowrap">
-            Your
+            Easy
             <video
               className="w-18 sm:w-22 md:w-28 lg:w-50 inline mx-2 align-middle"
               src="/logo.webm"
@@ -34,9 +34,9 @@ export default function Home() {
               playsInline
             />
           </span>
-          trusted
+          Crypto
           <br />
-          wallet shit
+          Transfers
         </h1>
 
         <a
@@ -56,11 +56,11 @@ export default function Home() {
 
       {/* Promotion Section */}
       <section className="relative w-full flex flex-col gap-12 md:gap-20 py-10 justify-center items-center text-center">
-        <div className="flex flex-col max-w-md gap-4 md:gap-6">
+        <div className="flex flex-col max-w-4xl gap-4 md:gap-6">
           <h1 className="text-4xl sm:text-5xl md:text-[80px] text-black/85 font-medium leading-normal">
             Transfer crypto <br /> with phone number
           </h1>
-          <p className="text-lg md:text-2xl text-black/50">
+          <p className="text-md md:text-2xl text-black/50">
             Easily transfer IDRX without inputing the complex address
           </p>
         </div>
@@ -78,9 +78,9 @@ export default function Home() {
 
       {/* Steps Section */}
       <section className="relative w-full flex flex-col gap-12 md:gap-20 py-10 justify-center items-center text-center pt-20 md:pt-30">
-        <div className="max-w-200 flex flex-col gap-4 md:gap-6">
+        <div className="max-w-300 flex flex-col gap-4 md:gap-6">
           <h2 className="text-3xl md:text-5xl font-semibold">
-            Transfer crypto with <br /> phone number
+            Easy use, Get Crypto transfers done fast.
           </h2>
           <p className="text-lg md:text-2xl text-black/50">
             Easily transfer IDRX without inputing the complex address
@@ -90,20 +90,22 @@ export default function Home() {
         <div className="w-full flex flex-col md:flex-row justify-center items-center gap-8 md:gap-10">
           <StepCard
             step={1}
-            title="Deposit Crypto"
-            description="Deposit crypto easily just with your phone number"
+            title="Top Up Once"
+            description="Add crypto once and you're ready to send"
             imageSrc="/landing/steps1.png"
           />
+
           <StepCard
             step={2}
-            title="Transfer Crypto"
-            description="Transfer crypto easily just with your phone number"
+            title="Send by Phone Number"
+            description="No wallet address, just a phone number"
             imageSrc="/landing/steps2.png"
           />
+
           <StepCard
             step={3}
-            title="Withdraw Crypto"
-            description="Withdraw crypto easily just with your phone number"
+            title="Done"
+            description="Sent safely and securely without mistakes"
             imageSrc="/landing/steps3.png"
           />
         </div>

@@ -1,15 +1,34 @@
 "use client"
 
-import React, { useState } from "react"
-// @ts-ignore - Types are available but not resolved correctly by Next.js 16
+import React, { useEffect, useRef, useState } from "react"
+// @ts-ignore
 import { Splide, SplideSlide } from "@splidejs/react-splide"
 import "@splidejs/react-splide/css"
 
 export default function Slider() {
   const [active, setActive] = useState(false)
+  const wrapperRef = useRef<HTMLDivElement | null>(null)
+
+  // 🔥 Trigger animasi pas masuk viewport
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => {
+            setActive(true)
+          }, 1000);
+          observer.disconnect() // jalan sekali
+        }
+      },
+      { threshold: 0.3 }
+    )
+
+    if (wrapperRef.current) observer.observe(wrapperRef.current)
+    return () => observer.disconnect()
+  }, [])
 
   return (
-    <div className="relative">
+    <div ref={wrapperRef} className="relative">
       <Splide
         options={{
           gap: "2rem",
@@ -17,32 +36,31 @@ export default function Slider() {
           perMove: 1,
           padding: "5rem",
           arrows: false,
+          dots: false,
+          pagination: false,
           breakpoints: {
-            1024: {
+            1280: {
               perPage: 2,
               padding: "3rem",
+              pagination: true,
             },
             640: {
               perPage: 1,
               padding: "1.5rem",
+              pagination: true,
             },
           },
         }}
-        onMounted={() => {
-          setTimeout(() => {
-            setActive(true)
-          }, 2000);
-        }}
-        onMoved={() => setActive(true)}
         aria-label="My Favorite Images"
       >
+        {/* Slide 1 */}
         <SplideSlide>
           <div
             className={`
               w-full max-w-[420px] z-5 mx-auto relative h-full max-h-[520px]
               text-left p-12 rounded-4xl bg-[#F0F8A4]
-              transition-all duration-700 ease-out
-              ${active ? "left-0" : "left-90"}
+              xl:transition-all xl:duration-700 xl:ease-out
+              ${active ? "xl:left-0" : "xl:left-90"}
             `}
           >
             <p className="text-4xl font-medium">
@@ -52,13 +70,13 @@ export default function Slider() {
           </div>
         </SplideSlide>
 
+        {/* Slide 2 */}
         <SplideSlide>
           <div
             className={`
               w-full max-w-[420px] z-4 mx-auto relative h-full max-h-[520px]
               text-left p-12 rounded-4xl bg-[#f7df78]
-              transition-all duration-700 ease-out
-              ${active ? "left-0" : ""}
+              xl:transition-all xl:duration-700 xl:ease-out
             `}
           >
             <p className="text-4xl font-medium">
@@ -68,13 +86,14 @@ export default function Slider() {
           </div>
         </SplideSlide>
 
+        {/* Slide 3 */}
         <SplideSlide>
           <div
             className={`
               w-full max-w-[420px] z-3 mx-auto relative h-full max-h-[520px]
               text-left p-12 rounded-4xl bg-[#F0F8A4]
-              transition-all duration-700 ease-out
-              ${active ? "right-0" : "right-90"}
+              xl:transition-all xl:duration-700 xl:ease-out
+              ${active ? "xl:right-0" : "xl:right-90"}
             `}
           >
             <p className="text-4xl font-medium">
@@ -84,13 +103,14 @@ export default function Slider() {
           </div>
         </SplideSlide>
 
+        {/* Slide 4 */}
         <SplideSlide>
           <div
             className={`
               w-full max-w-[420px] z-2 mx-auto relative h-full max-h-[520px]
               overflow-hidden text-left p-12 rounded-4xl bg-[#f7df78]
-              transition-all duration-700 ease-out
-              ${active ? "right-0" : "right-180"}
+              xl:transition-all xl:duration-700 xl:ease-out
+              ${active ? "xl:right-0" : "xl:right-180"}
             `}
           >
             <p className="text-4xl font-medium">
