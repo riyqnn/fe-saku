@@ -25,7 +25,7 @@ export default function TopupPage() {
   // Show loading while auth is loading
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center font-sans">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
@@ -99,47 +99,40 @@ export default function TopupPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-card dark:bg-card rounded-3xl p-8 shadow-2xl border border-border">
-          <div className="flex flex-col items-center text-center space-y-6">
-            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center animate-bounce">
-              <CheckCircle className="w-12 h-12 text-primary" />
-            </div>
+      <div className="min-h-screen bg-background flex items-center justify-center p-6 font-sans overflow-hidden">
+        <div className="max-w-md w-full bg-white rounded-[2.5rem] p-10 shadow-2xl text-center space-y-6 animate-in zoom-in duration-500 border border-primary/20">
+          <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle className="w-10 h-10 text-amber-600" />
+          </div>
+          <h1 className="text-3xl font-bold italic text-black/85">Success!</h1>
+          <p className="text-black/50 font-medium">
+            You have successfully received {Number(amount).toLocaleString()} IDRX
+          </p>
 
-            <div className="space-y-2">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                Top Up Successful!
-              </h1>
-              <p className="text-muted-foreground">
-                You have successfully received {Number(amount).toLocaleString()} IDRX
+          {txHash && (
+            <div className="w-full p-4 rounded-2xl bg-muted/50 space-y-2">
+              <p className="text-xs font-semibold text-black/40 uppercase tracking-wider">
+                Transaction Hash
+              </p>
+              <p className="text-sm font-mono text-black/85 break-all">
+                {txHash}
               </p>
             </div>
+          )}
 
-            {txHash && (
-              <div className="w-full p-4 rounded-2xl bg-muted/50 space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Transaction Hash
-                </p>
-                <p className="text-sm font-mono text-foreground break-all">
-                  {txHash}
-                </p>
-              </div>
-            )}
-
-            <button
-              onClick={handleDone}
-              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95"
-            >
-              Done
-            </button>
-          </div>
+          <button
+            onClick={handleDone}
+            className="w-full py-4 rounded-2xl bg-primary text-black font-semibold shadow-lg shadow-primary/30 active:scale-95 transition-all"
+          >
+            Back Home
+          </button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted">
+    <div className="min-h-screen bg-background font-sans">
       <div className="max-w-lg mx-auto min-h-screen flex flex-col">
         {/* Header */}
         <Header />
@@ -147,14 +140,14 @@ export default function TopupPage() {
         {/* Content */}
         <div className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto">
           {!walletAddress ? (
-            <div className="p-6 rounded-3xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 space-y-4">
+            <div className="p-6 rounded-3xl bg-yellow-500/10 border border-yellow-500/20 space-y-4">
               <div className="flex items-start gap-3">
-                <Wallet className="w-6 h-6 text-yellow-600 dark:text-yellow-500 mt-0.5 flex-shrink-0" />
+                <Wallet className="w-6 h-6 text-yellow-600 mt-0.5 flex-shrink-0" />
                 <div className="space-y-2">
-                  <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-400">
+                  <p className="text-sm font-semibold text-yellow-700">
                     Wallet Not Created
                   </p>
-                  <p className="text-xs text-yellow-600 dark:text-yellow-500 leading-relaxed">
+                  <p className="text-xs text-yellow-600 leading-relaxed">
                     Please complete your wallet setup first.
                   </p>
                 </div>
@@ -163,21 +156,21 @@ export default function TopupPage() {
           ) : (
             <>
               {/* Balance Card */}
-              <div className="p-6 rounded-3xl bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/30 space-y-2">
-                <p className="text-sm font-semibold text-muted-foreground">
+              <div className="p-6 rounded-3xl bg-gradient-to-br from-primary via-amber-200 to-primary/80 border border-primary/20 space-y-2 shadow-xl shadow-primary/20">
+                <p className="text-sm font-semibold text-amber-900/60">
                   Your Wallet Balance
                 </p>
                 {balanceLoading ? (
                   <div className="flex items-center gap-2">
-                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                    <p className="text-2xl font-bold text-foreground">Loading...</p>
+                    <Loader2 className="w-5 h-5 animate-spin text-black/40" />
+                    <p className="text-2xl font-bold text-black/85">Loading...</p>
                   </div>
                 ) : (
                   <>
-                    <p className="text-3xl sm:text-4xl font-bold text-foreground">
-                      {formattedBalance} IDRX
+                    <p className="text-3xl sm:text-4xl font-bold text-black/85">
+                      {formattedBalance}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs text-amber-900/60 mt-1">
                       Wallet: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
                     </p>
                   </>
@@ -187,12 +180,12 @@ export default function TopupPage() {
               {/* Info Card */}
               <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 space-y-2">
                 <div className="flex items-start gap-3">
-                  <Coins className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                  <Coins className="w-5 h-5 text-amber-700 mt-0.5 flex-shrink-0" />
                   <div className="space-y-1">
-                    <p className="text-sm font-semibold text-primary">
+                    <p className="text-sm font-semibold text-amber-900">
                       Instant Top Up
                     </p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
+                    <p className="text-xs text-black/50 leading-relaxed">
                       Enter the amount you need and receive IDRX tokens instantly. Tokens will be sent directly to your wallet address.
                     </p>
                   </div>
@@ -201,7 +194,7 @@ export default function TopupPage() {
 
               {/* Amount Input */}
               <div className="space-y-3">
-                <label className="text-sm font-semibold text-foreground">
+                <label className="text-sm font-semibold text-black/85">
                   Amount (IDRX)
                 </label>
                 <div className="space-y-3">
@@ -210,7 +203,7 @@ export default function TopupPage() {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="Enter amount"
-                    className="w-full p-4 rounded-2xl bg-card dark:bg-card border-2 border-border text-foreground text-lg font-semibold placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                    className="w-full p-4 rounded-2xl bg-muted/50 border-2 border-border text-black/85 text-lg font-semibold placeholder:text-black/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
                     disabled={loading}
                   />
 
@@ -218,21 +211,21 @@ export default function TopupPage() {
                   <div className="grid grid-cols-3 gap-3">
                     <button
                       onClick={() => setAmount("100000")}
-                      className="p-3 rounded-xl bg-primary/20 text-primary font-semibold hover:bg-primary/30 transition-colors"
+                      className="p-3 rounded-xl bg-primary/20 text-amber-900 font-semibold hover:bg-primary/30 transition-colors active:scale-95"
                       disabled={loading}
                     >
                       100K
                     </button>
                     <button
                       onClick={() => setAmount("500000")}
-                      className="p-3 rounded-xl bg-primary/20 text-primary font-semibold hover:bg-primary/30 transition-colors"
+                      className="p-3 rounded-xl bg-primary/20 text-amber-900 font-semibold hover:bg-primary/30 transition-colors active:scale-95"
                       disabled={loading}
                     >
                       500K
                     </button>
                     <button
                       onClick={() => setAmount("1000000")}
-                      className="p-3 rounded-xl bg-primary/20 text-primary font-semibold hover:bg-primary/30 transition-colors"
+                      className="p-3 rounded-xl bg-primary/20 text-amber-900 font-semibold hover:bg-primary/30 transition-colors active:scale-95"
                       disabled={loading}
                     >
                       1M
@@ -253,7 +246,7 @@ export default function TopupPage() {
                 <button
                   onClick={handleTopup}
                   disabled={!amount || loading || parseFloat(amount) <= 0}
-                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+                  className="w-full py-4 px-6 rounded-2xl bg-black text-white font-semibold text-lg shadow-xl shadow-black/10 transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 flex items-center justify-center gap-2"
                 >
                   {loading ? (
                     <>
@@ -271,7 +264,7 @@ export default function TopupPage() {
                 <button
                   onClick={handleBack}
                   disabled={loading}
-                  className="w-full py-4 px-6 rounded-2xl bg-muted text-foreground font-semibold text-lg hover:bg-muted/80 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-4 px-6 rounded-2xl bg-muted/50 text-black/85 font-semibold text-lg hover:bg-muted transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
