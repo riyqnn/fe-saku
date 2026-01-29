@@ -6,6 +6,13 @@ import { decrypt } from '@/utils/encrypt'
 import { SAKU_REGISTRY_ABI, IDRX_ABI } from '@/lib/abi'
 import { CONTRACTS } from '@/lib/config'
 
+// Define Transaction Types agar konsisten
+const TX_TYPES = {
+  TRANSFER: 'TRANSFER',
+  TOPUP: 'TOPUP',
+  WITHDRAW: 'WITHDRAW',
+}
+
 function normalizePhone(phone: string): string {
   let normalized = phone.replace(/\D/g, '')
   if (normalized.startsWith('0')) normalized = '62' + normalized.substring(1)
@@ -13,14 +20,16 @@ function normalizePhone(phone: string): string {
 }
 
 export async function POST(req: Request) {
+  // Gunakan Service Role Key untuk akses admin ke profiles & transactions
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY! // pastikan ini service role key
+    process.env.SUPABASE_SERVICE_ROLE_KEY! 
   )
 
   try {
     const { phoneNumber, receiverPhone, amount } = await req.json()
 
+    // Validasi input dasar
     if (!phoneNumber || !receiverPhone || !amount) {
       return NextResponse.json({ error: 'Data tidak lengkap' }, { status: 400 })
     }
@@ -28,7 +37,7 @@ export async function POST(req: Request) {
     const senderPhone = normalizePhone(phoneNumber)
     const receiverPhoneNormalized = normalizePhone(receiverPhone)
 
-    // Ambil profile sender
+    // 1. Ambil credentials Sender
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('encrypted_private_key, encryption_iv, auth_tag, wallet_address')
@@ -40,6 +49,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Wallet sender tidak ditemukan' }, { status: 401 })
     }
 
+    // 2. Setup Ethers Provider & Wallet
     const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL)
     const privateKey = decrypt(profile.encrypted_private_key, profile.encryption_iv, profile.auth_tag)
     const wallet = new ethers.Wallet(privateKey, provider)
@@ -47,45 +57,48 @@ export async function POST(req: Request) {
     const registryContract = new ethers.Contract(CONTRACTS.REGISTRY_ADDRESS, SAKU_REGISTRY_ABI, wallet)
     const idrxContract = new ethers.Contract(CONTRACTS.IDRX_ADDRESS, IDRX_ABI, wallet)
 
-    // Check if sender is registered in the contract
+    // 3. Pastikan Sender Terdaftar di Contract (Lazy Registration)
     const senderHash = hashPhoneNumber(senderPhone)
     const isSenderRegistered = await registryContract.isRegistered(senderHash)
-    console.log('Is sender registered in contract:', isSenderRegistered)
-
+    
     if (!isSenderRegistered) {
-      console.log('Sender not registered in new contract. Auto-registering...')
+      console.log('Sender not registered. Auto-registering...')
       const registerTx = await registryContract.register(senderHash, wallet.address)
-      const registerReceipt = await registerTx.wait()
-      console.log('Sender registered successfully. TX:', registerReceipt.hash)
+      await registerTx.wait()
+      console.log('Sender registered.')
     }
 
+    // 4. Cek Receiver di Contract
     const receiverHash = hashPhoneNumber(receiverPhoneNormalized)
-    const amountBigInt = ethers.parseUnits(amount, 6)
+    const amountBigInt = ethers.parseUnits(amount.toString(), 6) // Pastikan amount jadi string dulu
 
     const receiverAddress = await registryContract.getAccount(receiverHash)
     if (receiverAddress === ethers.ZeroAddress) {
       return NextResponse.json({ error: 'Penerima tidak terdaftar' }, { status: 400 })
     }
 
-    // Handle allowance & approve
+    // 5. Handle Allowance (Approve jika kurang)
     let nonce = await provider.getTransactionCount(wallet.address, 'pending')
     const allowance = await idrxContract.allowance(wallet.address, CONTRACTS.REGISTRY_ADDRESS)
+    
     if (allowance < amountBigInt) {
-      console.log(`🔄 Approving IDRX for registry with nonce ${nonce}`)
+      console.log(`🔄 Approving IDRX...`)
       const approveTx = await idrxContract.approve(CONTRACTS.REGISTRY_ADDRESS, ethers.MaxUint256, { nonce })
       await approveTx.wait()
-      nonce++
+      nonce++ // Increment nonce manual untuk tx berikutnya
     }
 
-    // Transfer IDRX
-    console.log(`🚀 Executing transferIDRX with nonce ${nonce}`)
+    // 6. Eksekusi Transfer Blockchain
+    console.log(`🚀 Executing transferIDRX...`)
     const tx = await registryContract.transferIDRX(receiverHash, amountBigInt, { nonce })
     const receipt = await tx.wait()
+
     if (!receipt || receipt.status !== 1) throw new Error('Transaksi blockchain gagal')
 
     console.log('✅ Blockchain transaction successful:', receipt.hash)
 
-    // Insert ke Supabase
+    // 7. Simpan ke Database (Updated Schema)
+    // Karena ini fitur TRANSFER, sender dan receiver phone diisi
     const { data: txData, error: txError } = await supabaseAdmin
       .from('transactions')
       .insert({
@@ -96,14 +109,17 @@ export async function POST(req: Request) {
         amount: parseFloat(amount),
         tx_hash: receipt.hash,
         block_number: receipt.blockNumber,
-        type: 'transfer_sent',
+        type: TX_TYPES.TRANSFER, // Menggunakan tipe 'TRANSFER'
         timestamp: new Date().toISOString()
       })
+      .select() // Select untuk memastikan data tersimpan dan dikembalikan
 
     if (txError) {
+      // Note: Transaksi blockchain sudah sukses, tapi insert DB gagal. 
+      // Idealnya perlu mekanisme retry atau logging ke monitoring system (Sentry/dll).
       console.error('❌ Supabase insert error:', txError)
     } else {
-      console.log('✅ Transaction saved to DB:', txData)
+      console.log('✅ Transaction saved to DB')
     }
 
     return NextResponse.json({
@@ -112,8 +128,9 @@ export async function POST(req: Request) {
       blockNumber: receipt.blockNumber,
       amount,
       receiver: receiverPhoneNormalized,
-      receiverWallet: receiverAddress
+      type: TX_TYPES.TRANSFER
     })
+
   } catch (err: any) {
     console.error('❌ Transfer API error:', err)
     return NextResponse.json({ error: err.message || 'Transfer gagal' }, { status: 500 })

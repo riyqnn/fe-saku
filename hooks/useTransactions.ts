@@ -12,7 +12,7 @@ export function useTransactions(autoRefresh = true) {
     if (!user?.phone_number) return
     setRefreshing(true)
 
-    // 1. Ambil data transaksi
+    // 1. Ambil data transaksi (Logic OR ini sudah benar untuk Topup karena receiver = user)
     const { data: txData, error } = await supabase
       .from('transactions')
       .select('*')
@@ -32,32 +32,37 @@ export function useTransactions(autoRefresh = true) {
       return
     }
 
-    // 2. Kumpulkan semua phone number unik (sender & receiver) dari transaksi
+    // 2. Kumpulkan phone number unik (Hanya jika TIDAK null)
     const phoneNumbers = new Set<string>()
     txData.forEach(tx => {
+      // Cek sender (skip jika null, misal Top Up)
       if (tx.sender_phone) phoneNumbers.add(tx.sender_phone)
+      // Cek receiver (skip jika null, misal Withdraw ke luar)
       if (tx.receiver_phone) phoneNumbers.add(tx.receiver_phone)
     })
 
-    // 3. Query ke tabel profiles untuk mengambil full_name
-    const { data: profilesData } = await supabase
-      .from('profiles')
-      .select('phone_number, full_name')
-      .in('phone_number', Array.from(phoneNumbers))
+    // 3. Query profiles jika ada nomor yang perlu dicari
+    let nameMap: Record<string, string> = {}
+    
+    if (phoneNumbers.size > 0) {
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('phone_number, full_name')
+        .in('phone_number', Array.from(phoneNumbers))
 
-    // 4. Buat Map untuk pencarian cepat: phone -> full_name
-    const nameMap: Record<string, string> = {}
-    profilesData?.forEach(p => {
-      if (p.full_name) {
-        nameMap[p.phone_number] = p.full_name
-      }
-    })
+      profilesData?.forEach(p => {
+        if (p.full_name) {
+          nameMap[p.phone_number] = p.full_name
+        }
+      })
+    }
 
-    // 5. Gabungkan data nama ke dalam transaksi
+    // 4. Gabungkan data nama
     const enrichedTransactions = txData.map(tx => ({
       ...tx,
-      sender_name: nameMap[tx.sender_phone] || null, // Tambahkan field baru
-      receiver_name: nameMap[tx.receiver_phone] || null // Tambahkan field baru
+      // Jika sender null (Topup), biarkan null. Nanti dihandle UI.
+      sender_name: tx.sender_phone ? (nameMap[tx.sender_phone] || null) : 'System',
+      receiver_name: tx.receiver_phone ? (nameMap[tx.receiver_phone] || null) : 'External'
     }))
 
     setTransactions(enrichedTransactions)

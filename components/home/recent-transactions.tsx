@@ -4,13 +4,13 @@ import { useAuth } from "@/hooks/useAuth"
 import { useTransactions } from "@/hooks/useTransactions"
 import { NETWORK_CONFIG } from "@/lib/config"
 
+// Pastikan key disini match dengan logic di komponen bawah
 const TRANSACTION_CONFIG: Record<string, any> = {
-  transfer_sent: { icon: ArrowUpRight, bgClass: "bg-red-100", textClass: "text-red-600", label: "Transfer Sent" },
-  transfer_received: { icon: ArrowDownLeft, bgClass: "bg-green-100", textClass: "text-green-600", label: "Transfer Received" },
-  topup: { icon: Wallet, bgClass: "bg-blue-100", textClass: "text-blue-600", label: "Top Up" },
-  withdraw: { icon: DollarSign, bgClass: "bg-orange-100", textClass: "text-orange-600", label: "Withdrawal" },
-  qr_claimed: { icon: Receipt, bgClass: "bg-teal-100", textClass: "text-teal-600", label: "QR Claimed" },
-  qr_created: { icon: QrCode, bgClass: "bg-purple-100", textClass: "text-purple-600", label: "QR Created" },
+  transfer_sent: { icon: ArrowUpRight, bgClass: "bg-red-100", textClass: "text-red-600" },
+  transfer_received: { icon: ArrowDownLeft, bgClass: "bg-green-100", textClass: "text-green-600" },
+  topup: { icon: Wallet, bgClass: "bg-blue-100", textClass: "text-blue-600" },
+  withdraw: { icon: DollarSign, bgClass: "bg-orange-100", textClass: "text-orange-600" },
+  default: { icon: Receipt, bgClass: "bg-gray-100", textClass: "text-gray-600" }
 }
 
 export default function RecentTransactions() {
@@ -39,17 +39,52 @@ export default function RecentTransactions() {
       ) : (
         <div className="space-y-2">
           {transactions.map(tx => {
-            const isSent = tx.sender_phone === user?.phone_number
-            const type = isSent ? 'transfer_sent' : 'transfer_received'
-            const config = TRANSACTION_CONFIG[type] || {}
-            const Icon = config.icon || Receipt
+            // --- LOGIC PENENTUAN TIPE TRANSAKSI ---
+            let configKey = 'default'
+            let titleText = ''
+            let amountPrefix = ''
+            let amountColor = ''
+            let counterpartyName = ''
 
-            // LOGIC PERUBAHAN NAMA DISINI
-            // Jika user mengirim (Sent), tampilkan nama penerima.
-            // Jika user menerima (Received), tampilkan nama pengirim.
-            const displayName = isSent 
-              ? (tx.receiver_name || tx.receiver_phone) 
-              : (tx.sender_name || tx.sender_phone)
+            // Kita cek berdasarkan 'type' dari database (TRANSFER / TOPUP / WITHDRAW)
+            // Pastikan database menyimpannya sebagai uppercase, atau gunakan .toUpperCase()
+            const txType = tx.type?.toUpperCase() || 'TRANSFER' 
+
+            if (txType === 'TOPUP') {
+              // --- LOGIC TOP UP ---
+              configKey = 'topup'
+              titleText = 'Top Up Successful'
+              amountPrefix = '+'
+              amountColor = 'text-blue-600'
+              counterpartyName = 'IDRX Wallet' // Atau 'From Bank'
+
+            } else if (txType === 'WITHDRAW') {
+              // --- LOGIC WITHDRAW ---
+              configKey = 'withdraw'
+              titleText = 'Withdrawal'
+              amountPrefix = '-'
+              amountColor = 'text-orange-600'
+              counterpartyName = 'To External Account'
+
+            } else {
+              // --- LOGIC TRANSFER (P2P) ---
+              const isSent = tx.sender_phone === user?.phone_number
+              configKey = isSent ? 'transfer_sent' : 'transfer_received'
+              
+              // Tentukan nama lawan transaksi
+              // Jika kita kirim -> tampilkan nama penerima
+              // Jika kita terima -> tampilkan nama pengirim
+              counterpartyName = isSent 
+                ? (tx.receiver_name || tx.receiver_phone || 'Unknown') 
+                : (tx.sender_name || tx.sender_phone || 'Unknown')
+              
+              titleText = isSent ? `Sent to ${counterpartyName}` : `Received from ${counterpartyName}`
+              amountPrefix = isSent ? '-' : '+'
+              amountColor = isSent ? 'text-red-600' : 'text-green-600'
+            }
+
+            const config = TRANSACTION_CONFIG[configKey] || TRANSACTION_CONFIG.default
+            const Icon = config.icon
 
             return (
               <a 
@@ -64,17 +99,22 @@ export default function RecentTransactions() {
                     <Icon className={`w-5 h-5 ${config.textClass}`} />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-black/85 capitalize">
-                      {isSent ? `Sent to ${displayName}` : `Received from ${displayName}`}
+                    <p className="text-sm font-bold text-black/85 capitalize truncate max-w-[180px]">
+                      {titleText}
                     </p>
-                    <p className="text-xs text-black/40 font-medium">{formatTime(tx.timestamp)}</p>
+                    <p className="text-xs text-black/40 font-medium">
+                        {/* Jika Topup, tampilkan sumbernya, jika transfer tampilkan waktu */}
+                        {txType === 'TOPUP' ? 'Via Faucet' : formatTime(tx.timestamp)}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`font-bold text-sm ${isSent ? 'text-red-600' : 'text-green-600'}`}>
-                    {isSent ? '-' : '+'}{tx.amount} IDRX
+                  <p className={`font-bold text-sm ${amountColor}`}>
+                    {amountPrefix}{tx.amount} IDRX
                   </p>
-                  <ChevronRight className="w-4 h-4 text-black/20 ml-auto group-hover:translate-x-1 transition-transform" />
+                  <p className="text-[10px] text-black/30 mt-0.5">
+                    {formatTime(tx.timestamp)}
+                  </p>
                 </div>
               </a>
             )
