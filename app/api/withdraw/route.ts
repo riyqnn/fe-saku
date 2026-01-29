@@ -1,4 +1,5 @@
 import { createSakuServerClient } from '@/lib/supabaseServer';
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { hashPhoneNumber } from '@/utils/phoneHash';
@@ -6,22 +7,23 @@ import { decrypt } from '@/utils/encrypt';
 import { SAKU_REGISTRY_ABI, IDRX_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/lib/config';
 
-// Normalize phone to match registration format
 function normalizePhone(phone: string): string {
-  let normalized = phone.replace(/\D/g, ''); // Remove all non-digits
+  let normalized = phone.replace(/\D/g, '');
   if (normalized.startsWith('0')) normalized = '62' + normalized.substring(1);
   return normalized;
 }
 
 export async function POST(req: Request) {
   const supabase = await createSakuServerClient();
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
   try {
-    // 1. Check Auth Session
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // 2. Read request body
     const { phoneNumber, toAddress, amount, withdrawAll } = await req.json();
 
     if (!phoneNumber || !toAddress) {
@@ -32,15 +34,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Either amount or withdrawAll flag is required' }, { status: 400 });
     }
 
-    // Validate destination address
     if (!ethers.isAddress(toAddress)) {
       return NextResponse.json({ error: 'Invalid destination address' }, { status: 400 });
     }
 
-    // 3. Get user's profile with encrypted private key
     const normalizedPhone = normalizePhone(phoneNumber);
 
-    // Get profile by phone_number
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('wallet_address, encrypted_private_key, encryption_iv, auth_tag')
@@ -55,11 +54,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Wallet address not found' }, { status: 400 });
     }
 
-    // RECALCULATE phone hash (same as transfer API does)
-    // This ensures we use the correct format (no + sign) to match the contract
     const phoneHash = hashPhoneNumber(normalizedPhone);
 
-    // 4. Decrypt private key server-side
     let privateKey: string;
     try {
       privateKey = decrypt(
@@ -71,22 +67,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Failed to decrypt private key' }, { status: 500 });
     }
 
-    // 5. Setup provider and wallet
     const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org');
     const wallet = new ethers.Wallet(privateKey, provider);
 
-    // 6. Setup contract instances
     const registryContract = new ethers.Contract(
       CONTRACTS.REGISTRY_ADDRESS,
       SAKU_REGISTRY_ABI,
       wallet
     );
 
-    // Check if user is registered in the contract
     const isRegistered = await registryContract.isRegistered(phoneHash);
 
     if (!isRegistered) {
-      // Auto-register the user in the new contract
       const registerTx = await registryContract.register(phoneHash, wallet.address);
       await registerTx.wait();
     }
@@ -97,11 +89,9 @@ export async function POST(req: Request) {
       wallet
     );
 
-    // 7. Check and handle approval if needed (withdrawals need approval)
     let amountBigInt = BigInt(0);
 
     if (withdrawAll) {
-      // Get balance to approve for maximum
       const balance = await idrxContract.balanceOf(wallet.address);
       amountBigInt = balance;
     } else if (amount) {
@@ -114,7 +104,6 @@ export async function POST(req: Request) {
       const allowance = await idrxContract.allowance(wallet.address, CONTRACTS.REGISTRY_ADDRESS);
 
       if (allowance < amountBigInt) {
-        // Approve unlimited
         const approveTx = await idrxContract.approve(
           CONTRACTS.REGISTRY_ADDRESS,
           ethers.MaxUint256
@@ -124,7 +113,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // 8. Execute withdrawal
     let receipt;
     if (withdrawAll) {
       const tx = await registryContract.withdrawAll(phoneHash, toAddress);
@@ -134,7 +122,6 @@ export async function POST(req: Request) {
       receipt = await tx.wait();
     }
 
-    // 9. Parse Withdrawn event to get exact fee and amounts
     let withdrawnAmount = BigInt(0);
     let fee = BigInt(0);
 
@@ -148,13 +135,26 @@ export async function POST(req: Request) {
             break;
           }
         } catch (e) {
-          // Skip logs that can't be parsed
           continue;
         }
       }
     }
 
     const amountAfterFee = withdrawnAmount - fee;
+
+    await supabaseAdmin
+      .from('transactions')
+      .insert({
+        sender_phone: normalizedPhone,
+        sender_wallet: wallet.address,
+        receiver_phone: null,
+        receiver_wallet: toAddress,
+        amount: parseFloat(ethers.formatUnits(withdrawnAmount, 6)),
+        tx_hash: receipt.hash,
+        block_number: receipt.blockNumber,
+        type: 'WITHDRAW',
+        timestamp: new Date().toISOString()
+      });
 
     return NextResponse.json({
       success: true,
@@ -165,6 +165,7 @@ export async function POST(req: Request) {
       fee: ethers.formatUnits(fee, 6),
       amountAfterFee: ethers.formatUnits(amountAfterFee, 6),
       approvalTxHash,
+      type: 'WITHDRAW'
     });
 
   } catch (error: any) {
