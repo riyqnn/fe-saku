@@ -19,8 +19,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { walletAddress, amount } = body
 
-    console.log('📥 Faucet request received:', { walletAddress, amount })
-
     // Validation
     if (!walletAddress) {
       return NextResponse.json(
@@ -44,22 +42,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (!PRIVATE_KEY) {
-      console.error('❌ FAUCET_PRIVATE_KEY not set in environment variables')
       return NextResponse.json(
         { error: 'Faucet not configured. Please contact administrator.' },
         { status: 500 }
       )
     }
 
-    console.log('🔧 Initializing blockchain connection...')
-    console.log('RPC URL:', RPC_URL)
-    console.log('Token Address:', IDRX_TOKEN_ADDRESS)
-
     // Setup provider and signer
     const provider = new ethers.JsonRpcProvider(RPC_URL)
     const signer = new ethers.Wallet(PRIVATE_KEY, provider)
-    
-    console.log('👛 Faucet wallet:', await signer.getAddress())
 
     // Connect to token contract
     const tokenContract = new ethers.Contract(
@@ -69,21 +60,16 @@ export async function POST(request: NextRequest) {
     )
 
     // Get token decimals
-    console.log('🔍 Getting token decimals...')
     const decimals = await tokenContract.decimals()
-    console.log('Token decimals:', decimals)
 
     // Convert amount to token units (with decimals)
     const amountInWei = ethers.parseUnits(amount.toString(), decimals)
-    console.log(`💰 Minting ${amount} IDRX (${amountInWei.toString()} wei) to ${walletAddress}`)
 
     // Mint tokens to user's wallet
     const tx = await tokenContract.mint(walletAddress, amountInWei)
-    console.log(`📤 Transaction sent: ${tx.hash}`)
-    
+
     // Wait for transaction confirmation
     const receipt = await tx.wait()
-    console.log(`✅ Transaction confirmed: ${receipt.hash}`)
 
     return NextResponse.json({
       success: true,
@@ -93,17 +79,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('❌ Faucet error:', error)
-    
     // Better error messages
     let errorMessage = 'Failed to process top up'
     
     if (error.code === 'CALL_EXCEPTION') {
       errorMessage = 'Contract call failed. Check if faucet wallet has minting permissions.'
-      console.error('Contract call exception. Possible causes:')
-      console.error('1. Faucet wallet does not have MINTER_ROLE')
-      console.error('2. Contract does not have mint function')
-      console.error('3. Token contract address is wrong')
     } else if (error.code === 'INSUFFICIENT_FUNDS') {
       errorMessage = 'Faucet wallet has insufficient gas. Please add MATIC/ETH to faucet wallet.'
     } else if (error.code === 'NETWORK_ERROR') {

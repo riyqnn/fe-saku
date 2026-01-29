@@ -25,7 +25,6 @@ async function getSakuUserId(req: Request) {
     if (error || !profile) return null;
     return profile.id;
   } catch (err) {
-    console.error("❌ Auth Lookup Failed:", err);
     return null;
   }
 }
@@ -62,8 +61,6 @@ export async function DELETE(
     });
 
   } catch (error: any) {
-    console.error('Delete Contact API Final Error:', error.message);
-    
     const isFetchError = error.message.includes('fetch');
     return NextResponse.json({ 
       error: isFetchError ? "Koneksi database terputus, coba lagi" : error.message 

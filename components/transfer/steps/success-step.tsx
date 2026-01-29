@@ -54,7 +54,7 @@ export default function SuccessStep({ txHash, receiverName, receiverPhone, amoun
         setContactSaved(true)
       }
     } catch (err) {
-      console.error("Failed to save contact:", err)
+      // Error handled silently
     } finally {
       setSavingContact(false)
     }

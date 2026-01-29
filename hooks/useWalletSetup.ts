@@ -30,7 +30,6 @@ export function useWalletSetup() {
 
       // Step 1: Create wallet di backend
       setProgress('Creating wallet...');
-      console.log('📱 [useWalletSetup] Creating wallet for phone:', phoneNumber);
 
       const setupResponse = await fetch('/api/setup-wallet', {
         method: 'POST',
@@ -50,15 +49,11 @@ export function useWalletSetup() {
 
       // Jika user sudah punya wallet, return langsung
       if (!setupData.isNewUser) {
-        console.log('✅ [useWalletSetup] User already has wallet:', setupData.address);
         return setupData;
       }
 
-      console.log('✅ [useWalletSetup] Wallet created:', setupData.address);
-
       // Step 2: Register wallet ke smart contract
       setProgress('Registering on blockchain...');
-      console.log('📝 [useWalletSetup] Registering wallet on smart contract');
 
       const provider = signer.provider;
       if (!provider) {
@@ -94,8 +89,6 @@ export function useWalletSetup() {
         throw new Error(registerData.message);
       }
 
-      console.log('✅ [useWalletSetup] Registered on blockchain:', registerData.txHash);
-
       setProgress('');
       return {
         success: true,
@@ -107,7 +100,6 @@ export function useWalletSetup() {
     } catch (err: any) {
       const errorMsg = err.message || 'Wallet setup failed';
       setError(errorMsg);
-      console.error('❌ [useWalletSetup] Error:', errorMsg);
       throw err;
     } finally {
       setIsLoading(false);
@@ -147,13 +139,10 @@ export function useWalletSetup() {
       const tx = await registry.register(phoneHash, walletAddress);
       const receipt = await tx.wait();
 
-      console.log('✅ [useWalletSetup] Registered on-chain:', receipt.hash);
-
       return receipt;
     } catch (err: any) {
       const errorMsg = err.message || 'On-chain registration failed';
       setError(errorMsg);
-      console.error('❌ [useWalletSetup] Error:', errorMsg);
       throw err;
     } finally {
       setIsLoading(false);

@@ -31,7 +31,6 @@ export function useIDRX(signer: ethers.Signer | null, address: string | null) {
       const bal = await readContract.balanceOf(address);
       setBalance(bal);
     } catch (err: any) {
-      console.error('Failed to fetch balance:', err);
     }
   };
 
@@ -44,7 +43,6 @@ export function useIDRX(signer: ethers.Signer | null, address: string | null) {
       const allow = await readContract.allowance(address, CONTRACTS.REGISTRY_ADDRESS);
       setAllowance(allow);
     } catch (err: any) {
-      console.error('Failed to fetch allowance:', err);
     }
   };
 
@@ -132,7 +130,6 @@ export function useIDRX(signer: ethers.Signer | null, address: string | null) {
       const readContract = getReadContract();
       return await readContract.name();
     } catch (err: any) {
-      console.error('Failed to get token name:', err);
       throw err;
     }
   };
@@ -142,7 +139,6 @@ export function useIDRX(signer: ethers.Signer | null, address: string | null) {
       const readContract = getReadContract();
       return await readContract.symbol();
     } catch (err: any) {
-      console.error('Failed to get token symbol:', err);
       throw err;
     }
   };
@@ -152,7 +148,6 @@ export function useIDRX(signer: ethers.Signer | null, address: string | null) {
       const readContract = getReadContract();
       return await readContract.decimals();
     } catch (err: any) {
-      console.error('Failed to get token decimals:', err);
       throw err;
     }
   };
@@ -163,7 +158,6 @@ export function useIDRX(signer: ethers.Signer | null, address: string | null) {
       const readContract = getReadContract();
       return await readContract.totalSupply();
     } catch (err: any) {
-      console.error('Failed to get total supply:', err);
       throw err;
     }
   };

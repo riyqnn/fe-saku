@@ -36,14 +36,11 @@ export async function POST(request: NextRequest) {
     const adminPrivateKey = process.env.ADMIN_PRIVATE_KEY;
 
     if (!adminPrivateKey) {
-      console.error('❌ [UpdateRegistration API] Missing ADMIN_PRIVATE_KEY');
       return NextResponse.json(
         { error: 'Server configuration error' },
         { status: 500 }
       );
     }
-
-    console.log('📱 [UpdateRegistration API] Processing update for phone:', phoneNumber);
 
     // Connect to blockchain
     const provider = new ethers.JsonRpcProvider(rpcUrl);
@@ -66,11 +63,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('📝 [UpdateRegistration API] Updating registration with new address:', newWalletAddress);
-
     // Call updateRegistration on smart contract
     const tx = await registry.updateRegistration(phoneHash, newWalletAddress);
-    console.log('⏳ [UpdateRegistration API] Transaction sent:', tx.hash);
 
     // Wait for confirmation
     const receipt = await tx.wait();
@@ -78,10 +72,6 @@ export async function POST(request: NextRequest) {
     if (!receipt) {
       throw new Error('Transaction failed to confirm');
     }
-
-    console.log('✅ [UpdateRegistration API] Registration updated successfully');
-    console.log('   Transaction hash:', receipt.hash);
-    console.log('   Block number:', receipt.blockNumber);
 
     return NextResponse.json({
       success: true,
@@ -91,8 +81,6 @@ export async function POST(request: NextRequest) {
       newWalletAddress: newWalletAddress,
     });
   } catch (err: any) {
-    console.error('❌ [UpdateRegistration API] Error:', err.message);
-
     // Handle specific error cases
     if (err.message.includes('insufficient funds')) {
       return NextResponse.json(

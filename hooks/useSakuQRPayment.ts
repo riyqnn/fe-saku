@@ -37,7 +37,6 @@ export function useSakuQRPayment() {
       
       return { success: true, transactionHash: result.hash };
     } catch (err: any) {
-      console.error("Transfer QR Gagal:", err);
       throw err;
     }
   }, [transferByPhone, signer]);

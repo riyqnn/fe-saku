@@ -181,7 +181,6 @@ export function useQRPayment(signer: ethers.Signer | null) {
 
       return payment.timestamp + expiry < now;
     } catch (err) {
-      console.error('Failed to check refund eligibility:', err);
       return false;
     }
   };
@@ -195,7 +194,6 @@ export function useQRPayment(signer: ethers.Signer | null) {
 
       return await contract.QR_PAYMENT_EXPIRY();
     } catch (err: any) {
-      console.error('Failed to get QR payment expiry:', err);
       throw err;
     }
   };
@@ -214,7 +212,6 @@ export function useQRPayment(signer: ethers.Signer | null) {
 
       return expiryTime > now ? expiryTime - now : BigInt(0);
     } catch (err) {
-      console.error('Failed to calculate time until expiry:', err);
       return BigInt(0);
     }
   };

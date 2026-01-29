@@ -23,7 +23,6 @@ export function useBalance(address: string | null, refreshTrigger?: number) {
   const fetchBalance = async () => {
     try {
       if (!address) {
-        console.log('⚠️ [useBalance] No address provided');
         setIsLoading(false);
         setData({
           balance: BigInt(0),
@@ -34,7 +33,6 @@ export function useBalance(address: string | null, refreshTrigger?: number) {
 
       setIsLoading(true);
       setRefreshing(true);
-      console.log('📱 [useBalance] Fetching balance for:', address);
 
       // Get provider
       const provider = new ethers.JsonRpcProvider(
@@ -46,7 +44,6 @@ export function useBalance(address: string | null, refreshTrigger?: number) {
 
       // Fetch balance from blockchain
       const balance: bigint = await contract.balanceOf(address);
-      console.log('✅ [useBalance] Raw balance:', balance.toString());
 
       // Format as IDR (assuming 1 IDRX = 1 IDR)
       const balanceInTokens = Number(fromTokenAmount(balance, IDRX_DECIMALS));
@@ -56,8 +53,6 @@ export function useBalance(address: string | null, refreshTrigger?: number) {
         minimumFractionDigits: 0,
       }).format(balanceInTokens);
 
-      console.log('💰 [useBalance] Formatted:', formatted);
-
       setData({
         balance,
         formattedBalance: formatted,
@@ -65,7 +60,6 @@ export function useBalance(address: string | null, refreshTrigger?: number) {
       setIsLoading(false);
       setError(null);
     } catch (err: any) {
-      console.error('❌ [useBalance] Error:', err.message);
       setError(err.message);
       setIsLoading(false);
     } finally {
@@ -94,7 +88,6 @@ export function useBalance(address: string | null, refreshTrigger?: number) {
     if (!address) return;
 
     const handleRefresh = () => {
-      console.log('🔄 [useBalance] Refresh triggered by event');
       fetchBalance();
     };
 

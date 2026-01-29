@@ -53,10 +53,12 @@ export async function POST(req: Request) {
 
     const senderHash = hashPhoneNumber(senderPhone)
     const isSenderRegistered = await registryContract.isRegistered(senderHash)
-    
+    console.log('Is sender registered in contract:', isSenderRegistered)
+
     if (!isSenderRegistered) {
       const registerTx = await registryContract.register(senderHash, wallet.address)
-      await registerTx.wait()
+      const registerReceipt = await registerTx.wait()
+      console.log('Sender registered successfully. TX:', registerReceipt.hash)
     }
 
     const receiverHash = hashPhoneNumber(receiverPhoneNormalized)
@@ -76,12 +78,17 @@ export async function POST(req: Request) {
       nonce++ 
     }
 
+    // Transfer IDRX
+    console.log(`🚀 Executing transferIDRX with nonce ${nonce}`)
     const tx = await registryContract.transferIDRX(receiverHash, amountBigInt, { nonce })
     const receipt = await tx.wait()
 
     if (!receipt || receipt.status !== 1) throw new Error('Transaksi blockchain gagal')
 
-    await supabaseAdmin
+    console.log('✅ Blockchain transaction successful:', receipt.hash)
+
+    // Insert ke Supabase
+    const { data: txData, error: txError } = await supabaseAdmin
       .from('transactions')
       .insert({
         sender_phone: senderPhone,
@@ -94,7 +101,12 @@ export async function POST(req: Request) {
         type: TX_TYPES.TRANSFER,
         timestamp: new Date().toISOString()
       })
-      .select()
+
+    if (txError) {
+      console.error('❌ Supabase insert error:', txError)
+    } else {
+      console.log('✅ Transaction saved to DB:', txData)
+    }
 
     return NextResponse.json({
       success: true,

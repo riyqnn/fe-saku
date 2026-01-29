@@ -46,7 +46,6 @@ export async function POST(req: Request) {
         profile.auth_tag
       );
     } catch (decryptError) {
-      console.error('Decryption error:', decryptError);
       return NextResponse.json({ error: 'Failed to decrypt private key' }, { status: 500 });
     }
 
@@ -63,13 +62,10 @@ export async function POST(req: Request) {
 
     // Check if user is registered in the contract
     const isRegistered = await registryContract.isRegistered(phoneHash);
-    console.log('Is user registered in contract:', isRegistered);
 
     if (!isRegistered) {
-      console.log('User not registered in new contract. Auto-registering...');
       const registerTx = await registryContract.register(phoneHash, wallet.address);
       const registerReceipt = await registerTx.wait();
-      console.log('User registered successfully. TX:', registerReceipt.hash);
     }
 
     const idrxContract = new ethers.Contract(
@@ -132,7 +128,6 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
-    console.error('Topup Error:', error);
     return NextResponse.json({
       error: error.message || 'Topup failed'
     }, { status: 500 });

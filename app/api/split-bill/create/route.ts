@@ -29,8 +29,6 @@ export async function POST(request: Request) {
     // Final Grand Total for the Split Bill
     const grandTotal = Math.round(subtotal + netAdjustment);
 
-    console.info(`[SplitBill API] Processing bill: "${description}" | Subtotal: ${subtotal} | Discount: ${discountAmount}`);
-
     // 3. Store the Master Split Bill Record (Header)
     const { data: bill, error: billError } = await supabase
       .from('split_bills')
@@ -43,7 +41,6 @@ export async function POST(request: Request) {
       }]).select().single();
 
     if (billError) {
-      console.error(`[Database Error] Header insertion failed: ${billError.message}`);
       return NextResponse.json({ error: 'Failed to create bill record' }, { status: 500 });
     }
 
@@ -80,12 +77,9 @@ export async function POST(request: Request) {
         .insert(flatBillItems);
 
       if (itemError) {
-        console.error(`[Database Error] Item insertion failed: ${itemError.message}`);
         return NextResponse.json({ error: 'Failed to dispatch individual bill items' }, { status: 500 });
       }
     }
-
-    console.info(`[SplitBill API] Successfully dispatched ${flatBillItems.length} bill items to recipients.`);
 
     return NextResponse.json({ 
       success: true, 
@@ -94,7 +88,6 @@ export async function POST(request: Request) {
     });
 
   } catch (err: any) {
-    console.error(`[Internal Server Error] Split bill failed: ${err.message}`);
     return NextResponse.json({ error: 'Internal system failure during split bill creation' }, { status: 500 });
   }
 }

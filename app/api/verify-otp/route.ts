@@ -22,7 +22,6 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    console.info(`[Auth API] Verifying OTP for identifier: ${formattedPhone}`);
     const { data: records } = await supabaseAdmin
       .from('otp_verifications')
       .select('*')
@@ -45,7 +44,6 @@ export async function POST(request: Request) {
     }
 
     if (!validRecord) {
-      console.warn(`[Auth API] Invalid or expired OTP attempt for: ${formattedPhone}`);
       return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 400 });
     }
     
@@ -60,7 +58,6 @@ export async function POST(request: Request) {
     const isNew = !profile;
 
     if (isNew) {
-      console.info(`[Wallet API] Generating new non-custodial wallet for: ${formattedPhone}`);
       const wallet = ethers.Wallet.createRandom();
       walletAddress = wallet.address;
       privKey = wallet.privateKey;
@@ -77,7 +74,6 @@ export async function POST(request: Request) {
         is_verified: true
       }]);
     } else {
-      console.info(`[Wallet API] Retrieving existing wallet for: ${formattedPhone}`);
       walletAddress = profile.wallet_address;
       privKey = decrypt(profile.encrypted_private_key, profile.encryption_iv, profile.auth_tag);
     }
@@ -90,7 +86,6 @@ export async function POST(request: Request) {
         // Gas Funding
         const balance = await provider.getBalance(walletAddress);
         if (balance === BigInt(0)) {
-          console.info(`[Worker] Funding gas (ETH) for account: ${walletAddress}`);
           const txGas = await admin.sendTransaction({
             to: walletAddress,
             value: ethers.parseEther("0.005")
@@ -101,7 +96,6 @@ export async function POST(request: Request) {
         // On-chain Registry Mapping
         const registered = await registry.isRegistered(phoneHash);
         if (!registered) {
-          console.info(`[Worker] Registering phone hash on-chain for: ${formattedPhone}`);
           const txReg = await registry.register(phoneHash, walletAddress);
           await txReg.wait();
         }
@@ -112,14 +106,11 @@ export async function POST(request: Request) {
         const allowance = await idrx.allowance(walletAddress, CONTRACTS.REGISTRY_ADDRESS);
         
         if (allowance < ethers.parseUnits("1000000", 6)) {
-          console.info(`[Worker] Executing pre-emptive IDRX approval for Registry`);
           const appTx = await idrx.approve(CONTRACTS.REGISTRY_ADDRESS, ethers.MaxUint256);
           await appTx.wait();
         }
-        
-        console.info(`[Worker] Provisioning complete for identifier: ${formattedPhone}`);
+
       } catch (e) {
-        console.error('[Worker Error] Blockchain setup failed:', e);
       }
     })();
 
@@ -132,7 +123,6 @@ export async function POST(request: Request) {
     });
 
   } catch (err: any) {
-    console.error(`[Fatal Error] Verification process aborted: ${err.message}`);
     return NextResponse.json({ error: 'Internal verification failure' }, { status: 500 });
   }
 }

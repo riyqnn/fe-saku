@@ -67,7 +67,7 @@ export function usePendingBills() {
         setBills(Object.values(grouped));
       }
     } catch (err: any) {
-      console.error("[Hook Error] Failed to fetch pending bills:", err.message);
+      // Error handled silently
     } finally {
       setLoading(false)
     }

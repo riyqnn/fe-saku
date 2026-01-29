@@ -46,7 +46,7 @@ export default function ReceiverStep({
           setGlobalResults(filteredGlobal)
         }
       } catch (err) {
-        console.error("Global search failed", err)
+        // Error handled silently
       } finally {
         setIsSearchingGlobal(false)
       }

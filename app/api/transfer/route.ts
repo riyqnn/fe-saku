@@ -84,7 +84,6 @@ export async function POST(request: NextRequest) {
         profile.auth_tag
       );
     } catch (decryptError) {
-      console.error("Decryption error:", decryptError);
       return NextResponse.json(
         { error: "Failed to decrypt private key" },
         { status: 500 }
@@ -154,7 +153,6 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("Transfer error:", error);
     const message = error instanceof Error ? error.message : "Unknown error occurred";
     return NextResponse.json(
       { error: `Transfer failed: ${message}` },
