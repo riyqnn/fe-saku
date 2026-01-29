@@ -9,6 +9,7 @@ export interface WithdrawParams {
   withdrawAll?: boolean
 }
 
+// UPDATE: Menambahkan field 'type' agar sesuai dengan response backend terbaru
 export interface WithdrawResult {
   success: boolean
   transactionHash?: string
@@ -18,6 +19,7 @@ export interface WithdrawResult {
   fee?: string
   amountAfterFee?: string
   approvalTxHash?: string
+  type?: 'WITHDRAW' | string // Field baru dari backend
   error?: string
 }
 
@@ -55,7 +57,7 @@ export function useSakuWithdraw() {
           throw new Error("Amount must be greater than 0")
         }
 
-        // Call withdraw API - server will decrypt private key
+        // Call withdraw API - server will decrypt private key & Insert to DB
         const response = await fetch("/api/withdraw", {
           method: "POST",
           headers: {
@@ -76,6 +78,8 @@ export function useSakuWithdraw() {
         }
 
         setTxHash(data.transactionHash)
+        
+        // Return data dari backend (backend sekarang mengembalikan fee & amount fix)
         return {
           success: true,
           transactionHash: data.transactionHash,
@@ -85,6 +89,7 @@ export function useSakuWithdraw() {
           fee: data.fee,
           amountAfterFee: data.amountAfterFee,
           approvalTxHash: data.approvalTxHash,
+          type: data.type, // Pass tipe transaksi
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Unknown error"
