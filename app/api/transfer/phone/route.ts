@@ -47,6 +47,18 @@ export async function POST(req: Request) {
     const registryContract = new ethers.Contract(CONTRACTS.REGISTRY_ADDRESS, SAKU_REGISTRY_ABI, wallet)
     const idrxContract = new ethers.Contract(CONTRACTS.IDRX_ADDRESS, IDRX_ABI, wallet)
 
+    // Check if sender is registered in the contract
+    const senderHash = hashPhoneNumber(senderPhone)
+    const isSenderRegistered = await registryContract.isRegistered(senderHash)
+    console.log('Is sender registered in contract:', isSenderRegistered)
+
+    if (!isSenderRegistered) {
+      console.log('Sender not registered in new contract. Auto-registering...')
+      const registerTx = await registryContract.register(senderHash, wallet.address)
+      const registerReceipt = await registerTx.wait()
+      console.log('Sender registered successfully. TX:', registerReceipt.hash)
+    }
+
     const receiverHash = hashPhoneNumber(receiverPhoneNormalized)
     const amountBigInt = ethers.parseUnits(amount, 6)
 

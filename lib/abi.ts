@@ -103,6 +103,7 @@ export const SAKU_REGISTRY_ABI = [
     "name": "Withdrawn",
     "type": "event"
   },
+  {"stateMutability": "payable", "type": "fallback"},
   {
     "inputs": [],
     "name": "QR_PAYMENT_EXPIRY",
@@ -365,10 +366,7 @@ export const SAKU_REGISTRY_ABI = [
     "stateMutability": "nonpayable",
     "type": "function"
   },
-  {
-    "stateMutability": "payable",
-    "type": "receive"
-  }
+  {"stateMutability": "payable", "type": "receive"}
 ] as const;
 
 export const IDRX_ABI = [

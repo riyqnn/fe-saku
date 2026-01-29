@@ -61,6 +61,17 @@ export async function POST(req: Request) {
       wallet
     );
 
+    // Check if user is registered in the contract
+    const isRegistered = await registryContract.isRegistered(phoneHash);
+    console.log('Is user registered in contract:', isRegistered);
+
+    if (!isRegistered) {
+      console.log('User not registered in new contract. Auto-registering...');
+      const registerTx = await registryContract.register(phoneHash, wallet.address);
+      const registerReceipt = await registerTx.wait();
+      console.log('User registered successfully. TX:', registerReceipt.hash);
+    }
+
     const idrxContract = new ethers.Contract(
       CONTRACTS.IDRX_ADDRESS,
       IDRX_ABI,

@@ -96,7 +96,19 @@ export async function POST(req: Request) {
       wallet
     );
 
-    // Check what the contract has for this phoneHash
+    // Check if user is registered in the contract
+    const isRegistered = await registryContract.isRegistered(phoneHash);
+    console.log('Is user registered in contract:', isRegistered);
+
+    if (!isRegistered) {
+      console.log('User not registered in new contract. Auto-registering...');
+      // Auto-register the user in the new contract
+      const registerTx = await registryContract.register(phoneHash, wallet.address);
+      const registerReceipt = await registerTx.wait();
+      console.log('User registered successfully. TX:', registerReceipt.hash);
+    }
+
+    // Verify registration after auto-register
     const contractOwner = await registryContract.phoneToAccount(phoneHash);
     console.log('Contract owner for phoneHash:', contractOwner);
     console.log('Contract owner == wallet?', contractOwner.toLowerCase() === wallet.address.toLowerCase());
