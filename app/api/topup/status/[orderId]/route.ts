@@ -41,7 +41,6 @@ export async function GET(
     });
 
   } catch (error: any) {
-    console.error('Status check error:', error);
     return NextResponse.json({
       error: error.message || 'Failed to check status'
     }, { status: 500 });

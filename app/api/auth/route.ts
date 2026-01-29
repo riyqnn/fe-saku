@@ -31,11 +31,10 @@ export async function POST(req: Request) {
     );
 
     const isRegistered = await contract.isRegistered(phoneHash);
-    
+
     if (isRegistered) {
       const walletAddress = await contract.getAccount(phoneHash);
-      console.log("🔄 Syncing existing user...");
-      
+
       const { error: syncError } = await supabase
         .from('profiles')
         .update({
@@ -50,8 +49,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, isNewUser: false });
     }
 
-    console.log("Registering new user on-chain...");
-    
     const seed = ethers.id(userPhone + process.env.ENCRYPTION_KEY);
     const userWallet = new ethers.Wallet(seed);
     
@@ -75,7 +72,6 @@ export async function POST(req: Request) {
     });
 
     if (dbError) {
-      console.error("❌ Database Error:", dbError);
       throw dbError;
     }
 
@@ -86,7 +82,6 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
-    console.error("❌ Auth API Error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import { Copy, CheckCircle, Shield, Smartphone, User, AlertCircle, Edit2, Save, X, Loader2 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { supabase } from "@/lib/supabaseClient"
-import { time } from "console"
 
 export default function ProfileCard() {
   const { user } = useAuth()
@@ -44,7 +43,6 @@ export default function ProfileCard() {
       }
       // Jika gagal mendaptkan data dari supabase
       else {
-        console.log('From Local Storage')
         setWalletAddress(localStorage.getItem('walletAddress'))
         setPhoneNumber(localStorage.getItem('phoneNumber'))
         const timestamp = localStorage.getItem('walletCreatedAt')
@@ -78,7 +76,6 @@ export default function ProfileCard() {
       setFullName(tempFullName)
       setIsEditing(false)
     } catch (error) {
-      console.error("Error updating profile:", error)
       alert("Gagal memperbarui nama. Silakan coba lagi.")
     } finally {
       setIsUpdating(false)

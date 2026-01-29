@@ -26,7 +26,6 @@ export async function GET(req: Request) {
       .limit(5);
 
     if (dbError) {
-      console.error('[Search API] Database Error:', dbError.message);
       return NextResponse.json({ error: 'Failed to retrieve profiles' }, { status: 400 });
     }
 
@@ -35,7 +34,6 @@ export async function GET(req: Request) {
       profiles: profiles || []
     });
   } catch (error: any) {
-    console.error('[Search API] Global Exception:', error.message);
     return NextResponse.json({ error: 'Internal server connection error' }, { status: 500 });
   }
 }

@@ -17,7 +17,6 @@ export async function POST(request: Request) {
     const fonnteToken = process.env.FONNTE_TOKEN?.trim();
 
     if (!supabaseUrl || !supabaseKey) {
-      console.error("[Auth API] Missing Supabase configuration");
       return NextResponse.json({ error: 'Gagal memproses permintaan (Server Config Error)' }, { status: 500 });
     }
 
@@ -28,10 +27,9 @@ export async function POST(request: Request) {
     
     const formattedPhone = normalizePhoneForFonnte(phone);
     const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); 
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     const encryptedOTP = encrypt(otpCode);
 
-    console.info(`[Auth API] Initiating OTP storage for identifier: ${formattedPhone}`);
     const { error: dbError } = await supabaseAdmin
       .from('otp_verifications')
       .insert([{ 
@@ -44,11 +42,9 @@ export async function POST(request: Request) {
       }]);
 
     if (dbError) {
-      console.error(`[Database Error] Persistence failure: ${dbError.message}`);
       return NextResponse.json({ error: 'Gagal menyimpan data verifikasi' }, { status: 500 });
     }
 
-    console.info(`[Gateway API] Dispatching OTP payload via Fonnte service`);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 12000);
 
@@ -87,15 +83,12 @@ export async function POST(request: Request) {
 
     } catch (fetchErr: any) {
       if (fetchErr.name === 'AbortError') {
-        console.error("[Gateway Error] Fonnte request timeout");
         return NextResponse.json({ error: 'Koneksi ke gateway Fonnte timeout (12s)' }, { status: 504 });
       }
-      console.error(`[Gateway Error] Dispatch failed: ${fetchErr.message}`);
       return NextResponse.json({ error: 'Gagal mengirim OTP ke nomor Anda' }, { status: 502 });
     }
 
   } catch (err: any) {
-    console.error(`[Internal Server Error] Process aborted: ${err.message}`);
     return NextResponse.json({ error: 'Terjadi kesalahan sistem' }, { status: 500 });
   }
 }

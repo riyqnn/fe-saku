@@ -36,7 +36,6 @@ export async function POST(req: Request) {
       .single()
 
     if (profileError || !profile) {
-      console.error('❌ Sender profile not found:', profileError)
       return NextResponse.json({ error: 'Wallet sender tidak ditemukan' }, { status: 401 })
     }
 
@@ -50,13 +49,10 @@ export async function POST(req: Request) {
     // Check if sender is registered in the contract
     const senderHash = hashPhoneNumber(senderPhone)
     const isSenderRegistered = await registryContract.isRegistered(senderHash)
-    console.log('Is sender registered in contract:', isSenderRegistered)
 
     if (!isSenderRegistered) {
-      console.log('Sender not registered in new contract. Auto-registering...')
       const registerTx = await registryContract.register(senderHash, wallet.address)
       const registerReceipt = await registerTx.wait()
-      console.log('Sender registered successfully. TX:', registerReceipt.hash)
     }
 
     const receiverHash = hashPhoneNumber(receiverPhoneNormalized)
@@ -71,19 +67,15 @@ export async function POST(req: Request) {
     let nonce = await provider.getTransactionCount(wallet.address, 'pending')
     const allowance = await idrxContract.allowance(wallet.address, CONTRACTS.REGISTRY_ADDRESS)
     if (allowance < amountBigInt) {
-      console.log(`🔄 Approving IDRX for registry with nonce ${nonce}`)
       const approveTx = await idrxContract.approve(CONTRACTS.REGISTRY_ADDRESS, ethers.MaxUint256, { nonce })
       await approveTx.wait()
       nonce++
     }
 
     // Transfer IDRX
-    console.log(`🚀 Executing transferIDRX with nonce ${nonce}`)
     const tx = await registryContract.transferIDRX(receiverHash, amountBigInt, { nonce })
     const receipt = await tx.wait()
     if (!receipt || receipt.status !== 1) throw new Error('Transaksi blockchain gagal')
-
-    console.log('✅ Blockchain transaction successful:', receipt.hash)
 
     // Insert ke Supabase
     const { data: txData, error: txError } = await supabaseAdmin
@@ -101,9 +93,7 @@ export async function POST(req: Request) {
       })
 
     if (txError) {
-      console.error('❌ Supabase insert error:', txError)
-    } else {
-      console.log('✅ Transaction saved to DB:', txData)
+      // Handle error silently or add alternative logging
     }
 
     return NextResponse.json({
@@ -115,7 +105,6 @@ export async function POST(req: Request) {
       receiverWallet: receiverAddress
     })
   } catch (err: any) {
-    console.error('❌ Transfer API error:', err)
     return NextResponse.json({ error: err.message || 'Transfer gagal' }, { status: 500 })
   }
 }

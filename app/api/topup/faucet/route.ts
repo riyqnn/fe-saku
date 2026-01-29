@@ -15,8 +15,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { walletAddress, amount } = body
 
-    console.log('Top-up request received:', { walletAddress, amount })
-
     // Validation
     if (!walletAddress || !ethers.isAddress(walletAddress)) {
       return NextResponse.json(
@@ -33,7 +31,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (!PRIVATE_KEY) {
-      console.error('ADMIN_PRIVATE_KEY not configured')
       return NextResponse.json(
         { error: 'Service not configured. Please contact administrator.' },
         { status: 500 }
@@ -57,17 +54,11 @@ export async function POST(request: NextRequest) {
     // Convert amount to token units
     const amountInWei = ethers.parseUnits(amount.toString(), decimals)
 
-    console.log(`Processing top-up: ${amount} IDRX to ${walletAddress}`)
-
     // Mint tokens to user's wallet using faucet function
     const tx = await tokenContract.faucet(walletAddress, amountInWei)
 
-    console.log(`Transaction sent: ${tx.hash}`)
-
     // Wait for transaction confirmation
     const receipt = await tx.wait()
-
-    console.log(`Transaction confirmed: ${receipt.hash}`)
 
     return NextResponse.json({
       success: true,
@@ -77,8 +68,6 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('Top-up error:', error)
-
     let errorMessage = 'Failed to process top up'
 
     if (error.code === 'CALL_EXCEPTION') {

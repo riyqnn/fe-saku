@@ -52,13 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle()
 
       if (dbError || !profile) {
-        console.error("Profile not found or error:", dbError?.message)
         setUser(null)
       } else {
         setUser(profile)
       }
     } catch (err) {
-      console.error("Auth Refresh Error:", err)
       setUser(null)
     } finally {
       setTimeout(() => {

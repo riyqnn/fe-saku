@@ -83,7 +83,7 @@ export default function PayPage() {
         scannerRef.current = null;
         setIsScannerActive(false);
       } catch (e) {
-        console.error("Stop failed", e);
+        // Error handled silently
       } finally {
         isTransitioning.current = false;
       }
@@ -122,7 +122,7 @@ export default function PayPage() {
           if (data.success) {
             setSearchResults(data.profiles.filter((p: Member) => !members.find(m => m.phone_number === p.phone_number)))
           }
-        } catch (err) { console.error(err) }
+        } catch (err) { }
       } else { setSearchResults([]) }
     }, 500)
     return () => clearTimeout(timer)

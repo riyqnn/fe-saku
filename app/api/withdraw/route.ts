@@ -40,10 +40,6 @@ export async function POST(req: Request) {
     // 3. Get user's profile with encrypted private key
     const normalizedPhone = normalizePhone(phoneNumber);
 
-    console.log('=== WITHDRAW DEBUG ===');
-    console.log('Input phone:', phoneNumber);
-    console.log('Normalized phone:', normalizedPhone);
-
     // Get profile by phone_number
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -52,8 +48,6 @@ export async function POST(req: Request) {
       .single();
 
     if (profileError || !profile) {
-      console.error('Profile lookup error:', profileError);
-      console.error('Looking for phone:', normalizedPhone);
       return NextResponse.json({ error: 'Wallet not found' }, { status: 404 });
     }
 
@@ -61,12 +55,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Wallet address not found' }, { status: 400 });
     }
 
-    console.log('DB wallet_address:', profile.wallet_address);
-
     // RECALCULATE phone hash (same as transfer API does)
     // This ensures we use the correct format (no + sign) to match the contract
     const phoneHash = hashPhoneNumber(normalizedPhone);
-    console.log('Calculated phone_hash:', phoneHash);
 
     // 4. Decrypt private key server-side
     let privateKey: string;
@@ -77,17 +68,12 @@ export async function POST(req: Request) {
         profile.auth_tag
       );
     } catch (decryptError) {
-      console.error('Decryption error:', decryptError);
       return NextResponse.json({ error: 'Failed to decrypt private key' }, { status: 500 });
     }
 
     // 5. Setup provider and wallet
     const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org');
     const wallet = new ethers.Wallet(privateKey, provider);
-
-    console.log('Wallet address from private key:', wallet.address);
-    console.log('Phone hash being used:', phoneHash);
-    console.log('Do they match?', wallet.address === profile.wallet_address);
 
     // 6. Setup contract instances
     const registryContract = new ethers.Contract(
@@ -98,20 +84,12 @@ export async function POST(req: Request) {
 
     // Check if user is registered in the contract
     const isRegistered = await registryContract.isRegistered(phoneHash);
-    console.log('Is user registered in contract:', isRegistered);
 
     if (!isRegistered) {
-      console.log('User not registered in new contract. Auto-registering...');
       // Auto-register the user in the new contract
       const registerTx = await registryContract.register(phoneHash, wallet.address);
-      const registerReceipt = await registerTx.wait();
-      console.log('User registered successfully. TX:', registerReceipt.hash);
+      await registerTx.wait();
     }
-
-    // Verify registration after auto-register
-    const contractOwner = await registryContract.phoneToAccount(phoneHash);
-    console.log('Contract owner for phoneHash:', contractOwner);
-    console.log('Contract owner == wallet?', contractOwner.toLowerCase() === wallet.address.toLowerCase());
 
     const idrxContract = new ethers.Contract(
       CONTRACTS.IDRX_ADDRESS,
@@ -190,7 +168,6 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
-    console.error('Withdraw Error:', error);
     return NextResponse.json({
       error: error.message || 'Withdrawal failed'
     }, { status: 500 });

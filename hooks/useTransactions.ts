@@ -21,7 +21,6 @@ export function useTransactions(autoRefresh = true) {
       .limit(50)
 
     if (error) {
-      console.error('Supabase fetch error:', error)
       setRefreshing(false)
       return
     }

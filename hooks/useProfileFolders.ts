@@ -32,12 +32,10 @@ export function useProfileFolders(walletAddress: string | null) {
       const userFolders = allFolders.filter(
         (f: Folder) => f.walletAddress === walletAddress
       );
-      
-      console.log('✅ [useProfileFolders] Loaded', userFolders.length, 'folders for wallet:', walletAddress);
+
       setFolders(userFolders);
       setError(null);
     } catch (err: any) {
-      console.error('❌ [useProfileFolders] Error loading folders:', err);
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -64,15 +62,12 @@ export function useProfileFolders(walletAddress: string | null) {
       allFolders.push(newFolder);
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(allFolders));
-      
-      console.log('✅ [useProfileFolders] Created folder:', newFolder.id, newFolder.name);
-      
+
       // Reload folders
       loadFolders();
       
       return newFolder;
     } catch (err: any) {
-      console.error('❌ [useProfileFolders] Error creating folder:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -100,12 +95,9 @@ export function useProfileFolders(walletAddress: string | null) {
       };
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(allFolders));
-      
-      console.log('✅ [useProfileFolders] Updated folder:', folderId);
-      
+
       loadFolders();
     } catch (err: any) {
-      console.error('❌ [useProfileFolders] Error updating folder:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -124,12 +116,9 @@ export function useProfileFolders(walletAddress: string | null) {
 
       const filtered = allFolders.filter((f: Folder) => f.id !== folderId);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-      
-      console.log('✅ [useProfileFolders] Deleted folder:', folderId);
-      
+
       loadFolders();
     } catch (err: any) {
-      console.error('❌ [useProfileFolders] Error deleting folder:', err);
       setError(err.message);
       throw err;
     } finally {

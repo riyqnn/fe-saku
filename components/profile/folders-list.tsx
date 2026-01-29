@@ -34,7 +34,7 @@ export default function FoldersManager() {
         setSearchResults(data.profiles);
       }
     } catch (err) {
-      console.error("Search error");
+      // Error handled silently
     } finally {
       setIsSearching(false);
     }
@@ -61,7 +61,6 @@ export default function FoldersManager() {
   }
 
   const handleDelete = async (id: string) => {
-    console.log("Menghapus ID:", id); 
     await deleteContact(id);
   };
 

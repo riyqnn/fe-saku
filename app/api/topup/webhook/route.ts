@@ -28,7 +28,6 @@ export async function POST(req: Request) {
     );
 
     if (!isValidSignature) {
-      console.error('Invalid webhook signature');
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
@@ -39,12 +38,10 @@ export async function POST(req: Request) {
       .single();
 
     if (topupError || !topup) {
-      console.error('Topup request not found:', payload.order_id);
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
     if (topup.status === 'completed') {
-      console.log('Order already completed:', payload.order_id);
       return NextResponse.json({ success: true });
     }
 
@@ -96,10 +93,7 @@ export async function POST(req: Request) {
           })
           .eq('order_id', payload.order_id);
 
-        console.log('Topup completed:', payload.order_id, 'Tx:', receipt.hash);
-
       } catch (contractError: any) {
-        console.error('Contract execution error:', contractError);
 
         await supabase
           .from('topup_requests')
@@ -136,7 +130,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true });
 
   } catch (error: any) {
-    console.error('Webhook error:', error);
     return NextResponse.json({
       error: error.message || 'Webhook processing failed'
     }, { status: 500 });

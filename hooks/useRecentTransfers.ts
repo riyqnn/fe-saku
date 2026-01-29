@@ -27,7 +27,6 @@ export function useRecentTransfers(userPhone: string | null, limit: number = 5) 
   const fetchTransfers = async () => {
     try {
       if (!userPhone) {
-        console.log('⚠️ [useRecentTransfers] No user phone provided');
         setIsLoading(false);
         setTransfers([]);
         return;
@@ -36,16 +35,13 @@ export function useRecentTransfers(userPhone: string | null, limit: number = 5) 
       setIsLoading(true);
       setRefreshing(true);
       setError(null);
-      console.log('📱 [useRecentTransfers] Fetching transfers for:', userPhone);
 
       // TODO: Integrate with blockchain event logs to fetch on-chain transfers
       // For now, return empty list as transfers are stored on-chain, not in database
-      console.log('ℹ️ [useRecentTransfers] Transfer history will be fetched from blockchain events');
-      
+
       setTransfers([]);
       setError(null);
     } catch (err: any) {
-      console.error('❌ [useRecentTransfers] Error:', err.message);
       setError(err.message);
     } finally {
       setRefreshing(false);

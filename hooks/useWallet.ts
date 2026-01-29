@@ -51,7 +51,6 @@ export function useWallet() {
       });
     } catch (err: any) {
       setError(err.message);
-      console.error('Failed to connect wallet:', err);
     } finally {
       setIsLoading(false);
     }

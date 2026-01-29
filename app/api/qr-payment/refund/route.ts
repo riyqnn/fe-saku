@@ -44,7 +44,6 @@ export async function POST(req: Request) {
         profile.auth_tag
       );
     } catch (decryptError) {
-      console.error('Decryption error:', decryptError);
       return NextResponse.json({ error: 'Failed to decrypt private key' }, { status: 500 });
     }
 
@@ -90,7 +89,6 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
-    console.error('Refund QR Payment Error:', error);
     return NextResponse.json({
       error: error.message || 'Failed to refund QR payment'
     }, { status: 500 });

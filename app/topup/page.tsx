@@ -82,7 +82,6 @@ export default function TopupPage() {
       }, 2000)
 
     } catch (err: any) {
-      console.error('Top up error:', err)
       setError(err.message || 'Something went wrong')
     } finally {
       setLoading(false)

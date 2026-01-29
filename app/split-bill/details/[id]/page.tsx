@@ -57,7 +57,7 @@ export default function BillDetailsPage({ params }: { params: Promise<{ id: stri
         setAllBillItems(allItems || [])
         setMyItems(allItems?.filter(item => item.debtor_phone_hash === myHash && !item.is_paid) || [])
       } catch (err) {
-        console.error("Fetch details failed", err)
+        // Error handled silently
       } finally {
         setFetching(false)
       }

@@ -44,7 +44,6 @@ export async function GET(req: Request) {
     if (error) throw error;
     return NextResponse.json({ success: true, contacts: contacts || [] });
   } catch (error: any) {
-    console.error('❌ [Get Contacts API] Error:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -103,7 +102,6 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
-      console.error('❌ DB Insert Error:', error.message);
       throw error;
     }
 
@@ -114,7 +112,6 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
-    console.error('❌ [Create Contact API] Error:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -47,7 +47,6 @@ export async function GET(req: Request) {
     });
 
   } catch (error: any) {
-    console.error('Get QR Payment Error:', error);
     return NextResponse.json({
       error: error.message || 'Failed to get QR payment details'
     }, { status: 500 });

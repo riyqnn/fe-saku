@@ -185,7 +185,6 @@ export function useDepositWithdraw(signer: ethers.Signer | null) {
 
       return await contract.WITHDRAW_FEE_BPS();
     } catch (err: any) {
-      console.error('Failed to get withdraw fee bps:', err);
       throw err;
     }
   };
@@ -198,7 +197,6 @@ export function useDepositWithdraw(signer: ethers.Signer | null) {
       const feeBps = await getWithdrawFeeBps();
       return (amount * feeBps) / BigInt(10000);
     } catch (err) {
-      console.error('Failed to calculate withdraw fee:', err);
       return BigInt(0);
     }
   };
@@ -211,7 +209,6 @@ export function useDepositWithdraw(signer: ethers.Signer | null) {
       const fee = await calculateWithdrawFee(amount);
       return amount - fee;
     } catch (err) {
-      console.error('Failed to calculate amount after fee:', err);
       return amount;
     }
   };
