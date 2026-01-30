@@ -1,23 +1,24 @@
 import type { Metadata } from "next"
 import type React from "react"
 import { Geist, Geist_Mono } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
 import { AuthProvider } from "@/hooks/useAuth"
 import MiniAppReady from "./miniapp-ready"
 import "./globals.css"
 
 const geist = Geist({
   subsets: ["latin"],
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-geist",
   display: "swap",
+  preload: true,
 })
 
 const geistMono = Geist_Mono({
   subsets: ["latin"],
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  weight: ["400", "500", "600"],
   variable: "--font-geist-mono",
   display: "swap",
+  preload: true,
 })
 
 export const metadata: Metadata = {
@@ -42,7 +43,6 @@ export default function RootLayout({
       <body className="font-sans antialiased overflow-x-hidden">
         <MiniAppReady />
         <AuthProvider>{children}</AuthProvider>
-        <Analytics />
       </body>
     </html>
   )
