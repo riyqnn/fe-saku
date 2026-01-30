@@ -138,8 +138,8 @@ export default function Home() {
       <section
         className="
           relative w-full p-6 md:p-10
-          justify-around py-10 md:py-20
-          flex flex-col md:flex-row gap-10 md:gap-20
+          justify-center py-10 md:py-20
+          flex flex-col md:flex-row gap-10 md:gap-40
           bg-gradient-to-b from-background to-primary
           items-center
         "

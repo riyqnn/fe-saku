@@ -16,7 +16,7 @@ export default function Slider() {
         if (entry.isIntersecting) {
           setTimeout(() => {
             setActive(true)
-          }, 1000);
+          }, 500);
           observer.disconnect() // jalan sekali
         }
       },
