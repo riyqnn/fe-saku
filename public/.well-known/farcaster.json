@@ -10,6 +10,9 @@
     "description": "Send and receive crypto with just a phone number.",
     "homeUrl": "https://sakku.netlify.app",
     "iconUrl": "https://sakku.netlify.app/logo.png",
-    "primaryCategory": "finance"
+    "primaryCategory": "finance",
+    "splashBackgroundColor": "#000000",
+    "tags": ["finance", "crypto", "web3"],
+    "splashImageUrl": "https://sakku.netlify.app/splash-img.png"
   }
 }
