@@ -6,40 +6,74 @@ import { SAKU_REGISTRY_ABI, IDRX_ABI } from "@/lib/abi";
 import { toTokenAmount } from "@/lib/blockchain";
 import { hashPhoneNumber } from "@/utils/phoneHash";
 import { decrypt } from "@/utils/encrypt";
+import { validateAuth } from "@/lib/auth-middleware";
 
 /**
  * POST /api/transfer
- * Transfer IDRX tokens to another wallet address
+ * Transfer IDRX tokens to another wallet address or phone number
  *
  * Body:
- * - phoneNumber: sender's phone number (for authentication)
- * - receiverAddress: address of the receiver
+ * - receiverAddress: address of the receiver (optional if receiverPhone provided)
+ * - receiverPhone: phone number of the receiver (optional if receiverAddress provided)
  * - amount: amount to transfer (in IDRX units)
+ *
+ * Authentication: Bearer token from JWT (phone number extracted from token)
  */
 export async function POST(request: NextRequest) {
+  const supabase = await createSakuServerClient();
+
   try {
-    // Check auth session
-    const supabase = await createSakuServerClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    // Validate JWT Token
+    const auth = await validateAuth(request);
+    if (!auth.valid) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: auth.error },
         { status: 401 }
       );
     }
 
     const body = await request.json();
-    const { phoneNumber, receiverAddress, amount } = body;
+    const { receiverAddress, receiverPhone, amount } = body;
+    const phoneNumber = auth.phone!; // From JWT token
 
-    // Validate inputs
-    if (!phoneNumber || !receiverAddress || !amount) {
+    // Validate amount
+    if (!amount) {
       return NextResponse.json(
-        { error: "Missing required fields: phoneNumber, receiverAddress, amount" },
+        { error: "Missing required field: amount" },
         { status: 400 }
       );
     }
 
-    if (!ethers.isAddress(receiverAddress)) {
+    // Determine receiver address (either from direct input or phone lookup)
+    let finalReceiverAddress = receiverAddress;
+
+    if (receiverPhone && !receiverAddress) {
+      // Look up wallet address from phone number
+      const receiverPhoneHash = hashPhoneNumber(receiverPhone);
+      const { data: receiverProfile, error: receiverError } = await supabase
+        .from("profiles")
+        .select("wallet_address")
+        .eq("phone_hash", receiverPhoneHash)
+        .single();
+
+      if (receiverError || !receiverProfile?.wallet_address) {
+        return NextResponse.json(
+          { error: "Receiver wallet not found" },
+          { status: 404 }
+        );
+      }
+
+      finalReceiverAddress = receiverProfile.wallet_address;
+    }
+
+    if (!finalReceiverAddress) {
+      return NextResponse.json(
+        { error: "Missing receiverAddress or receiverPhone" },
+        { status: 400 }
+      );
+    }
+
+    if (!ethers.isAddress(finalReceiverAddress)) {
       return NextResponse.json(
         { error: "Invalid receiver address" },
         { status: 400 }
@@ -68,7 +102,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (profile.wallet_address.toLowerCase() === receiverAddress.toLowerCase()) {
+    if (profile.wallet_address.toLowerCase() === finalReceiverAddress.toLowerCase()) {
       return NextResponse.json(
         { error: "Cannot transfer to the same address" },
         { status: 400 }
@@ -122,7 +156,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Execute transfer
-    const tx = await idrxContract.transfer(receiverAddress, transferAmount);
+    const tx = await idrxContract.transfer(finalReceiverAddress, transferAmount);
     const receipt = await tx.wait();
 
     if (!receipt) {
@@ -148,7 +182,7 @@ export async function POST(request: NextRequest) {
       blockNumber: receipt.blockNumber,
       gasUsed: receipt.gasUsed?.toString(),
       from: signer.address,
-      to: receiverAddress,
+      to: finalReceiverAddress,
       amount: amount,
       timestamp: new Date().toISOString(),
     });

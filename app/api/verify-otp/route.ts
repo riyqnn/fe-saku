@@ -5,6 +5,9 @@ import { SAKU_REGISTRY_ABI, IDRX_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/lib/config';
 import { hashPhoneNumber } from '@/utils/phoneHash';
 import { encrypt, decrypt } from '@/utils/encrypt';
+import { rateLimiter, RATE_LIMITS } from '@/lib/rate-limiter';
+import { generateToken } from '@/lib/jwt';
+import { extractClientIP } from '@/lib/auth-middleware';
 
 function normalizePhone(phone: string): string {
   let normalized = phone.replace(/\D/g, '');
@@ -16,6 +19,26 @@ export async function POST(request: Request) {
   try {
     const { phone, otp } = await request.json();
     const formattedPhone = normalizePhone(phone);
+    const clientIP = extractClientIP(request) || 'unknown';
+
+    // Check OTP verification rate limit (max 3 attempts per 5 minutes)
+    const otpRateLimit = rateLimiter.check(`otp-verify:${formattedPhone}`, RATE_LIMITS.OTP_VERIFY);
+    if (!otpRateLimit.allowed) {
+      return NextResponse.json({
+        error: 'Terlalu banyak percobaan gagal. Silakan request OTP baru.',
+        retryAfter: Math.ceil((otpRateLimit.resetTime - Date.now()) / 1000),
+        code: 'OTP_ATTEMPTS_EXCEEDED'
+      }, { status: 429 });
+    }
+
+    // Check IP-based rate limit
+    const ipRateLimit = rateLimiter.check(`ip:${clientIP}`, RATE_LIMITS.IP_BASED);
+    if (!ipRateLimit.allowed) {
+      return NextResponse.json({
+        error: 'Terlalu banyak permintaan dari perangkat Anda.',
+        code: 'IP_RATE_LIMIT_EXCEEDED'
+      }, { status: 429 });
+    }
     
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!, 
@@ -44,10 +67,16 @@ export async function POST(request: Request) {
     }
 
     if (!validRecord) {
-      return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 400 });
+      return NextResponse.json({
+        error: 'OTP salah atau sudah kadaluarsa',
+        code: 'INVALID_OTP'
+      }, { status: 400 });
     }
-    
+
     await supabaseAdmin.from('otp_verifications').update({ is_used: true }).eq('id', validRecord.id);
+
+    // Reset rate limit after successful OTP verification
+    rateLimiter.reset(`otp-verify:${formattedPhone}`);
 
     const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL, undefined, { staticNetwork: true });
     const phoneHash = hashPhoneNumber(formattedPhone);
@@ -114,11 +143,17 @@ export async function POST(request: Request) {
       }
     })();
 
+    // Generate JWT token (CRITICAL: Never expose private key to frontend!)
+    const jwtToken = await generateToken({
+      phone: formattedPhone,
+      walletAddress: walletAddress
+    });
+
     return NextResponse.json({
       success: true,
-      message: isNew ? 'Wallet created and setup initiated' : 'Authentication successful',
+      message: isNew ? 'Wallet berhasil dibuat' : 'Login berhasil',
+      token: jwtToken,
       walletAddress,
-      privateKey: privKey,
       isNewRegistration: isNew
     });
 

@@ -104,7 +104,7 @@ export default function RecentTransactions() {
                     </p>
                     <p className="text-xs text-black/40 font-medium">
                         {/* Jika Topup, tampilkan sumbernya, jika transfer tampilkan waktu */}
-                        {txType === 'TOPUP' ? 'Via Faucet' : formatTime(tx.timestamp)}
+                        {txType === 'TOPUP' ? 'Via Top Up' : formatTime(tx.timestamp)}
                     </p>
                   </div>
                 </div>

@@ -6,6 +6,7 @@ import { hashPhoneNumber } from '@/utils/phoneHash';
 import { decrypt } from '@/utils/encrypt';
 import { SAKU_REGISTRY_ABI, IDRX_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/lib/config';
+import { validateAuth } from '@/lib/auth-middleware';
 
 function normalizePhone(phone: string): string {
   let normalized = phone.replace(/\D/g, '');
@@ -21,13 +22,17 @@ export async function POST(req: Request) {
   );
 
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Validate JWT Token
+    const auth = await validateAuth(req);
+    if (!auth.valid) {
+      return NextResponse.json({ error: auth.error }, { status: 401 });
+    }
 
-    const { phoneNumber, toAddress, amount, withdrawAll } = await req.json();
+    const { toAddress, amount, withdrawAll } = await req.json();
+    const phoneNumber = auth.phone!; // From JWT token
 
-    if (!phoneNumber || !toAddress) {
-      return NextResponse.json({ error: 'Missing required fields: phoneNumber, toAddress' }, { status: 400 });
+    if (!toAddress) {
+      return NextResponse.json({ error: 'Missing required field: toAddress' }, { status: 400 });
     }
 
     if (!amount && !withdrawAll) {

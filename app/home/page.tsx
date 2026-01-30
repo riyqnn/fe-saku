@@ -1,11 +1,8 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
-import { useRegistry } from "@/hooks/useRegistry"
-import { ethers } from "ethers"
-import { getProvider } from "@/lib/blockchain"
 import HomeHeader from "@/components/home/header"
 import BalanceCardSection from "@/components/home/balance-card-section"
 import QuickActions from "@/components/home/quick-actions"
@@ -16,19 +13,8 @@ import PendingBillsSection from "@/components/home/pending-bills"
 
 export default function Home() {
   const router = useRouter()
-  const { isAuthenticated, isLoading: authLoading, user } = useAuth() 
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth()
   const [showTransferModal, setShowTransferModal] = useState(false)
-  
-  const signer = useMemo(() => {
-    if (typeof window === 'undefined') return null;
-    const pKey = localStorage.getItem('saku_private_key');
-    if (!pKey) return null;
-    try {
-      return new ethers.Wallet(pKey, getProvider());
-    } catch { return null; }
-  }, []);
-
-  const { withdrawAll, isLoading: isWithdrawing } = useRegistry(signer)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {

@@ -7,7 +7,7 @@ import { toast } from "sonner"
 
 export default function LoginScreen() {
   const router = useRouter()
-  const { refreshUser, isAuthenticated, isLoading } = useAuth() 
+  const { refreshUser, isAuthenticated, isLoading, setToken } = useAuth() 
 
   const [loginMethod, setLoginMethod] = useState<"phone" | "otp" | null>(null)
   const [phone, setPhone] = useState("")
@@ -74,9 +74,9 @@ export default function LoginScreen() {
         const result = await res.json();
         if (!res.ok) throw new Error(result.error || "Verification failed");
 
-        localStorage.setItem('saku_user_phone', formattedPhone);
-        localStorage.setItem('saku_wallet_address', result.walletAddress);
-        localStorage.setItem('saku_private_key', result.privateKey);
+        // Save JWT token to localStorage and update auth state (NOT private key!)
+        localStorage.setItem('saku_auth_token', result.token);
+        setToken(result.token);
 
         await refreshUser();
         router.replace('/home');

@@ -20,44 +20,71 @@ interface UserProfile {
 
 interface AuthContextType {
   user: UserProfile | null
+  token: string | null
   isAuthenticated: boolean
   isLoading: boolean
   logout: () => void
   refreshUser: () => Promise<void>
+  setToken: (token: string) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null)
+  const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
+
+  // Load token from localStorage on mount
+  useEffect(() => {
+    const savedToken = localStorage.getItem('saku_auth_token')
+    if (savedToken) {
+      setToken(savedToken)
+    }
+  }, [])
 
   const refreshUser = useCallback(async () => {
     try {
       setIsLoading(true)
-      // Ambil nomor HP dari storage yang diset saat verify-otp
-      const savedPhone = localStorage.getItem('saku_user_phone')
 
-      if (!savedPhone) {
+      // Check if token exists
+      const savedToken = localStorage.getItem('saku_auth_token')
+      if (!savedToken) {
+        setUser(null)
+        setToken(null)
+        return
+      }
+
+      // Decode JWT to get phone number (without verification for UI purposes)
+      // Verification happens on API side
+      const payload = JSON.parse(atob(savedToken.split('.')[1]))
+      const userPhone = payload.phone
+
+      if (!userPhone) {
         setUser(null)
         return
       }
 
-      // Ambil data profile berdasarkan nomor HP
+      // Ambil data profile berdasarkan nomor HP dari JWT
       const { data: profile, error: dbError } = await supabase
         .from('profiles')
         .select('id, phone_number, wallet_address, is_verified, full_name')
-        .eq('phone_number', savedPhone)
+        .eq('phone_number', userPhone)
         .maybeSingle()
 
       if (dbError || !profile) {
         setUser(null)
+        // Clear invalid token
+        localStorage.removeItem('saku_auth_token')
+        setToken(null)
       } else {
         setUser(profile)
+        setToken(savedToken)
       }
     } catch (err) {
       setUser(null)
+      setToken(null)
     } finally {
       setTimeout(() => {
         setIsLoading(false)
@@ -70,19 +97,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshUser])
 
   const logout = () => {
+    localStorage.removeItem('saku_auth_token')
     localStorage.removeItem('saku_user_phone')
     localStorage.removeItem('saku_wallet_address')
     setUser(null)
+    setToken(null)
     router.replace('/get-started')
   }
 
+  // Update token and localStorage
+  const updateToken = (newToken: string) => {
+    setToken(newToken)
+    localStorage.setItem('saku_auth_token', newToken)
+  }
+
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isAuthenticated: !!user, 
-      isLoading, 
-      logout, 
-      refreshUser 
+    <AuthContext.Provider value={{
+      user,
+      token,
+      isAuthenticated: !!user && !!token,
+      isLoading,
+      logout,
+      refreshUser,
+      setToken: updateToken
     }}>
       {children}
     </AuthContext.Provider>

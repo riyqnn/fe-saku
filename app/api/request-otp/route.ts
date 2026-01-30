@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { encrypt } from '@/utils/encrypt'; 
+import { encrypt } from '@/utils/encrypt';
+import { rateLimiter, RATE_LIMITS } from '@/lib/rate-limiter';
+import { extractClientIP } from '@/lib/auth-middleware';
 
 function normalizePhoneForFonnte(phone: string): string {
-  let normalized = phone.replace(/\D/g, ''); 
+  let normalized = phone.replace(/\D/g, '');
   if (normalized.startsWith('0')) normalized = '62' + normalized.substring(1);
   return normalized;
 }
@@ -11,6 +13,29 @@ function normalizePhoneForFonnte(phone: string): string {
 export async function POST(request: Request) {
   try {
     const { phone } = await request.json();
+
+    // Extract client IP for rate limiting
+    const clientIP = extractClientIP(request) || 'unknown';
+
+    // Check phone-based rate limit (max 3 OTP requests per 5 minutes)
+    const phoneRateLimit = rateLimiter.check(`otp-request:${phone}`, RATE_LIMITS.OTP_REQUEST);
+    if (!phoneRateLimit.allowed) {
+      return NextResponse.json({
+        error: 'Terlalu banyak permintaan OTP. Silakan tunggu 5 menit.',
+        retryAfter: Math.ceil((phoneRateLimit.resetTime - Date.now()) / 1000),
+        code: 'RATE_LIMIT_EXCEEDED'
+      }, { status: 429 });
+    }
+
+    // Check IP-based rate limit (max 20 requests per minute per IP)
+    const ipRateLimit = rateLimiter.check(`ip:${clientIP}`, RATE_LIMITS.IP_BASED);
+    if (!ipRateLimit.allowed) {
+      return NextResponse.json({
+        error: 'Terlalu banyak permintaan dari perangkat Anda. Silakan tunggu 1 menit.',
+        retryAfter: Math.ceil((ipRateLimit.resetTime - Date.now()) / 1000),
+        code: 'IP_RATE_LIMIT_EXCEEDED'
+      }, { status: 429 });
+    }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();

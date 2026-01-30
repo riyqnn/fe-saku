@@ -5,20 +5,24 @@ import { hashPhoneNumber } from '@/utils/phoneHash';
 import { decrypt } from '@/utils/encrypt';
 import { SAKU_REGISTRY_ABI, IDRX_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/lib/config';
+import { validateAuth } from '@/lib/auth-middleware';
 
 export async function POST(req: Request) {
   const supabase = await createSakuServerClient();
 
   try {
-    // 1. Check Auth Session
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // 1. Validate JWT Token
+    const auth = await validateAuth(req);
+    if (!auth.valid) {
+      return NextResponse.json({ error: auth.error }, { status: 401 });
+    }
 
-    // 2. Read request body
-    const { phoneNumber, amount } = await req.json();
+    // 2. Read request body (phoneNumber now from JWT, not body)
+    const { amount } = await req.json();
+    const phoneNumber = auth.phone!; // From JWT token
 
-    if (!phoneNumber || !amount) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!amount) {
+      return NextResponse.json({ error: 'Amount is required' }, { status: 400 });
     }
 
     // 3. Get user's profile with encrypted private key
