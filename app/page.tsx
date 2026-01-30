@@ -8,7 +8,7 @@ import Slider from "@/components/landing/Slider"
 
 export default function Home() {
   return (
-    <div className="w-full h-dvh">
+    <div className="w-full h-dvh overflow-x-hidden">
       {/* NAVBAR */}
       <div className="w-full flex justify-center">
         <Navbar className="fixed" />

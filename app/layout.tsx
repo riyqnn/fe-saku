@@ -39,7 +39,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`overflow-x-hidden ${geist.variable} ${geistMono.variable}`}>
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased overflow-x-hidden">
         <MiniAppReady />
         <AuthProvider>{children}</AuthProvider>
         <Analytics />
