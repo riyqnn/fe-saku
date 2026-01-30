@@ -1,5 +1,9 @@
 "use client"
 
+import { useEffect } from "react" // Import useEffect
+import AOS from "aos" // Import AOS
+import "aos/dist/aos.css" // Import CSS AOS
+
 import { Wallet } from "lucide-react"
 import Navbar from "@/components/landing/Navbar"
 import StepCard from "@/components/landing/StepCard"
@@ -7,8 +11,16 @@ import FAQSection from "@/components/landing/Faq"
 import Slider from "@/components/landing/Slider"
 
 export default function Home() {
+  // Inisialisasi AOS
+  useEffect(() => {
+    AOS.init({
+      duration: 1000, // Durasi animasi (ms)
+      once: true,     // Animasi hanya berjalan sekali saat scroll ke bawah
+    })
+  }, [])
+
   return (
-    <div className="w-full h-dvh overflow-x-hidden">
+    <div className="w-full min-h-dvh overflow-x-hidden">
       {/* NAVBAR */}
       <div className="w-full flex justify-center">
         <Navbar className="fixed" />
@@ -76,8 +88,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Steps Section */}
-      <section className="relative w-full flex flex-col gap-12 md:gap-20 py-10 justify-center items-center text-center pt-20 md:pt-30">
+      {/* Steps Section - Added data-aos */}
+      <section 
+        className="relative w-full flex flex-col gap-12 md:gap-20 py-10 justify-center items-center text-center pt-20 md:pt-30"
+        data-aos="fade-down"
+      >
         <div className="max-w-300 flex flex-col gap-4 md:gap-6">
           <h2 className="text-3xl md:text-5xl font-semibold">
             Easy use, Get Crypto transfers done fast.
@@ -111,8 +126,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="relative w-full flex flex-col gap-20 py-20 justify-center items-center text-center pt-20 md:pt-30">
+      {/* FAQ Section - Added data-aos */}
+      <section 
+        className="relative w-full flex flex-col gap-20 py-20 justify-center items-center text-center pt-20 md:pt-30"
+        data-aos="fade-down"
+      >
         <FAQSection />
       </section>
 
