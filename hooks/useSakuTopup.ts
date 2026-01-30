@@ -17,7 +17,7 @@ export interface TopupResult {
 }
 
 export function useSakuTopup() {
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<string | null>(null)
@@ -46,9 +46,9 @@ export function useSakuTopup() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
           },
           body: JSON.stringify({
-            phoneNumber: user.phone_number,
             amount: params.amount,
           }),
         })
@@ -78,7 +78,7 @@ export function useSakuTopup() {
         setLoading(false)
       }
     },
-    [user]
+    [user, token]
   )
 
   return {

@@ -17,7 +17,7 @@ export interface TransferByPhoneResult {
 }
 
 export function useSakuTransfer() {
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<string | null>(null)
@@ -38,7 +38,10 @@ export function useSakuTransfer() {
 
         const res = await fetch('/api/transfer/phone', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
           body: JSON.stringify({ phoneNumber: senderPhone, receiverPhone, amount: params.amount }),
         })
 
@@ -55,7 +58,7 @@ export function useSakuTransfer() {
         setLoading(false)
       }
     },
-    [user]
+    [user, token]
   )
 
   return { transferByPhone, loading, error, txHash }
