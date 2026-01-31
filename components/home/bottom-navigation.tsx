@@ -15,7 +15,7 @@ export default function BottomNavigation() {
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-background/80 border-t border-border/50 backdrop-blur-lg font-sans">
+    <nav className="sticky bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-background/80 border-t border-border/50 backdrop-blur-lg font-sans">
       <div className="max-w-lg mx-auto w-full px-3 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-around gap-1">
           {navItems.map((item) => {
