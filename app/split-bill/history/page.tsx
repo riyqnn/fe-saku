@@ -46,7 +46,7 @@ export default function AllHistoryPage() {
   )
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans pb-32 overflow-x-hidden">
+    <div className="min-h-screen h-dvh bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans overflow-x-hidden">
       <Header />
       
       <div className="p-6 space-y-8 flex-1">

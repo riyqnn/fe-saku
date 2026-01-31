@@ -88,7 +88,7 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="bg-[#F8F9FA] min-h-screen pb-24 font-sans max-w-lg mx-auto text-black">
+    <div className="bg-[#F8F9FA] min-h-screen h-dvh pb-24 font-sans max-w-lg mx-auto text-black">
       <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-xl border-b border-black/[0.03] px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button onClick={() => router.push("/home")} className="p-2.5 hover:bg-black/5 rounded-2xl transition-all active:scale-90">

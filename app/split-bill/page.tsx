@@ -127,7 +127,7 @@ export default function SplitBillPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans pb-32">
+    <div className="min-h-screen h-dvh bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans pb-32">
       <Header />
       
       <div className="p-5 space-y-8 animate-in fade-in duration-500">

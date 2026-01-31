@@ -109,7 +109,7 @@ export default function BillDetailsPage({ params }: { params: Promise<{ id: stri
   )
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans pb-10">
+    <div className="min-h-screen h-dvh bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans">
       <div className="p-6 flex items-center justify-between border-b border-border sticky top-0 bg-white/80 backdrop-blur-md z-30">
         <div className="flex items-center gap-4">
           <button onClick={() => router.back()} className="p-2 hover:bg-black/5 rounded-xl transition-all">
