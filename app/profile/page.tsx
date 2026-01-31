@@ -41,7 +41,7 @@ export default function ProfilePage() {
     <div className="min-h-screen h-dvh bg-background animate-in fade-in duration-500">
       <HomeHeader />
 
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-8">
+      <main className="max-w-lg mx-auto px-4 py-6 space-y-8 pb-32">
         <ProfileCard />
 
         <div className="h-px bg-border/50" />

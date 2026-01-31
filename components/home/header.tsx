@@ -29,7 +29,7 @@ export default function HomeHeader() {
   }
 
   return (
-    <header className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 sm:pb-6 sticky top-0 z-50 bg-gradient-to-b from-background via-background to-background/80 backdrop-blur-md border-b border-border/50 max-w-lg mx-auto font-sans">
+    <header className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 sm:pb-6  top-0 z-50 bg-gradient-to-b from-background via-background to-background/80 backdrop-blur-md border-b border-border/50 max-w-lg mx-auto font-sans">
       <div className="flex items-center justify-between gap-3 sm:gap-4">
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold italic text-gradient bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
