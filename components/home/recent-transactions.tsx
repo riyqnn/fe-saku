@@ -134,12 +134,15 @@ export default function RecentTransactions() {
       </div>
 
       {selectedTx && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/50 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-sm flex flex-col gap-6">
+        // UBAH DISINI: p-6 menjadi p-10 agar area tengah lebih sempit
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-10 bg-black/50 backdrop-blur-md animate-in fade-in">
+          {/* UBAH DISINI: max-w-sm menjadi max-w-xs (lebih kecil), gap-6 jadi gap-4 */}
+          <div className="w-full max-w-xs flex flex-col gap-4">
             
             <div 
               ref={receiptRef}
-              className="bg-white text-black p-10 rounded-[3rem] shadow-2xl space-y-8 relative overflow-hidden"
+              // UBAH DISINI: p-10 menjadi p-6, space-y-8 menjadi space-y-5, rounded-[3rem] jadi rounded-[2.5rem]
+              className="bg-white text-black p-6 rounded-[2.5rem] shadow-2xl space-y-5 relative"
             >
               <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper.png')]"></div>
               

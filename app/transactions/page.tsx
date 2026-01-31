@@ -146,41 +146,42 @@ export default function TransactionsPage() {
         })}
       </main>
 
+      {/* --- INI BAGIAN MODAL YANG DIUBAH MENJADI VERSI KECIL/COMPACT --- */}
       {selectedTx && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/50 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-sm flex flex-col gap-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-10 bg-black/50 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-xs flex flex-col gap-4">
+            
             <div 
               ref={receiptRef}
-              className="bg-white text-black p-10 rounded-[3rem] shadow-2xl space-y-8 relative overflow-hidden"
+              className="bg-white text-black p-6 rounded-[2.5rem] shadow-2xl space-y-5 relative"
             >
               <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper.png')]"></div>
               
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
-                  <Image src="/logo.png" alt="Saku" width={40} height={40} className="grayscale" />
-                  <p className="text-[8px] font-black tracking-[0.2em] text-black/30 italic">Official Receipt</p>
+                  <Image src="/logo.png" alt="Saku" width={36} height={36} className="grayscale" />
+                  <p className="text-[8px] font-black tracking-[0.2em] text-black/30 italic">Digital Proof</p>
                 </div>
                 <div className="text-right space-y-1">
                    <p className="text-[10px] font-black italic">Saku Wallet</p>
-                   <p className="text-[8px] font-bold text-black/30">Ref: #{String(selectedTx.id).slice(0,8)}</p>
+                   <p className="text-[8px] font-bold text-black/30">Ref: #{String(selectedTx.id).slice(0,8).toUpperCase()}</p>
                 </div>
               </div>
 
               <div className="flex flex-col items-center py-4 text-center border-y border-dashed border-black/10">
                 <CheckCircle2 size={48} className="text-green-500 mb-4" strokeWidth={3} />
-                <h2 className="text-[10px] font-black tracking-[0.3em] text-black/40 mb-1 italic">Transaction Success</h2>
+                <h2 className="text-[10px] font-black tracking-[0.3em] text-black/40 mb-1 italic">Payment Successful</h2>
                 <p className="text-5xl font-black tracking-tighter mb-1 italic">IDR {selectedTx.amount.toLocaleString()}</p>
-                <p className="text-[9px] font-bold text-black/20">
+                <p className="text-[9px] font-black text-black/20 tracking-widest">
                   {new Date(selectedTx.timestamp).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })}
                 </p>
               </div>
 
               <div className="space-y-4">
                 {[
-                  { label: 'TYPE', value: selectedTx.type.replace('_', ' ') },
-                  { label: selectedTx.sender_phone === user?.phone_number ? 'TO' : 'FROM', value: (selectedTx.sender_phone === user?.phone_number ? (selectedTx.receiver_name || selectedTx.receiver_phone) : (selectedTx.sender_name || selectedTx.sender_phone)) || 'User' },
-                  { label: 'AMOUNT', value: `IDR ${selectedTx.amount.toLocaleString()}` },
-                  { label: 'FEE', value: 'IDR 0' },
+                  { label: 'TYPE', value: selectedTx.type?.replace('_', ' ').toUpperCase() },
+                  { label: selectedTx.sender_phone === user?.phone_number ? 'SENT TO' : 'FROM', value: (selectedTx.sender_phone === user?.phone_number ? (selectedTx.receiver_name || selectedTx.receiver_phone) : (selectedTx.sender_name || selectedTx.sender_phone)) || 'SYSTEM' },
+                  { label: 'FEE', value: 'IDR 0 (FREE)' },
                 ].map((item, i) => (
                   <div key={i} className="flex justify-between text-[11px] items-center">
                     <span className="text-black/30 font-black tracking-widest italic">{item.label}</span>
@@ -189,16 +190,13 @@ export default function TransactionsPage() {
                 ))}
               </div>
 
-              <div className="pt-6 border-t border-dashed border-black/10 text-center space-y-4">
-                 <div className="space-y-1">
-                    <p className="text-[7px] font-black text-black/20 tracking-widest">Digital Signature</p>
-                    <p className="text-[7px] font-mono text-black/30 break-all px-6">{selectedTx.tx_hash}</p>
-                 </div>
-                 <p className="text-[8px] font-bold italic text-black/30">Keep this as your official proof of payment</p>
+              <div className="pt-6 border-t border-dashed border-black/10 text-center">
+                 <p className="text-[7px] font-mono text-black/30 break-all leading-relaxed px-4">{selectedTx.tx_hash}</p>
+                 <p className="text-[8px] font-black italic text-black/20 mt-4 tracking-widest italic">Secure On-Chain Data</p>
               </div>
-              
-              <div className="absolute top-1/2 -left-3 w-6 h-6 bg-[#000]/10 rounded-full"></div>
-              <div className="absolute top-1/2 -right-3 w-6 h-6 bg-[#000]/10 rounded-full"></div>
+
+              <div className="absolute top-1/2 -left-3 w-6 h-6 bg-black/5 rounded-full shadow-inner"></div>
+              <div className="absolute top-1/2 -right-3 w-6 h-6 bg-black/5 rounded-full shadow-inner"></div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

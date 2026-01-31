@@ -13,12 +13,12 @@ import PendingBillsSection from "@/components/home/pending-bills"
 
 export default function Home() {
   const router = useRouter()
-  const { isAuthenticated, isLoading: authLoading, user } = useAuth()
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [showTransferModal, setShowTransferModal] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.replace('/get-started')
+      router.replace("/get-started")
     }
   }, [isAuthenticated, authLoading, router])
 
@@ -33,7 +33,7 @@ export default function Home() {
             muted
             loop
             playsInline
-            />
+          />
           Loading Saku...
         </div>
       </div>
@@ -43,28 +43,18 @@ export default function Home() {
   if (!isAuthenticated) return null
 
   return (
-    <div className="h-dvh bg-background animate-in fade-in duration-500 font-sans">
-      {/* Header */}
+    <div className="min-h-dvh bg-background font-sans">
       <HomeHeader />
 
-      <main className="max-w-lg mx-auto px-4 space-y-6 py-6">
-        {/* Balance Card Section */}
+      <main className="max-w-lg mx-auto px-4 space-y-6 py-6 pb-28">
         <BalanceCardSection />
-
-
-        {/* Action Buttons */}
         <QuickActions />
-
         <PendingBillsSection />
-        
-        {/* Recent Transactions */}
         <RecentTransactions />
       </main>
 
-      {/* Navigasi Bawah */}
       <BottomNavigation />
 
-      {/* Modal Transfer */}
       {showTransferModal && (
         <TransferModal onClose={() => setShowTransferModal(false)} />
       )}

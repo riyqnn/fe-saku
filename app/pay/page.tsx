@@ -1,289 +1,259 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { 
-  ArrowLeft, Loader2, Wallet, Info, CheckCircle2, 
-  User, ReceiptText, Clock, Users, Sparkles, PartyPopper, XCircle 
+  QrCode, Scan, CheckCircle, Loader2, 
+  Camera, X, Wallet, Sparkles, Copy, Check
 } from "lucide-react"
-import { createClient } from "@supabase/supabase-js"
 import { useAuth } from "@/hooks/useAuth"
-import { hashPhoneNumber } from "@/utils/phoneHash"
-import { useSakuTransfer } from "@/hooks/useSakuTransfer" 
+import { useSakuQRPayment } from "@/hooks/useSakuQRPayment"
+import { useBalance } from "@/hooks/useBalance"
+import { QRCodeSVG } from "qrcode.react" 
 import { toast } from "sonner"
+import { Html5Qrcode } from "html5-qrcode"
+import Header from "@/components/layout/Header"
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-
-export default function BillDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params)
-  const id = resolvedParams.id
+export default function PayPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { generateQR, claimPayment, loading: qrLoading } = useSakuQRPayment()
+  const { formattedBalance, refetch: refetchBalance } = useBalance(user?.wallet_address || null)
+
+  const [activeTab, setActiveTab] = useState<"receive" | "pay">("receive")
+
+  const [amount, setAmount] = useState("")
+  const [qrData, setQrData] = useState<string | null>(null)
+  const [payInput, setPayInput] = useState("")
+  const [success, setSuccess] = useState(false)
+  const [isScannerActive, setIsScannerActive] = useState(false)
+  const [isCopied, setIsCopied] = useState(false)
   
-  const { transferByPhone, loading: isPaying } = useSakuTransfer()
+  const scannerRef = useRef<Html5Qrcode | null>(null)
+  const isTransitioning = useRef(false)
 
-  const [bill, setBill] = useState<any>(null)
-  const [creatorName, setCreatorName] = useState<string | null>(null)
-  const [allBillItems, setAllBillItems] = useState<any[]>([])
-  const [fetching, setFetching] = useState(true)
-  const [isSuccess, setIsSuccess] = useState(false)
-  const [isRejecting, setIsRejecting] = useState(false) // State untuk loading tolak
+  const startScanner = async () => {
+    if (isTransitioning.current) return
+    
+    try {
+      const element = document.getElementById("reader")
+      if (!element) return
 
-  const myHash = user?.phone_number ? hashPhoneNumber(user.phone_number) : ""
-  const isCreator = bill?.creator_id === user?.phone_number
+      const html5QrCode = new Html5Qrcode("reader")
+      scannerRef.current = html5QrCode
+      setIsScannerActive(true)
+
+      const config = { 
+        fps: 20, 
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0 
+      }
+
+      await html5QrCode.start(
+        { facingMode: "environment" }, 
+        config,
+        (text) => { 
+          setPayInput(text)
+          toast.success("QR Detected! ✅")
+          stopScanner() 
+        },
+        () => {}
+      )
+    } catch (err) { 
+      setIsScannerActive(false)
+    }
+  }
+
+  const stopScanner = async () => {
+    if (scannerRef.current && scannerRef.current.isScanning && !isTransitioning.current) {
+      isTransitioning.current = true
+      try {
+        await scannerRef.current.stop()
+        scannerRef.current = null
+        setIsScannerActive(false)
+      } catch (err) {
+        console.error("Scanner stop error:", err)
+      } finally {
+        isTransitioning.current = false
+      }
+    }
+  }
+
+  const handleCopy = () => {
+    if (qrData) {
+      navigator.clipboard.writeText(qrData)
+      setIsCopied(true)
+      toast.success("Payment code copied! 📋")
+      setTimeout(() => setIsCopied(false), 2000)
+    }
+  }
 
   useEffect(() => {
-    const fetchDetails = async () => {
-      if (!user?.phone_number || !id) return
-      try {
-        const { data: header } = await supabase.from('split_bills').select('*').eq('id', id).single()
-        
-        if (header) {
-          setBill(header)
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('phone_number', header.creator_id)
-            .single()
-          setCreatorName(profile?.full_name || header.creator_id)
-        }
-        
-        const { data: allItems } = await supabase
-          .from('split_bill_items')
-          .select('*')
-          .eq('bill_id', id)
-
-        setAllBillItems(allItems || [])
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setFetching(false)
-      }
+    if (activeTab === "pay") {
+      const timer = setTimeout(() => startScanner(), 400) 
+      return () => clearTimeout(timer)
+    } else {
+      stopScanner()
     }
-    fetchDetails()
-  }, [user, id])
+  }, [activeTab])
 
-  const myPendingItems = allBillItems.filter(item => item.debtor_phone_hash === myHash && !item.is_paid)
-  const totalToPay = myPendingItems.reduce((acc, item) => acc + item.amount, 0)
+  useEffect(() => {
+    return () => {
+      stopScanner()
+    }
+  }, [])
 
-  const paidItemsCount = allBillItems.filter(i => i.is_paid).length
-  const totalItemsCount = allBillItems.length
-  const progressPercent = totalItemsCount > 0 ? (paidItemsCount / totalItemsCount) * 100 : 0
-
-  const handleSettlement = async () => {
-    if (!bill || totalToPay <= 0) return
-
-    toast.promise(
-      (async () => {
-        const result = await transferByPhone({
-          receiverPhone: bill.creator_id,
-          amount: totalToPay.toString()
-        })
-
-        if (!result.success) throw new Error(result.error || "Blockchain transfer failed")
-
-        const { error: updateError } = await supabase
-          .from('split_bill_items')
-          .update({ is_paid: true })
-          .eq('bill_id', id)
-          .eq('debtor_phone_hash', myHash)
-
-        if (updateError) throw new Error("Status update failed.")
-
-        setIsSuccess(true)
-        setTimeout(() => router.push('/home'), 3000)
-        return result
-      })(),
-      {
-        loading: 'Processing on-chain payment...',
-        success: 'Payment Success! 💸',
-        error: (err) => `Error: ${err.message}`
-      }
-    )
+  const handleClaimPayment = async () => {
+    if (!payInput) return toast.error("Scan QR dulu bos")
+    
+    toast.promise(claimPayment(payInput), {
+      loading: 'Securing transaction on-chain...',
+      success: (result) => {
+        setSuccess(true)
+        refetchBalance()
+        return "Payment successful! 💸"
+      },
+      error: (err) => err.message || "Payment failed."
+    })
   }
 
-  // FUNGSI TOLAK BILL
-  const handleRejectBill = async () => {
-    const confirmReject = confirm("Yakin mau tolak tagihan ini? Data kamu bakal diapus dari list bill ini.")
-    if (!confirmReject) return
-
-    setIsRejecting(true)
-    try {
-      const { error } = await supabase
-        .from('split_bill_items')
-        .delete()
-        .eq('bill_id', id)
-        .eq('debtor_phone_hash', myHash)
-
-      if (error) throw error
-
-      toast.success("Bill rejected successfully! ✌️")
-      router.push('/home')
-    } catch (err: any) {
-      toast.error("Failed to reject: " + err.message)
-    } finally {
-      setIsRejecting(false)
-    }
-  }
-
-  if (fetching) return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
-    </div>
-  )
-
-  if (isSuccess) {
+  if (success) {
     return (
-      <div className="min-h-screen bg-primary flex items-center justify-center p-6 text-center z-[100] fixed inset-0">
-        <div className="max-w-md w-full bg-white rounded-[3rem] p-12 shadow-2xl space-y-6 animate-in zoom-in duration-500">
-          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <PartyPopper className="w-12 h-12 text-green-600 animate-bounce" />
+      <div className="min-h-screen bg-background flex items-center justify-center p-6 text-center">
+        <div className="max-w-md w-full bg-white rounded-[2.5rem] p-10 shadow-2xl space-y-6 animate-in zoom-in duration-300">
+          <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle className="w-10 h-10 text-primary" />
           </div>
-          <h1 className="text-4xl font-black italic tracking-tighter text-black">PAID!</h1>
-          <div className="space-y-2">
-            <p className="text-sm font-bold text-black/60">Your portion of <span className="text-black font-black italic">"{bill?.description}"</span> has been settled.</p>
-            <p className="text-[10px] font-bold text-primary tracking-widest uppercase italic">Transaction confirmed on-chain</p>
-          </div>
-          <div className="pt-4">
-             <div className="flex items-center justify-center gap-2 text-black/20 animate-pulse">
-                <Loader2 size={14} className="animate-spin" />
-                <span className="text-[9px] font-black uppercase tracking-widest">Returning to Home...</span>
-             </div>
-          </div>
+          <h1 className="text-3xl font-bold italic">Success!</h1>
+          <p className="text-black/50">Your funds have been processed securely on-chain.</p>
+          <button onClick={() => router.push("/home")} className="w-full py-4 rounded-2xl bg-primary font-bold shadow-lg active:scale-95 transition-all">Back Home</button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans pb-10">
-      <div className="p-6 flex items-center justify-between border-b border-border sticky top-0 bg-white/80 backdrop-blur-md z-30">
-        <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="p-2 hover:bg-black/5 rounded-xl transition-all">
-            <ArrowLeft className="w-6 h-6 text-black" />
-          </button>
-          <h1 className="text-xl font-black italic tracking-tight">Bill Detail</h1>
+    <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans pb-32 overflow-x-hidden">
+      <Header />
+
+      <div className="p-6 space-y-6 flex-1 overflow-y-auto">
+        <div className="relative p-8 rounded-[2.5rem] bg-gradient-to-br from-primary via-amber-200 to-primary/80 shadow-xl shadow-primary/20">
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles size={14} className="text-amber-900/60" />
+            <p className="text-[10px] font-bold text-amber-900/60 tracking-widest uppercase">Saku Balance</p>
+          </div>
+          <p className="text-4xl font-bold text-black/85 tracking-tighter">{formattedBalance}</p>
         </div>
-        {isCreator && (
-          <div className="px-3 py-1 bg-primary/20 rounded-full">
-            <p className="text-[10px] font-black text-amber-900 tracking-widest italic">Creator View</p>
-          </div>
+
+        <div className="flex p-1.5 bg-muted rounded-[2rem] border border-black/5 shadow-inner">
+          {(["receive", "pay"] as const).map((tab) => (
+            <button 
+              key={tab}
+              onClick={() => setActiveTab(tab)} 
+              className={`flex-1 py-3 rounded-[1.5rem] font-bold text-[10px] tracking-widest uppercase transition-all ${activeTab === tab ? "bg-white shadow-sm text-black" : "text-muted-foreground hover:text-black/60"}`}
+            >
+              {tab === "receive" ? "Receive" : "Scan & Pay"}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "receive" && (
+           <div className="space-y-6 animate-in slide-in-from-left duration-300">
+            {!qrData ? (
+             <div className="space-y-5">
+               <div className="space-y-2 px-2">
+                 <label className="text-[10px] font-bold text-black/40 tracking-widest ml-2 uppercase italic">Amount to Request</label>
+                 <div className="relative">
+                    <span className="absolute left-6 top-1/2 -translate-y-1/2 font-bold text-black/20 text-xl">Rp</span>
+                    <input 
+                      type="number" 
+                      value={amount} 
+                      onChange={(e) => setAmount(e.target.value)} 
+                      placeholder="0" 
+                      className="w-full bg-muted/50 rounded-[2rem] pl-16 pr-8 py-6 text-3xl font-bold outline-none border-2 border-transparent focus:border-primary/50 transition-all" 
+                    />
+                 </div>
+               </div>
+               <button 
+                onClick={() => {
+                  if(!amount || Number(amount) <= 0) return toast.error("Isi nominalnya dulu bos")
+                  generateQR(user?.phone_number!, amount).then(r => r.success && setQrData(r.qrHash))
+                }} 
+                disabled={qrLoading || !amount}
+                className="w-full py-6 rounded-[2rem] bg-black text-white font-bold text-lg shadow-xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-30 transition-all"
+               >
+                 {qrLoading ? <Loader2 className="animate-spin" /> : <QrCode size={20}/>} 
+                 Generate Payment QR
+               </button>
+             </div>
+           ) : (
+             <div className="flex flex-col items-center p-8 bg-white rounded-[3rem] border border-primary/10 shadow-2xl space-y-8 animate-in zoom-in duration-300">
+               <div className="p-6 bg-white rounded-[2.5rem] shadow-inner border-[8px] border-primary/5">
+                <QRCodeSVG value={qrData} size={200} level="H" />
+               </div>
+               <div className="text-center">
+                 <p className="text-[10px] font-bold text-black/30 tracking-widest uppercase mb-1 italic">Requesting Payment</p>
+                 <p className="text-4xl font-bold text-black/85 tracking-tighter">IDR {Number(amount).toLocaleString()}</p>
+               </div>
+
+               {/* Payment Code Display & Copy */}
+               <div className="w-full space-y-2">
+                 <p className="text-[10px] font-bold text-black/40 tracking-widest uppercase ml-4 italic">Payment Code</p>
+                 <div className="flex items-center gap-2 bg-muted/50 p-4 rounded-3xl border border-black/5 group">
+                   <code className="flex-1 font-mono text-[10px] font-bold text-black/60 break-all leading-tight px-2">
+                     {qrData}
+                   </code>
+                   <button 
+                    onClick={handleCopy}
+                    className="p-3 bg-white rounded-2xl shadow-sm hover:bg-primary transition-all active:scale-90 border border-black/5"
+                   >
+                     {isCopied ? <Check size={16} className="text-green-600" /> : <Copy size={16} className="text-black/40" />}
+                   </button>
+                 </div>
+               </div>
+
+               <button onClick={() => { setQrData(null); setAmount(""); }} className="text-[10px] font-bold underline text-black/40 hover:text-black tracking-[0.2em] uppercase italic">Create New Request</button>
+             </div>
+           )}
+         </div>
         )}
-      </div>
 
-      <main className="p-6 space-y-8 flex-1">
-        <section className={`p-8 rounded-[2.5rem] shadow-xl transition-all ${isCreator ? "bg-black text-white" : "bg-gradient-to-br from-primary via-amber-200 to-primary/80"}`}>
-          <div className="space-y-4">
-            <div>
-              <p className={`text-[10px] font-bold tracking-[0.2em] opacity-60`}>
-                {isCreator ? "Collection Progress" : `Pay to ${creatorName}`}
-              </p>
-              <p className="text-4xl font-black italic tracking-tighter mt-1">
-                {isCreator ? `${Math.round(progressPercent)}%` : `IDR ${totalToPay.toLocaleString()}`}
-              </p>
-            </div>
-            
-            {isCreator ? (
-              <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
-                <div className="bg-primary h-full transition-all duration-1000" style={{ width: `${progressPercent}%` }} />
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-black/5 rounded-full w-fit text-[10px] font-bold italic">
-                <Info size={12} /> Proportional Tax & Discount Included
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="bg-white rounded-[3rem] p-8 border border-black/5 shadow-sm space-y-8">
-          <div className="text-center space-y-1">
-            <h2 className="text-2xl font-black italic tracking-tight capitalize">{bill?.description || "Shared Bill"}</h2>
-            <p className="text-[10px] font-bold text-black/30 tracking-[0.2em]">{bill?.created_at ? new Date(bill.created_at).toLocaleDateString('id-ID', { dateStyle: 'long' }) : ""}</p>
-          </div>
-
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h3 className="text-[10px] font-bold text-black/40 tracking-widest italic">Itemized Breakdown</h3>
-                <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary italic">
-                  <Users size={12} /> {allBillItems.length} Items Total
-                </div>
+        {activeTab === "pay" && (
+          <div className="space-y-6 animate-in slide-in-from-right duration-300">
+            <div className="relative w-full aspect-square rounded-[3.5rem] bg-black overflow-hidden border-4 border-muted/20 shadow-2xl flex items-center justify-center">
+               <div id="reader" className="w-full h-full"></div>
+               
+               {!isScannerActive && (
+                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 text-white p-10 text-center space-y-4">
+                   <Camera className="w-12 h-12 text-primary animate-pulse" />
+                   <p className="font-bold italic">Camera Ready</p>
+                   <button onClick={startScanner} className="px-8 py-3 bg-primary text-black rounded-xl font-bold text-[10px] tracking-widest active:scale-95 transition-all">START SCANNING</button>
+                 </div>
+               )}
             </div>
 
             <div className="space-y-4">
-              {allBillItems.map((item) => {
-                const isMine = item.debtor_phone_hash === myHash
-                return (
-                  <div key={item.id} className="flex justify-between items-center group">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${item.is_paid ? "bg-green-100 text-green-600" : "bg-muted text-black/20"}`}>
-                        {item.is_paid ? <CheckCircle2 size={16} /> : <Clock size={16} />}
-                      </div>
-                      <div>
-                        <p className={`text-sm font-bold capitalize ${isMine ? "text-primary" : "text-black"}`}>
-                          {item.item_name} {isMine && "(You)"}
-                        </p>
-                        <p className="text-[9px] font-bold text-black/30 tracking-widest">
-                          {item.is_paid ? "Paid" : "Pending"}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-sm font-black italic">Rp {item.amount.toLocaleString()}</p>
-                  </div>
-                )
-              })}
-            </div>
-
-            <div className="border-t-2 border-dashed border-black/5 pt-6 space-y-3">
-              <div className="flex justify-between text-[11px] font-bold text-black/40 tracking-widest">
-                <span>Total Tax</span>
-                <span>Rp {bill?.tax_amount?.toLocaleString()}</span>
+              <div className="px-2">
+                <label className="text-[10px] font-bold text-black/40 tracking-widest ml-2 uppercase italic">Manual Payment Hash</label>
+                <input 
+                  value={payInput} 
+                  onChange={(e) => setPayInput(e.target.value)} 
+                  placeholder="Paste payment code here..." 
+                  className="w-full bg-muted/50 rounded-[2rem] px-8 py-5 font-mono text-[10px] outline-none border-2 border-transparent focus:border-primary/50 transition-all" 
+                />
               </div>
-              <div className="flex justify-between text-[11px] font-bold text-amber-600 tracking-widest">
-                <span>Total Discount</span>
-                <span>-Rp {bill?.discount_amount?.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between pt-4 border-t border-black/5">
-                <span className="text-sm font-black italic">Total Bill</span>
-                <span className="text-lg font-black italic text-black">Rp {bill?.total_amount?.toLocaleString()}</span>
-              </div>
+              <button 
+                onClick={handleClaimPayment} 
+                disabled={qrLoading || !payInput}
+                className="w-full py-6 rounded-[2.5rem] bg-black text-white font-bold text-lg shadow-xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-30 transition-all"
+              >
+                {qrLoading ? <Loader2 className="animate-spin" /> : <Scan size={20}/>} 
+                Verify & Pay Now
+              </button>
             </div>
           </div>
-        </section>
-      </main>
-
-      {/* ACTION BUTTONS (PAY & REJECT) */}
-      {!isCreator && totalToPay > 0 && (
-        <div className="p-6 bg-white/80 backdrop-blur-xl border-t border-border sticky bottom-0 z-30 animate-in slide-in-from-bottom duration-500 space-y-3">
-          <div className="flex gap-3">
-             {/* Button Tolak */}
-            <button 
-              onClick={handleRejectBill}
-              disabled={isRejecting || isPaying}
-              className="flex-1 py-6 rounded-[2.5rem] bg-muted text-black/40 font-black uppercase tracking-[0.1em] flex items-center justify-center gap-2 active:scale-95 disabled:opacity-30 transition-all italic text-[11px]"
-            >
-              {isRejecting ? <Loader2 className="animate-spin" size={16}/> : <XCircle size={16}/>} 
-              Reject
-            </button>
-
-            {/* Button Bayar */}
-            <button 
-              onClick={handleSettlement}
-              disabled={isPaying || isRejecting}
-              className="flex-[2.5] py-6 rounded-[3rem] bg-black text-primary font-black uppercase tracking-[0.2em] shadow-2xl flex items-center justify-center gap-4 active:scale-95 disabled:opacity-30 transition-all italic"
-            >
-              {isPaying ? <Loader2 className="animate-spin" size={18}/> : <Wallet size={18}/>} 
-              Pay My Portion
-            </button>
-          </div>
-          <p className="text-[9px] text-center font-bold text-black/20 italic">If you reject, your name will be removed from this list.</p>
-        </div>
-      )}
-
-      {isCreator && progressPercent < 100 && (
-        <div className="px-6 text-center">
-          <p className="text-[10px] font-bold text-black/30 tracking-widest">Waiting for other members to settle...</p>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
