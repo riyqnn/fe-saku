@@ -38,7 +38,7 @@ export default function ProfilePage() {
   if (!isAuthenticated) return null
 
   return (
-    <div className="min-h-screen h-dvh bg-background animate-in fade-in duration-500">
+    <div className="min-h-dvh bg-background animate-in fade-in duration-500">
       <HomeHeader />
 
       <main className="max-w-lg mx-auto px-4 py-6 space-y-8 pb-32">
