@@ -1,15 +1,20 @@
 "use client"
 
-import { ArrowLeft, ArrowDownLeft, ArrowUpRight, Wallet, Receipt, DollarSign, QrCode, ExternalLink, RefreshCw } from "lucide-react"
+import { useState, useRef } from "react"
+import { 
+  ArrowLeft, ArrowDownLeft, ArrowUpRight, Wallet, Receipt, DollarSign, 
+  QrCode, ExternalLink, RefreshCw, X, Download, CheckCircle2, MessageCircle, Loader2, Share2
+} from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { useTransactions } from "@/hooks/useTransactions"
-import { NETWORK_CONFIG } from "@/lib/config"
 import BottomNavigation from "@/components/home/bottom-navigation"
+import { toPng } from "html-to-image"
+import { toast } from "sonner"
+import Image from "next/image"
 
-// Pastikan tipe data mencakup field baru dari hook
 type Transaction = {
-  id: string
+  id: string | number
   type: string
   amount: number
   timestamp: string
@@ -21,228 +26,209 @@ type Transaction = {
 }
 
 const TRANSACTION_CONFIG: Record<string, { icon: any; bgClass: string; textClass: string; label: string }> = {
-  transfer_sent: {
-    icon: ArrowUpRight,
-    bgClass: "bg-red-100 dark:bg-red-900/30",
-    textClass: "text-red-600 dark:text-red-400",
-    label: "Transfer Sent",
-  },
-  transfer_received: {
-    icon: ArrowDownLeft,
-    bgClass: "bg-green-100 dark:bg-green-900/30",
-    textClass: "text-green-600 dark:text-green-400",
-    label: "Transfer Received",
-  },
-  topup: {
-    icon: Wallet,
-    bgClass: "bg-blue-100 dark:bg-blue-900/30",
-    textClass: "text-blue-600 dark:text-blue-400",
-    label: "Top Up",
-  },
-  withdraw: {
-    icon: DollarSign,
-    bgClass: "bg-orange-100 dark:bg-orange-900/30",
-    textClass: "text-orange-600 dark:text-orange-400",
-    label: "Withdrawal",
-  },
-  qr_created: {
-    icon: QrCode,
-    bgClass: "bg-purple-100 dark:bg-purple-900/30",
-    textClass: "text-purple-600 dark:text-purple-400",
-    label: "QR Payment Created",
-  },
-  qr_claimed: {
-    icon: Receipt,
-    bgClass: "bg-teal-100 dark:bg-teal-900/30",
-    textClass: "text-teal-600 dark:text-teal-400",
-    label: "QR Payment Claimed",
-  },
-  qr_refunded: {
-    icon: Receipt,
-    bgClass: "bg-yellow-100 dark:bg-yellow-900/30",
-    textClass: "text-yellow-600 dark:text-yellow-400",
-    label: "QR Payment Refunded",
-  },
+  transfer_sent: { icon: ArrowUpRight, bgClass: "bg-red-50", textClass: "text-red-500", label: "Transfer Sent" },
+  transfer_received: { icon: ArrowDownLeft, bgClass: "bg-green-50", textClass: "text-green-500", label: "Transfer Received" },
+  topup: { icon: Wallet, bgClass: "bg-blue-50", textClass: "text-blue-500", label: "Top Up" },
+  withdraw: { icon: DollarSign, bgClass: "bg-orange-50", textClass: "text-orange-500", label: "Withdrawal" },
+  qr_created: { icon: QrCode, bgClass: "bg-purple-50", textClass: "text-purple-500", label: "QR Created" },
+  qr_claimed: { icon: Receipt, bgClass: "bg-teal-50", textClass: "text-teal-500", label: "QR Payment" },
+  qr_refunded: { icon: Receipt, bgClass: "bg-yellow-50", textClass: "text-yellow-500", label: "Refunded" },
 }
 
 export default function TransactionsPage() {
   const router = useRouter()
   const { user } = useAuth()
   const { transactions, refreshing, refetch } = useTransactions(true)
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const receiptRef = useRef<HTMLDivElement>(null)
 
-  const handleBack = () => {
-    router.push("/home")
+  const shareToWhatsApp = (tx: Transaction | null = selectedTx) => {
+    if (!tx) return;
+    const isSent = tx.sender_phone === user?.phone_number;
+    const target = isSent ? (tx.receiver_name || tx.receiver_phone) : (tx.sender_name || tx.sender_phone);
+    
+    const text = `*SAKU RECEIPT*%0A` +
+                  `--------------------------%0A` +
+                  `*Amount:* IDR ${tx.amount.toLocaleString()}%0A` +
+                  `*Date:* ${new Date(tx.timestamp).toLocaleString('en-US')}%0A` +
+                  `*${isSent ? 'To' : 'From'}:* ${target}%0A` ;
+    window.open(`https://wa.me/?text=${text}`, '_blank');
   }
 
-  const formatTransactionTime = (isoString: string) => {
-    const date = new Date(isoString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const downloadReceipt = async () => {
+    if (!receiptRef.current || !selectedTx) return
+    setIsGenerating(true)
+    const loadingToast = toast.loading("Generating your official receipt...")
+    
+    try {
+      const dataUrl = await toPng(receiptRef.current, { 
+        cacheBust: true, 
+        backgroundColor: '#f8f9fa',
+        pixelRatio: 4, 
+      })
+      
+      const txIdString = String(selectedTx.id);
+      const fileName = `SAKU-RECEIPT-${txIdString.slice(0, 8)}.png`;
+      
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-    if (diffHours < 1) return "Just now"
-    if (diffHours < 24) return `${diffHours}h ago`
-    if (diffDays < 7) return `${diffDays}d ago`
-
-    return date.toLocaleDateString("id-ID", { month: "short", day: "numeric", year: "numeric" })
-  }
-
-  const formatFullDate = (isoString: string) => {
-    const date = new Date(isoString)
-    return date.toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  }
-
-  const getAmountDisplay = (tx: Transaction) => {
-    const isSent = tx.sender_phone === user?.phone_number
-    return {
-      prefix: isSent ? "-" : "+",
-      amount: tx.amount,
-      class: isSent ? "text-red-600" : "text-green-600",
+      toast.success("Receipt saved to gallery!");
+    } catch (err) {
+      toast.error("Failed to generate receipt.");
+    } finally {
+      toast.dismiss(loadingToast)
+      setIsGenerating(false)
     }
   }
 
   return (
-    <div className="bg-background dark:bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/80 dark:bg-background/80 backdrop-blur-lg border-b border-border/50">
-        <div className="max-w-lg mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button onClick={handleBack} className="p-2 hover:bg-muted rounded-full transition-colors duration-200" aria-label="Go back">
-                <ArrowLeft className="w-5 h-5 text-foreground" />
-              </button>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Transactions</h1>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  {transactions.length} {transactions.length === 1 ? "transaction" : "transactions"}
-                </p>
-              </div>
-            </div>
-            <button onClick={refetch} disabled={refreshing} className="p-2 hover:bg-muted rounded-full transition-colors duration-200 disabled:opacity-50" aria-label="Refresh">
-              <RefreshCw className={`w-5 h-5 text-foreground ${refreshing ? "animate-spin" : ""}`} />
-            </button>
-          </div>
+    <div className="bg-[#F8F9FA] min-h-screen pb-24 font-sans max-w-lg mx-auto text-black">
+      <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-xl border-b border-black/[0.03] px-6 py-5 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button onClick={() => router.push("/home")} className="p-2.5 hover:bg-black/5 rounded-2xl transition-all active:scale-90">
+            <ArrowLeft className="w-5 h-5 text-black" />
+          </button>
+          <h1 className="text-xl font-bold italic tracking-tighter text-black">History</h1>
         </div>
+        <button onClick={refetch} disabled={refreshing} className="p-2.5 bg-black/5 rounded-2xl text-black">
+          <RefreshCw className={`w-5 h-5 ${refreshing ? "animate-spin" : ""}`} />
+        </button>
       </div>
 
-      <main className="max-w-lg min-h-screen mx-auto px-4 py-6">
-        {/* Loading */}
-        {refreshing && (
-          <div className="flex flex-col items-center justify-center py-20 space-y-4">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            <p className="text-muted-foreground font-medium">Loading transactions...</p>
-          </div>
-        )}
+      <main className="max-w-lg mx-auto px-6 py-8 space-y-4">
+        {!refreshing && transactions.map((tx, idx) => {
+          const isSent = tx.sender_phone === user?.phone_number
+          const config = TRANSACTION_CONFIG[tx.type] || TRANSACTION_CONFIG['topup']
+          const Icon = config.icon
 
-        {/* Empty */}
-        {!refreshing && transactions.length === 0 && (
-          <div className="p-12 text-center rounded-3xl bg-muted/30 dark:bg-muted/10 border border-border/50">
-            <Receipt className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <p className="text-sm text-muted-foreground">No transactions yet. Start by making a transfer!</p>
-          </div>
-        )}
-
-        {/* Transactions List */}
-        {!refreshing && transactions.length > 0 && (
-          <div className="space-y-3">
-            {transactions.map((tx, idx) => {
-              // 1. Logic Identifikasi Arah Transaksi
-              const isSent = tx.sender_phone === user?.phone_number
-              
-              // 2. Logic Penentuan Tipe Icon/Warna
-              // Jika transaksi P2P (ada sender & receiver), tentukan sent/received. Jika tidak, gunakan tipe asli (topup/withdraw)
-              let type = tx.type
-              const isP2P = tx.sender_phone && tx.receiver_phone
-              if (isP2P) {
-                type = isSent ? 'transfer_sent' : 'transfer_received'
-              }
-              
-              const config = TRANSACTION_CONFIG[type] || TRANSACTION_CONFIG['topup'] // fallback safety
-              const Icon = config?.icon || Receipt
-              const amountDisplay = getAmountDisplay(tx)
-
-              // 3. Logic Nama & Subtext (Phone)
-              const targetName = isSent ? tx.receiver_name : tx.sender_name
-              const targetPhone = isSent ? tx.receiver_phone : tx.sender_phone
-              
-              // Display name: Prioritaskan Nama, jika null pakai No. HP
-              const displayName = targetName || targetPhone
-              
-              // Subtext phone: Hanya tampilkan jika Nama ada. Jika nama null, subtext null (karena HP sudah jadi judul)
-              const displaySubPhone = targetName ? targetPhone : null
-
-              // 4. Logic Label Judul
-              let mainLabel = config.label
-              if (type === 'transfer_sent') {
-                mainLabel = `Sent to ${displayName}`
-              } else if (type === 'transfer_received') {
-                mainLabel = `Received from ${displayName}`
-              }
-
-              return (
-                <a
-                  key={tx.id}
-                  href={`${NETWORK_CONFIG.blockExplorer}/tx/${tx.tx_hash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block animate-fade-in-up"
-                  style={{ animationDelay: `${idx * 50}ms` }}
+          return (
+            <div 
+              key={tx.id} 
+              className="p-5 rounded-[2.2rem] bg-white border border-black/[0.02] hover:border-primary/40 transition-all cursor-pointer shadow-sm active:scale-95 flex items-center justify-between group"
+              onClick={() => setSelectedTx(tx)}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${config.bgClass} ${config.textClass}`}>
+                  <Icon size={24} strokeWidth={2.5} />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-sm text-black italic">
+                    {isSent ? `${tx.receiver_name || tx.receiver_phone || 'User'}` : `${tx.sender_name || tx.sender_phone || config.label}`}
+                  </p>
+                  <p className="text-[9px] font-bold text-black/20">
+                    {new Date(tx.timestamp).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })} • {tx.type.replace('_', ' ')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className={`font-bold text-base tracking-tighter ${isSent ? 'text-red-500' : 'text-green-600'}`}>
+                    {isSent ? '-' : '+'} {tx.amount.toLocaleString()}
+                  </p>
+                  <p className="text-[10px] font-bold text-black/10">IDRX</p>
+                </div>
+                {/* Tombol Share di tiap baris */}
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation(); // Biar modal detail gak ikutan kebuka
+                    shareToWhatsApp(tx);
+                  }}
+                  className="p-2 bg-black/5 hover:bg-primary/20 rounded-full transition-colors"
                 >
-                  <div className="p-5 rounded-2xl card-modern hover:card-elevated group cursor-pointer transition-all duration-200 border border-border/50 hover:border-primary/30">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-center gap-4 min-w-0 flex-1">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${config?.bgClass} ${config?.textClass}`}>
-                          <Icon className="w-6 h-6" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          {/* Label Utama */}
-                          <div className="flex flex-col mb-1">
-                            <p className="font-semibold text-base text-foreground truncate group-hover:text-primary transition-colors">
-                              {mainLabel}
-                            </p>
-                            {/* Subtext Phone Number (hanya muncul jika ada nama) */}
-                            {displaySubPhone && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                {displaySubPhone}
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Timestamp & Hash */}
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>{formatTransactionTime(tx.timestamp)}</span>
-                            <span>•</span>
-                            <span className="truncate">{formatFullDate(tx.timestamp)}</span>
-                          </div>
-                          {tx.tx_hash && (
-                            <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                              <span className="font-mono truncate">{tx.tx_hash.slice(0, 10)}...</span>
-                              <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className={`font-bold text-lg ${amountDisplay.class}`}>
-                          {amountDisplay.prefix}{amountDisplay.amount}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">IDRX</p>
-                      </div>
-                    </div>
-                  </div>
-                </a>
-              )
-            })}
-          </div>
-        )}
+                  <Share2 size={14} className="text-black/40 group-hover:text-primary" />
+                </button>
+              </div>
+            </div>
+          )
+        })}
       </main>
+
+      {selectedTx && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-sm flex flex-col gap-6">
+            <div 
+              ref={receiptRef}
+              className="bg-white text-black p-10 rounded-[2.5rem] shadow-2xl space-y-8 relative overflow-hidden"
+            >
+              <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper.png')]"></div>
+              
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <Image src="/logo.png" alt="Saku" width={40} height={40} className="grayscale" />
+                  <p className="text-[8px] font-bold tracking-[0.2em] text-black/30 uppercase">Official Receipt</p>
+                </div>
+                <div className="text-right space-y-1">
+                   <p className="text-[10px] font-bold">Saku Wallet</p>
+                   <p className="text-[8px] font-semibold text-black/30">Ref: #{String(selectedTx.id).slice(0,8)}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center py-4 text-center border-y border-dashed border-black/10">
+                <CheckCircle2 size={48} className="text-green-500 mb-4" strokeWidth={3} />
+                <h2 className="text-[10px] font-bold tracking-[0.3em] text-black/40 uppercase mb-1">Transaction Successful</h2>
+                <p className="text-5xl font-black tracking-tighter mb-1">IDR {selectedTx.amount.toLocaleString()}</p>
+                <p className="text-[9px] font-semibold text-black/20">{new Date(selectedTx.timestamp).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })}</p>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  { label: 'Payment Type', value: selectedTx.type.replace('_', ' ') },
+                  { label: selectedTx.sender_phone === user?.phone_number ? 'Sent To' : 'Received From', value: (selectedTx.sender_phone === user?.phone_number ? (selectedTx.receiver_name || selectedTx.receiver_phone) : (selectedTx.sender_name || selectedTx.sender_phone)) || 'User' },
+                  { label: 'Amount', value: `IDR ${selectedTx.amount.toLocaleString()}` },
+                  { label: 'Fee', value: 'IDR 0' },
+                ].map((item, i) => (
+                  <div key={i} className="flex justify-between text-[11px] items-center">
+                    <span className="text-black/30 font-bold tracking-widest">{item.label}</span>
+                    <span className="font-semibold italic text-black/80">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-6 border-t border-dashed border-black/10 text-center space-y-4">
+                 <div className="space-y-1">
+                    <p className="text-[7px] font-bold text-black/20 tracking-widest">Digital Signature</p>
+                    <p className="text-[7px] font-mono text-black/30 break-all px-6">{selectedTx.tx_hash}</p>
+                 </div>
+                 <p className="text-[8px] font-semibold italic text-black/30">Keep this receipt as your official proof of payment.</p>
+              </div>
+              
+              <div className="absolute top-1/2 -left-3 w-6 h-6 bg-[#F8F9FA] rounded-full shadow-inner"></div>
+              <div className="absolute top-1/2 -right-3 w-6 h-6 bg-[#F8F9FA] rounded-full shadow-inner"></div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => shareToWhatsApp(selectedTx)}
+                className="col-span-2 py-5 bg-[#25D366] text-white rounded-3xl font-bold text-xs flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all tracking-widest"
+              >
+                <MessageCircle size={20} fill="white" /> Share
+              </button>
+              
+              <button 
+                onClick={downloadReceipt}
+                disabled={isGenerating}
+                className="py-5 bg-white text-black rounded-3xl font-bold text-[10px] flex items-center justify-center gap-2 active:scale-95 transition-all tracking-widest"
+              >
+                {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} 
+                Save Image
+              </button>
+
+              <button 
+                onClick={() => setSelectedTx(null)} 
+                className="py-5 bg-black text-white rounded-3xl font-bold text-[10px] flex items-center justify-center gap-2 tracking-widest"
+              >
+                <X size={16} /> Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNavigation />
     </div>

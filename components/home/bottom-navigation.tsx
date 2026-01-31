@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter, usePathname } from "next/navigation" 
-import { User, Home as HomeIcon, Receipt } from "lucide-react"
+import { User, Home as HomeIcon, Receipt, Users2 } from "lucide-react"
 
 export default function BottomNavigation() {
   const router = useRouter()
@@ -10,6 +10,7 @@ export default function BottomNavigation() {
   const navItems = [
     { id: "home", label: "Home", icon: HomeIcon, path: "/home" },
     { id: "transactions", label: "Transaction", icon: Receipt, path: "/transactions" },
+    { id: "split", label: "Split", icon: Users2, path: "/split-bill" },
     { id: "profile", label: "Profile", icon: User, path: "/profile" },
   ]
 
@@ -19,7 +20,6 @@ export default function BottomNavigation() {
         <div className="flex items-center justify-around gap-1">
           {navItems.map((item) => {
             const Icon = item.icon
-            // Logika aktif: jika pathname sama dengan path menu
             const isActive = pathname === item.path
 
             return (
@@ -29,7 +29,7 @@ export default function BottomNavigation() {
                 className={`flex flex-col items-center gap-1.5 px-3 sm:px-4 py-2.5 sm:py-3 flex-1 rounded-2xl transition-all duration-200 group ${
                   isActive
                     ? "bg-primary/10"
-                    : "hover:bg-muted"
+                    : "hover:bg-mauted"
                 }`}
               >
                 <Icon

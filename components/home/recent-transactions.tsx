@@ -1,124 +1,207 @@
 "use client"
-import { ArrowDownLeft, ArrowUpRight, ChevronRight, Wallet, DollarSign, Receipt, QrCode, Loader2 } from "lucide-react"
+
+import { useState, useRef } from "react"
+import { 
+  ArrowDownLeft, ArrowUpRight, Wallet, DollarSign, Receipt, QrCode, 
+  Loader2, Share2, X, Download, MessageCircle, CheckCircle2, ExternalLink 
+} from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { useTransactions } from "@/hooks/useTransactions"
 import { NETWORK_CONFIG } from "@/lib/config"
+import { toPng } from "html-to-image"
+import { toast } from "sonner"
+import Image from "next/image"
 
-// Pastikan key disini match dengan logic di komponen bawah
 const TRANSACTION_CONFIG: Record<string, any> = {
-  transfer_sent: { icon: ArrowUpRight, bgClass: "bg-red-100", textClass: "text-red-600" },
-  transfer_received: { icon: ArrowDownLeft, bgClass: "bg-green-100", textClass: "text-green-600" },
-  topup: { icon: Wallet, bgClass: "bg-blue-100", textClass: "text-blue-600" },
-  withdraw: { icon: DollarSign, bgClass: "bg-orange-100", textClass: "text-orange-600" },
-  default: { icon: Receipt, bgClass: "bg-gray-100", textClass: "text-gray-600" }
+  transfer_sent: { icon: ArrowUpRight, bgClass: "bg-red-50", textClass: "text-red-500", label: "Transfer Sent" },
+  transfer_received: { icon: ArrowDownLeft, bgClass: "bg-green-50", textClass: "text-green-500", label: "Transfer Received" },
+  topup: { icon: Wallet, bgClass: "bg-blue-50", textClass: "text-blue-500", label: "Top Up" },
+  withdraw: { icon: DollarSign, bgClass: "bg-orange-50", textClass: "text-orange-500", label: "Withdrawal" },
+  default: { icon: Receipt, bgClass: "bg-gray-50", textClass: "text-gray-500", label: "Payment" }
 }
 
 export default function RecentTransactions() {
   const { user } = useAuth()
   const { transactions, refreshing } = useTransactions()
+  const [selectedTx, setSelectedTx] = useState<any>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const receiptRef = useRef<HTMLDivElement>(null)
 
   const formatTime = (iso: string) => {
     const date = new Date(iso)
     return date.toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })
   }
 
+  const shareToWhatsApp = (tx: any) => {
+    const isSent = tx.sender_phone === user?.phone_number;
+    const target = isSent ? (tx.receiver_name || tx.receiver_phone) : (tx.sender_name || tx.sender_phone);
+    const refId = String(tx.id).slice(0, 8).toUpperCase();
+
+     const text = `*SAKU RECEIPT*%0A` +
+                  `--------------------------%0A` +
+                  `*Amount:* IDR ${tx.amount.toLocaleString()}%0A` +
+                  `*Date:* ${new Date(tx.timestamp).toLocaleString('en-US')}%0A` +
+                  `*${isSent ? 'To' : 'From'}:* ${target}%0A` ;
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+  }
+
+  const downloadReceipt = async () => {
+    if (!receiptRef.current || !selectedTx) return
+    setIsGenerating(true)
+    const loadingToast = toast.loading("Generating HD receipt...")
+    try {
+      const dataUrl = await toPng(receiptRef.current, { cacheBust: true, backgroundColor: '#f8f9fa', pixelRatio: 4 })
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `SAKU-RECEIPT-${String(selectedTx.id).slice(0, 8)}.png`;
+      link.click();
+      toast.success("Receipt saved!");
+    } catch (err) {
+      toast.error("Failed to generate image.");
+    } finally {
+      toast.dismiss(loadingToast);
+      setIsGenerating(false);
+    }
+  }
+
   return (
     <div className="space-y-4 font-sans">
       <div className="flex items-center justify-between px-2">
-        <h3 className="text-xs sm:text-sm font-bold text-black/85 uppercase tracking-widest">
+        <h3 className="text-sm font-bold text-black/40">
           Recent Transactions {refreshing && <Loader2 className="inline w-3 h-3 animate-spin ml-2" />}
         </h3>
       </div>
 
-      {transactions.length === 0 ? (
-        <div className="text-center py-10 px-6 bg-muted/30 rounded-[2.5rem] border border-dashed border-black/5">
-          <Receipt className="w-12 h-12 text-black/10 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-black/40">No transactions yet</p>
-          <p className="text-xs text-black/30 mt-1">Your transaction history will appear here</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {transactions.map(tx => {
-            // --- LOGIC PENENTUAN TIPE TRANSAKSI ---
-            let configKey = 'default'
-            let titleText = ''
-            let amountPrefix = ''
-            let amountColor = ''
-            let counterpartyName = ''
-
-            // Kita cek berdasarkan 'type' dari database (TRANSFER / TOPUP / WITHDRAW)
-            // Pastikan database menyimpannya sebagai uppercase, atau gunakan .toUpperCase()
-            const txType = tx.type?.toUpperCase() || 'TRANSFER' 
-
-            if (txType === 'TOPUP') {
-              // --- LOGIC TOP UP ---
-              configKey = 'topup'
-              titleText = 'Top Up Successful'
-              amountPrefix = '+'
-              amountColor = 'text-blue-600'
-              counterpartyName = 'IDRX Wallet' // Atau 'From Bank'
-
-            } else if (txType === 'WITHDRAW') {
-              // --- LOGIC WITHDRAW ---
-              configKey = 'withdraw'
-              titleText = 'Withdrawal'
-              amountPrefix = '-'
-              amountColor = 'text-orange-600'
-              counterpartyName = 'To External Account'
-
-            } else {
-              // --- LOGIC TRANSFER (P2P) ---
-              const isSent = tx.sender_phone === user?.phone_number
-              configKey = isSent ? 'transfer_sent' : 'transfer_received'
-              
-              // Tentukan nama lawan transaksi
-              // Jika kita kirim -> tampilkan nama penerima
-              // Jika kita terima -> tampilkan nama pengirim
-              counterpartyName = isSent 
-                ? (tx.receiver_name || tx.receiver_phone || 'Unknown') 
-                : (tx.sender_name || tx.sender_phone || 'Unknown')
-              
-              titleText = isSent ? `Sent to ${counterpartyName}` : `Received from ${counterpartyName}`
-              amountPrefix = isSent ? '-' : '+'
-              amountColor = isSent ? 'text-red-600' : 'text-green-600'
-            }
-
+      <div className="max-h-[400px] scrollbar-hide overflow-y-auto pr-1 space-y-2 scrollbar-hide">
+        {transactions.length === 0 ? (
+          <div className="text-center py-10 px-6 bg-white rounded-[2.5rem] border border-dashed border-black/10">
+            <Receipt className="w-12 h-12 text-black/5 mx-auto mb-3" />
+            <p className="text-xs font-bold text-black/20 tracking-widest">No activity yet</p>
+          </div>
+        ) : (
+          transactions.map(tx => {
+            const txType = tx.type?.toUpperCase() || 'TRANSFER'
+            const isSent = tx.sender_phone === user?.phone_number
+            let configKey = txType === 'TOPUP' ? 'topup' : txType === 'WITHDRAW' ? 'withdraw' : isSent ? 'transfer_sent' : 'transfer_received'
             const config = TRANSACTION_CONFIG[configKey] || TRANSACTION_CONFIG.default
             const Icon = config.icon
 
+            const counterparty = isSent ? (tx.receiver_name || tx.receiver_phone) : (tx.sender_name || tx.sender_phone)
+
             return (
-              <a 
+              <div 
                 key={tx.id} 
-                href={`${NETWORK_CONFIG.blockExplorer}/tx/${tx.tx_hash}`} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="flex justify-between items-center p-4 bg-white border border-black/5 rounded-2xl hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all group"
+                className="flex justify-between items-center p-4 bg-white border border-black/[0.03] rounded-3xl hover:border-primary/40 transition-all group"
               >
+                <div className="flex items-center gap-3 cursor-pointer flex-1" onClick={() => setSelectedTx(tx)}>
+                  <div className={`${config.bgClass} p-3 rounded-2xl group-hover:scale-105 transition-transform`}>
+                    <Icon className={`w-5 h-5 ${config.textClass}`} strokeWidth={2.5} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-black italic truncate max-w-[120px]">
+                      {txType === 'TOPUP' ? 'Wallet Top Up' : counterparty || 'System'}
+                    </p>
+                    <p className="text-[9px] font-black text-black/20 tracking-wider">
+                      {formatTime(tx.timestamp)}
+                    </p>
+                  </div>
+                </div>
+                
                 <div className="flex items-center gap-3">
-                  <div className={`${config.bgClass} p-3 rounded-xl group-hover:scale-110 transition-transform`}>
-                    <Icon className={`w-5 h-5 ${config.textClass}`} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-black/85 capitalize truncate max-w-[180px]">
-                      {titleText}
+                  <div className="text-right">
+                    <p className={`font-black text-sm tracking-tighter ${isSent ? 'text-red-500' : 'text-green-600'}`}>
+                      {isSent ? '-' : '+'}{tx.amount.toLocaleString()}
                     </p>
-                    <p className="text-xs text-black/40 font-medium">
-                        {/* Jika Topup, tampilkan sumbernya, jika transfer tampilkan waktu */}
-                        {txType === 'TOPUP' ? 'Via Top Up' : formatTime(tx.timestamp)}
-                    </p>
+                    <p className="text-[9px] font-black text-black/10">IDRX</p>
                   </div>
+                  <button 
+                    onClick={() => shareToWhatsApp(tx)}
+                    className="p-2 bg-black/5 hover:bg-primary/20 rounded-full transition-colors"
+                  >
+                    <Share2 size={12} className="text-black/30" />
+                  </button>
                 </div>
-                <div className="text-right">
-                  <p className={`font-bold text-sm ${amountColor}`}>
-                    {amountPrefix}{tx.amount} IDRX
-                  </p>
-                  <p className="text-[10px] text-black/30 mt-0.5">
-                    {formatTime(tx.timestamp)}
-                  </p>
-                </div>
-              </a>
+              </div>
             )
-          })}
+          })
+        )}
+      </div>
+
+      {selectedTx && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-sm flex flex-col gap-6">
+            
+            <div 
+              ref={receiptRef}
+              className="bg-white text-black p-10 rounded-[3rem] shadow-2xl space-y-8 relative overflow-hidden"
+            >
+              <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper.png')]"></div>
+              
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <Image src="/logo.png" alt="Saku" width={36} height={36} className="grayscale" />
+                  <p className="text-[8px] font-black tracking-[0.2em] text-black/30">Recent Receipt</p>
+                </div>
+                <div className="text-right space-y-1">
+                   <p className="text-[10px] font-bold">Saku Wallet</p>
+                   <p className="text-[8px] font-semibold text-black/30">Ref: #{String(selectedTx.id).slice(0,8).toUpperCase()}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center py-4 text-center border-y border-dashed border-black/10">
+                <CheckCircle2 size={48} className="text-green-500 mb-4" strokeWidth={3} />
+                <h2 className="text-[10px] font-black tracking-[0.3em] text-black/40 mb-1">Payment Successful</h2>
+                <p className="text-5xl font-black tracking-tighter mb-1">IDR {selectedTx.amount.toLocaleString()}</p>
+                <p className="text-[9px] font-semibold text-black/20">{new Date(selectedTx.timestamp).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })}</p>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  { label: 'Type', value: selectedTx.type?.replace('_', ' ').toUpperCase() },
+                  { label: selectedTx.sender_phone === user?.phone_number ? 'To' : 'From', value: (selectedTx.sender_phone === user?.phone_number ? (selectedTx.receiver_name || selectedTx.receiver_phone) : (selectedTx.sender_name || selectedTx.sender_phone)) || 'System' },
+                  { label: 'Fee', value: 'IDR 0 (Free)' },
+                ].map((item, i) => (
+                  <div key={i} className="flex justify-between text-[11px] items-center">
+                    <span className="text-black/30 font-black tracking-widest">{item.label}</span>
+                    <span className="font-bold italic text-black/80">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-6 border-t border-dashed border-black/10 text-center">
+                 <p className="text-[7px] font-mono text-black/30 break-all leading-relaxed">{selectedTx.tx_hash}</p>
+                 <p className="text-[8px] font-bold italic text-black/20 mt-4 tracking-widest italic">Secure On-Chain Data</p>
+              </div>
+
+              <div className="absolute top-1/2 -left-3 w-6 h-6 bg-black/5 rounded-full shadow-inner"></div>
+              <div className="absolute top-1/2 -right-3 w-6 h-6 bg-black/5 rounded-full shadow-inner"></div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => shareToWhatsApp(selectedTx)}
+                className="col-span-2 py-5 bg-[#25D366] text-white rounded-3xl font-black text-xs flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all tracking-widest"
+              >
+                <MessageCircle size={20} fill="white" /> Share
+              </button>
+              
+              <button 
+                onClick={downloadReceipt}
+                disabled={isGenerating}
+                className="py-5 bg-white text-black rounded-3xl font-black text-[10px] flex items-center justify-center gap-2 active:scale-95 transition-all tracking-widest"
+              >
+                {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} 
+                Save Image
+              </button>
+
+              <button 
+                onClick={() => setSelectedTx(null)} 
+                className="py-5 bg-black text-white rounded-3xl font-black text-[10px] flex items-center justify-center gap-2 tracking-widest"
+              >
+                <X size={16} /> Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
