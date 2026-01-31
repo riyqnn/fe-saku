@@ -44,18 +44,80 @@ export default function TransactionsPage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const receiptRef = useRef<HTMLDivElement>(null)
 
-  const shareToWhatsApp = (tx: Transaction | null = selectedTx) => {
-    if (!tx) return;
-    const isSent = tx.sender_phone === user?.phone_number;
-    const target = isSent ? (tx.receiver_name || tx.receiver_phone) : (tx.sender_name || tx.sender_phone);
-    
-    const text = `*SAKU RECEIPT*%0A` +
-                  `--------------------------%0A` +
-                  `*Amount:* IDR ${tx.amount.toLocaleString()}%0A` +
-                  `*Date:* ${new Date(tx.timestamp).toLocaleString('en-US')}%0A` +
-                  `*${isSent ? 'To' : 'From'}:* ${target}%0A` +
-                  `*Status:* Success`;
-    window.open(`https://wa.me/?text=${text}`, '_blank');
+  // Helper function to convert base64 to Blob
+  const base64ToBlob = (base64: string, type: string): Blob => {
+    const byteCharacters = atob(base64.split(',')[1]);
+    const byteArrays = [];
+    for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+      const slice = byteCharacters.slice(offset, offset + 512);
+      const byteNumbers = new Array(slice.length);
+      for (let i = 0; i < slice.length; i++) {
+        byteNumbers[i] = slice.charCodeAt(i);
+      }
+      byteArrays.push(new Uint8Array(byteNumbers));
+    }
+    return new Blob(byteArrays, { type });
+  };
+
+  const shareToWhatsApp = async (tx: Transaction | null = selectedTx) => {
+    const targetTx = tx || selectedTx;
+    if (!receiptRef.current || !targetTx) return;
+
+    setIsGenerating(true);
+    const loadingToast = toast.loading("Preparing receipt...");
+
+    try {
+      // Generate PNG from receipt element
+      const dataUrl = await toPng(receiptRef.current, {
+        cacheBust: true,
+        backgroundColor: '#f8f9fa',
+        pixelRatio: 4,
+      });
+
+      // Convert base64 to Blob directly
+      const blob = base64ToBlob(dataUrl, 'image/png');
+
+      // Create File object for sharing
+      const file = new File(
+        [blob],
+        `Saku-Receipt-${String(targetTx.id).slice(0, 8)}.png`,
+        { type: 'image/png' }
+      );
+
+      // Try Web Share API first (works on mobile - sends actual image)
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Saku Receipt',
+        });
+        toast.success("Receipt shared!");
+      } else {
+        // Fallback: Upload and share link (desktop)
+        const filename = `Saku-Receipt-${String(targetTx.id).slice(0, 8)}.png`;
+        const uploadRes = await fetch('/api/upload-receipt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: dataUrl, filename }),
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error('Upload failed');
+        }
+
+        const { url } = await uploadRes.json();
+
+        // Share just the image link
+        window.open(`https://wa.me/?text=${encodeURIComponent(url)}`, '_blank');
+        toast.success("Opening WhatsApp...");
+      }
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to share receipt.");
+    } finally {
+      toast.dismiss(loadingToast);
+      setIsGenerating(false);
+    }
   }
 
   const downloadReceipt = async () => {
@@ -155,7 +217,9 @@ export default function TransactionsPage() {
               ref={receiptRef}
               className="bg-white text-black p-6 rounded-[2.5rem] shadow-2xl space-y-5 relative"
             >
-              <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper.png')]"></div>
+              <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
+                backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 2px, #000 2px, #000 4px)`
+              }}></div>
               
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
