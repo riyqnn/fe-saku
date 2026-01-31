@@ -61,7 +61,7 @@ export default function TransactionsPage() {
     setIsGenerating(true)
     const loadingToast = toast.loading("Generating your official receipt...")
     
-    try {
+    try {    
       const dataUrl = await toPng(receiptRef.current, { 
         cacheBust: true, 
         backgroundColor: '#f8f9fa',

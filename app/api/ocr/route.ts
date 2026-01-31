@@ -6,25 +6,26 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 export async function POST(req: Request) {
   try {
     const { image } = await req.json();
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json({ success: false, error: "API Key is missing" }, { status: 500 });
-    }
-
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const prompt = `
-      Analyze this receipt image. Extract:
-      1. All line items with their name, unit price, and quantity (qty).
-      2. Total tax (PPN, Service Charge, etc).
-      3. Total discount (if any).
+      Analyze this receipt image. Extract these details:
+      1. Store/Merchant name or a brief description of the receipt (e.g., "Starbucks Coffee").
+      2. All line items with their name, unit price, and quantity (qty).
+      3. Total tax (including PPN, service charges, etc).
+      4. Total discount (if any).
 
-      Return ONLY a strict JSON object:
+      Return ONLY a JSON object:
       {
+        "description": "Merchant Name/Event",
         "items": [{"name": "Item Name", "price": 15000, "qty": 2}],
         "totalTax": 5000,
         "totalDiscount": 0
       }
-      If qty is not found, assume 1. Return ONLY raw JSON.
+      Important:
+      - If qty is not found, assume 1.
+      - Ensure all numbers are integers (no strings for prices).
+      - Return ONLY the raw JSON.
     `;
 
     const base64Content = image.split(",")[1];
