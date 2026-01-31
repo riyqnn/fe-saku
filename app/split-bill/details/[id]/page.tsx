@@ -78,9 +78,7 @@ export default function BillDetailsPage({ params }: { params: Promise<{ id: stri
       (async () => {
         const result = await transferByPhone({
           receiverPhone: bill.creator_id,
-          amount: totalToPay.toString(),
-          type: 'SPLIT_BILL_SETTLEMENT', 
-          referenceId: id
+          amount: totalToPay.toString()
         })
 
         if (!result.success) throw new Error(result.error || "Blockchain transfer failed")
