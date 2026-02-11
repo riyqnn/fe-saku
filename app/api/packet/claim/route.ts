@@ -70,6 +70,23 @@ export async function POST(request: NextRequest) {
       contract_tx_hash: receipt.hash,
     }]);
 
+    const { error: txHistoryError } = await supabase
+      .from("transactions")
+      .insert([
+        {
+          receiver_phone: phoneNumber, // User yang sedang login adalah penerima
+          receiver_wallet: profile.wallet_address,
+          amount: claimAmount,
+          tx_hash: receipt.hash,
+          block_number: receipt.blockNumber,
+          type: "PACKET_CLAIM",
+          reference_id: packet.id,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+
+    if (txHistoryError) console.error("History Insert Error:", txHistoryError);
+
     const newWinnerCount = packet.winner_count + 1;
     const newRemaining = packet.remaining_amount - claimAmount;
 

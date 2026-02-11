@@ -34,7 +34,10 @@ const TRANSACTION_CONFIG: Record<string, { icon: any; bgClass: string; textClass
   qr_created: { icon: QrCode, bgClass: "bg-purple-50", textClass: "text-purple-500", label: "QR Created" },
   qr_claimed: { icon: Receipt, bgClass: "bg-teal-50", textClass: "text-teal-500", label: "QR Payment" },
   qr_refunded: { icon: Receipt, bgClass: "bg-yellow-50", textClass: "text-yellow-500", label: "Refunded" },
+  packet_create: { icon: ArrowUpRight, bgClass: "bg-orange-50", textClass: "text-orange-500", label: "Amplop Created" },
+  packet_claim: { icon: ArrowDownLeft, bgClass: "bg-pink-50", textClass: "text-pink-500", label: "Amplop Claimed" },
 }
+
 
 export default function TransactionsPage() {
   const router = useRouter()
@@ -161,9 +164,21 @@ export default function TransactionsPage() {
 
       <main className="px-6 py-8 space-y-4 pb-32">
         {!refreshing && transactions.map((tx) => {
-          const isSent = tx.sender_phone === user?.phone_number
-          const config = TRANSACTION_CONFIG[tx.type] || TRANSACTION_CONFIG['topup']
-          const Icon = config.icon
+          // Logika isSent: Create (Uang keluar), Claim (Uang masuk)
+          const isSent = tx.sender_phone === user?.phone_number || tx.type === 'PACKET_CREATE';
+          
+          const config = TRANSACTION_CONFIG[tx.type.toLowerCase()] || TRANSACTION_CONFIG['topup'];
+          const Icon = config.icon;
+
+          // Nama yang ditampilkan
+          let displayName = config.label;
+          if (tx.type === 'TRANSFER') {
+            displayName = isSent ? (tx.receiver_name || tx.receiver_phone) : (tx.sender_name || tx.sender_phone);
+          } else if (tx.type === 'PACKET_CREATE') {
+            displayName = "Distributed Amplop";
+          } else if (tx.type === 'PACKET_CLAIM') {
+            displayName = "Claimed Amplop";
+          }
 
           return (
             <div 
@@ -177,7 +192,7 @@ export default function TransactionsPage() {
                 </div>
                 <div className="space-y-0.5">
                   <p className="font-bold text-sm text-black italic leading-tight">
-                    {isSent ? `${tx.receiver_name || tx.receiver_phone || 'User'}` : `${tx.sender_name || tx.sender_phone || config.label}`}
+                    {displayName || 'System'}
                   </p>
                   <p className="text-[9px] font-black text-black/20 tracking-widest">
                     {new Date(tx.timestamp).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })} • {tx.type.replace('_', ' ')}
