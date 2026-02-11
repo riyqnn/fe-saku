@@ -366,7 +366,206 @@ export const SAKU_REGISTRY_ABI = [
     "stateMutability": "nonpayable",
     "type": "function"
   },
-  {"stateMutability": "payable", "type": "receive"}
+  {"stateMutability": "payable", "type": "receive"},
+  // ============================================================
+  // AMPLOP (PACKET) FEATURE ABI
+  // ============================================================
+  // Amplop Events
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "bytes32", "name": "amplopId", "type": "bytes32"},
+      {"indexed": true, "internalType": "address", "name": "creator", "type": "address"},
+      {"indexed": false, "internalType": "string", "name": "senderName", "type": "string"},
+      {"indexed": false, "internalType": "uint256", "name": "totalAmount", "type": "uint256"},
+      {"indexed": false, "internalType": "uint256", "name": "maxWinners", "type": "uint256"},
+      {"indexed": false, "internalType": "uint8", "name": "distType", "type": "uint8"},
+      {"indexed": false, "internalType": "string", "name": "message", "type": "string"}
+    ],
+    "name": "AmplopCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "bytes32", "name": "amplopId", "type": "bytes32"},
+      {"indexed": true, "internalType": "address", "name": "claimer", "type": "address"},
+      {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "AmplopClaimed",
+    "type": "event"
+  },
+  // Amplop Constants
+  {
+    "inputs": [],
+    "name": "AMPLOP_EXPIRY",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MIN_WINNERS",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_WINNERS",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "amplopCounter",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  // Amplop Mappings
+  {
+    "inputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
+    "name": "amplopCreators",
+    "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
+    "name": "amplopTotalAmounts",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
+    "name": "amplopMaxWinners",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
+    "name": "amplopClaimedCount",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
+    "name": "amplopTotalClaimed",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
+    "name": "amplopDistTypes",
+    "outputs": [{"internalType": "uint8", "name": "", "type": "uint8"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
+    "name": "amplopExists",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
+    "name": "amplopCreatedAt",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
+    "name": "amplopExpiry",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "bytes32", "name": "", "type": "bytes32"},
+      {"internalType": "address", "name": "", "type": "address"}
+    ],
+    "name": "amplopHasClaimed",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  // Amplop Functions
+  {
+    "inputs": [
+      {"internalType": "string", "name": "senderName", "type": "string"},
+      {"internalType": "string", "name": "message", "type": "string"},
+      {"internalType": "uint256", "name": "totalAmount", "type": "uint256"},
+      {"internalType": "uint256", "name": "maxWinners", "type": "uint256"},
+      {"internalType": "uint8", "name": "distType", "type": "uint8"}
+    ],
+    "name": "createAmplop",
+    "outputs": [{"internalType": "bytes32", "name": "amplopId", "type": "bytes32"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "amplopId", "type": "bytes32"}],
+    "name": "claimAmplop",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "amplopId", "type": "bytes32"}],
+    "name": "getAmplop",
+    "outputs": [
+      {"internalType": "address", "name": "creator", "type": "address"},
+      {"internalType": "string", "name": "senderName", "type": "string"},
+      {"internalType": "string", "name": "message", "type": "string"},
+      {"internalType": "uint256", "name": "totalAmount", "type": "uint256"},
+      {"internalType": "uint256", "name": "maxWinners", "type": "uint256"},
+      {"internalType": "uint8", "name": "distType", "type": "uint8"},
+      {"internalType": "uint256", "name": "amountPerWinner", "type": "uint256"},
+      {"internalType": "uint256", "name": "createdAt", "type": "uint256"},
+      {"internalType": "uint256", "name": "expiry", "type": "uint256"},
+      {"internalType": "uint256", "name": "claimedCount", "type": "uint256"},
+      {"internalType": "uint256", "name": "totalClaimed", "type": "uint256"},
+      {"internalType": "bool", "name": "exists", "type": "bool"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "bytes32", "name": "amplopId", "type": "bytes32"},
+      {"internalType": "address", "name": "user", "type": "address"}
+    ],
+    "name": "hasClaimedAmplop",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "amplopId", "type": "bytes32"}],
+    "name": "getAmplopRemaining",
+    "outputs": [
+      {"internalType": "uint256", "name": "remaining", "type": "uint256"},
+      {"internalType": "uint256", "name": "remainingWinners", "type": "uint256"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "bytes32", "name": "amplopId", "type": "bytes32"}],
+    "name": "refundExpiredAmplop",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
 ] as const;
 
 export const IDRX_ABI = [

@@ -202,7 +202,7 @@ export const NETWORK_CONFIG = {
 
 ### Smart Contract
 
-**SakuRegistry** deployed at: `0xFf3157D1BE69e88F40eb105d222344b10Caa25A1`
+**SakuRegistry** deployed at: `0xeB94353ccdD59f49126205903B7Fb7A91CBD3226`
 
 ```solidity
 // contracts/saku.sol

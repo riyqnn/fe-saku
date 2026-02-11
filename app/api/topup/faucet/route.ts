@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ethers } from 'ethers'
 import { createClient } from '@supabase/supabase-js'
+import { CONTRACTS, NETWORK_CONFIG } from '@/lib/config'
 
-const IDRX_TOKEN_ADDRESS = "0x9c33242D93Bc4BCA866dFcB36FEeF81482383A56"
 const PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://rpc-amoy.polygon.technology"
 
 const TOKEN_ABI = [
-  "function faucet(address to, uint256 amount) external",
+  "function mint(address to, uint256 amount) external",
   "function decimals() public view returns (uint8)"
 ]
 
@@ -41,14 +40,14 @@ export async function POST(request: NextRequest) {
     
     const receiverPhone = userProfile ? userProfile.phone_number : null
 
-    const provider = new ethers.JsonRpcProvider(RPC_URL)
+    const provider = new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl)
     const signer = new ethers.Wallet(PRIVATE_KEY, provider)
-    const tokenContract = new ethers.Contract(IDRX_TOKEN_ADDRESS, TOKEN_ABI, signer)
+    const tokenContract = new ethers.Contract(CONTRACTS.IDRX_ADDRESS, TOKEN_ABI, signer)
 
     const decimals = await tokenContract.decimals()
     const amountInWei = ethers.parseUnits(amount.toString(), decimals)
 
-    const tx = await tokenContract.faucet(walletAddress, amountInWei)
+    const tx = await tokenContract.mint(walletAddress, amountInWei)
     const receipt = await tx.wait()
 
     await supabaseAdmin
@@ -93,6 +92,7 @@ export async function GET() {
     message: 'IDRX Top-up API',
     endpoint: '/api/topup/faucet',
     method: 'POST',
-    tokenAddress: IDRX_TOKEN_ADDRESS
+    tokenAddress: CONTRACTS.IDRX_ADDRESS,
+    network: NETWORK_CONFIG.name
   })
 }
