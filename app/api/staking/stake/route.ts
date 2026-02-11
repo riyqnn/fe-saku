@@ -76,14 +76,14 @@ export async function POST(request: NextRequest) {
     const tx = await stakingContract.stake(stakeAmount);
     const receipt = await tx.wait();
 
-    // Extract shares from event
-    let shares = BigInt(0);
+    // Extract amount from event (1:1 ratio, so stUSDC = USDC staked)
+    let stakedAmount = BigInt(0);
     if (receipt && receipt.logs) {
       for (const log of receipt.logs) {
         try {
           const parsed = stakingContract.interface.parseLog(log);
           if (parsed && parsed.name === "Staked") {
-            shares = parsed.args.shares;
+            stakedAmount = parsed.args.amount;
             break;
           }
         } catch (e) {
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       stakedAmount: amount,
-      sharesReceived: shares.toString(),
+      stUSDCReceived: fromTokenAmount(stakedAmount, IDRX_DECIMALS),
       transactionHash: receipt.hash,
     });
   } catch (error) {

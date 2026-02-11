@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ethers } from "ethers";
 import { CONTRACTS, NETWORK_CONFIG, IDRX_DECIMALS } from "@/lib/config";
 import { USDC_STAKING_ABI } from "@/lib/abi";
-import { fromTokenAmount } from "@/lib/blockchain";
+import { fromTokenAmount, toTokenAmount } from "@/lib/blockchain";
 import { validateAuth } from "@/lib/auth-middleware";
 import { hashPhoneNumber } from "@/utils/phoneHash";
 import { decrypt } from "@/utils/encrypt";
@@ -13,7 +13,7 @@ import { createSakuServerClient } from "@/lib/supabaseServer";
  * Unstake stUSDC to receive USDC back
  *
  * Body:
- * - shares: string (number of shares to unstake, or "all" to unstake everything)
+ * - amount: string (amount of stUSDC to unstake, or "all" to unstake everything)
  */
 export async function POST(request: NextRequest) {
   const supabase = await createSakuServerClient();
@@ -25,10 +25,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { shares } = body;
+    const { amount } = body;
 
-    if (!shares) {
-      return NextResponse.json({ error: "Shares amount is required" }, { status: 400 });
+    if (!amount) {
+      return NextResponse.json({ error: "Amount is required" }, { status: 400 });
     }
 
     const phoneHash = hashPhoneNumber(auth.phone!);
@@ -59,20 +59,25 @@ export async function POST(request: NextRequest) {
 
     const stakingContract = new ethers.Contract(CONTRACTS.USDC_STAKING!, USDC_STAKING_ABI, signer);
 
-    // Determine shares to unstake
-    let sharesToUnstake: bigint;
-    if (shares === "all") {
-      sharesToUnstake = await stakingContract.sharesOf(profile.wallet_address);
+    // Determine amount to unstake
+    let amountToUnstake: bigint;
+    if (amount === "all") {
+      amountToUnstake = await stakingContract.userStakedAmount(profile.wallet_address);
     } else {
-      sharesToUnstake = BigInt(shares);
+      amountToUnstake = toTokenAmount(amount, IDRX_DECIMALS);
     }
 
-    if (sharesToUnstake <= 0) {
-      return NextResponse.json({ error: "No shares to unstake" }, { status: 400 });
+    if (amountToUnstake <= 0) {
+      return NextResponse.json({ error: "No staked amount to unstake" }, { status: 400 });
     }
 
     // Unstake
-    const tx = await stakingContract.unstake(sharesToUnstake);
+    let tx;
+    if (amount === "all") {
+      tx = await stakingContract.unstakeAll();
+    } else {
+      tx = await stakingContract.unstake(amountToUnstake);
+    }
     const receipt = await tx.wait();
 
     // Extract amount from event
@@ -93,7 +98,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      sharesUnstaked: sharesToUnstake.toString(),
+      amountUnstaked: fromTokenAmount(amountToUnstake, IDRX_DECIMALS),
       amountReceived: fromTokenAmount(amountReceived, IDRX_DECIMALS),
       transactionHash: receipt.hash,
     });

@@ -138,25 +138,25 @@ export default function SplitBillPage() {
         </div>
 
         {/* Occasion Card */}
-        <section className="p-6 rounded-[2.5rem] bg-gradient-to-br from-primary/10 to-transparent border border-primary/20 space-y-6">
+        <section className="p-6 rounded-[2.5rem] bg-gradient-to-br from-primary via-amber-200 to-primary/80 border border-primary/20 space-y-6 shadow-xl shadow-primary/20">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold text-primary tracking-widest ml-1">The Occasion</p>
-            <input 
-              value={description} 
-              onChange={(e) => setDescription(e.target.value)} 
-              placeholder="Merchant / Dinner name..." 
-              className="w-full bg-transparent text-2xl font-bold italic outline-none placeholder:text-black/5" 
+            <p className="text-[10px] font-bold text-amber-900/60 tracking-widest ml-1">The Occasion</p>
+            <input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Merchant / Dinner name..."
+              className="w-full bg-transparent text-2xl font-bold italic outline-none placeholder:text-black/20 text-black/85"
             />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
-             <div className="p-4 bg-white/50 rounded-2xl border border-black/5">
-                <p className="text-[8px] font-bold text-black/40 mb-1">Tax (Rp)</p>
-                <input type="number" value={tax} onChange={(e) => setTax(e.target.value)} className="w-full bg-transparent font-bold text-sm outline-none" />
+             <div className="p-4 bg-white/30 rounded-2xl border border-white/20">
+                <p className="text-[8px] font-bold text-amber-900/60 mb-1">Tax (Rp)</p>
+                <input type="number" value={tax} onChange={(e) => setTax(e.target.value)} className="w-full bg-transparent font-bold text-sm outline-none text-amber-900" />
              </div>
-             <div className="p-4 bg-white/50 rounded-2xl border border-black/5">
-                <p className="text-[8px] font-bold text-black/40 mb-1">Discount (Rp)</p>
-                <input type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} className="w-full bg-transparent font-bold text-sm outline-none" />
+             <div className="p-4 bg-white/30 rounded-2xl border border-white/20">
+                <p className="text-[8px] font-bold text-amber-900/60 mb-1">Discount (Rp)</p>
+                <input type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} className="w-full bg-transparent font-bold text-sm outline-none text-amber-900" />
              </div>
           </div>
         </section>
@@ -294,12 +294,12 @@ export default function SplitBillPage() {
 
         {/* Submit Button (NON-STICKY) */}
         <div className="pt-10">
-            <button 
-                onClick={handleSplitSubmit} 
-                disabled={isSubmitting} 
-                className="w-full py-6 rounded-[3rem] bg-black text-primary font-black tracking-[0.2em] shadow-2xl flex items-center justify-center gap-4 active:scale-95 disabled:opacity-30 transition-all italic"
+            <button
+                onClick={handleSplitSubmit}
+                disabled={isSubmitting}
+                className="w-full py-6 rounded-[3rem] bg-primary text-black font-bold tracking-[0.2em] shadow-xl shadow-primary/30 flex items-center justify-center gap-4 active:scale-95 disabled:opacity-30 transition-all"
             >
-                {isSubmitting ? <Loader2 className="animate-spin" size={18}/> : <Send size={18} className="-rotate-45" />} 
+                {isSubmitting ? <Loader2 className="animate-spin" size={18}/> : <Send size={18} className="-rotate-45" />}
                 Dispatch Bill
             </button>
         </div>

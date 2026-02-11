@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter, usePathname } from "next/navigation"
-import { User, Home, Receipt, Users2 } from "lucide-react"
+import { User, Home, Receipt, TrendingUp } from "lucide-react"
 
 export default function BottomNavigation() {
   const router = useRouter()
@@ -10,7 +10,7 @@ export default function BottomNavigation() {
   const navItems = [
     { label: "Home", icon: Home, path: "/home" },
     { label: "Transaction", icon: Receipt, path: "/transactions" },
-    { label: "Split", icon: Users2, path: "/split-bill" },
+    { label: "Staking", icon: TrendingUp, path: "/staking" },
     { label: "Profile", icon: User, path: "/profile" },
   ]
 

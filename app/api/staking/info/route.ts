@@ -39,14 +39,11 @@ export async function GET(request: NextRequest) {
     );
 
     // Get staking info
-    const [totalStaked, totalShares, userBalance, userShares, pendingRewards, exchangeRate, minStake] =
+    const [totalStaked, userStakedAmount, pendingRewards, minStake] =
       await Promise.all([
         stakingContract.totalStaked(),
-        stakingContract.totalShares(),
-        stakingContract.balanceOf(profile.wallet_address),
-        stakingContract.sharesOf(profile.wallet_address),
-        stakingContract.pendingRewards(profile.wallet_address),
-        stakingContract.getCurrentExchangeRate(),
+        stakingContract.userStakedAmount(profile.wallet_address),
+        stakingContract.getPendingRewards(profile.wallet_address),
         stakingContract.MIN_STAKE_AMOUNT(),
       ]);
 
@@ -54,11 +51,8 @@ export async function GET(request: NextRequest) {
       success: true,
       staking: {
         totalStaked: fromTokenAmount(totalStaked, IDRX_DECIMALS),
-        totalShares: totalShares.toString(),
-        userStaked: fromTokenAmount(userBalance, IDRX_DECIMALS),
-        userShares: userShares.toString(),
+        userStaked: fromTokenAmount(userStakedAmount, IDRX_DECIMALS),
         pendingRewards: fromTokenAmount(pendingRewards, IDRX_DECIMALS),
-        exchangeRate: exchangeRate.toString(),
         minStakeAmount: fromTokenAmount(minStake, IDRX_DECIMALS),
         walletAddress: profile.wallet_address,
       },

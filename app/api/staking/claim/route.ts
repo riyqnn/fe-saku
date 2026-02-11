@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const stakingContract = new ethers.Contract(CONTRACTS.USDC_STAKING!, USDC_STAKING_ABI, signer);
 
     // Check pending rewards
-    const pendingRewards = await stakingContract.pendingRewards(profile.wallet_address);
+    const pendingRewards = await stakingContract.getPendingRewards(profile.wallet_address);
     if (pendingRewards <= 0) {
       return NextResponse.json({ error: "No rewards to claim" }, { status: 400 });
     }

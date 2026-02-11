@@ -81,8 +81,7 @@ export const USDC_STAKING_ABI = [
     "anonymous": false,
     "inputs": [
       {"indexed": true, "internalType": "address", "name": "user", "type": "address"},
-      {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"},
-      {"indexed": false, "internalType": "uint256", "name": "shares", "type": "uint256"}
+      {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
     ],
     "name": "Staked",
     "type": "event"
@@ -91,8 +90,7 @@ export const USDC_STAKING_ABI = [
     "anonymous": false,
     "inputs": [
       {"indexed": true, "internalType": "address", "name": "user", "type": "address"},
-      {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"},
-      {"indexed": false, "internalType": "uint256", "name": "shares", "type": "uint256"}
+      {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
     ],
     "name": "Unstaked",
     "type": "event"
@@ -106,17 +104,19 @@ export const USDC_STAKING_ABI = [
     "name": "RewardsClaimed",
     "type": "event"
   },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"},
+      {"indexed": false, "internalType": "uint256", "name": "duration", "type": "uint256"}
+    ],
+    "name": "RewardPoolAdded",
+    "type": "event"
+  },
   // View functions
   {
     "inputs": [],
     "name": "usdcToken",
-    "outputs": [{"internalType": "address", "name": "", "type": "address"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "stUSDC",
     "outputs": [{"internalType": "address", "name": "", "type": "address"}],
     "stateMutability": "view",
     "type": "function"
@@ -130,14 +130,28 @@ export const USDC_STAKING_ABI = [
   },
   {
     "inputs": [],
-    "name": "totalShares",
+    "name": "accRewardPerShare",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [],
-    "name": "totalRewards",
+    "name": "lastRewardTime",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "rewardRate",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "rewardEndTime",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
@@ -150,52 +164,69 @@ export const USDC_STAKING_ABI = [
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
-    "name": "balanceOf",
+    "inputs": [{"internalType": "address", "name": "", "type": "address"}],
+    "name": "userRewardDebt",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
-    "name": "sharesOf",
+    "inputs": [{"internalType": "address", "name": "", "type": "address"}],
+    "name": "userStakedAmount",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
-    "name": "pendingRewards",
+    "inputs": [{"internalType": "address", "name": "_user", "type": "address"}],
+    "name": "getPendingRewards",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "getCurrentExchangeRate",
-    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "inputs": [{"internalType": "address", "name": "_user", "type": "address"}],
+    "name": "getUserInfo",
+    "outputs": [
+      {"internalType": "uint256", "name": "staked", "type": "uint256"},
+      {"internalType": "uint256", "name": "share", "type": "uint256"}
+    ],
     "stateMutability": "view",
     "type": "function"
   },
   // Write functions
   {
-    "inputs": [{"internalType": "uint256", "name": "amount", "type": "uint256"}],
+    "inputs": [{"internalType": "uint256", "name": "_amount", "type": "uint256"}],
     "name": "stake",
-    "outputs": [{"internalType": "uint256", "name": "shares", "type": "uint256"}],
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "uint256", "name": "shares", "type": "uint256"}],
+    "inputs": [{"internalType": "uint256", "name": "_amount", "type": "uint256"}],
     "name": "unstake",
-    "outputs": [{"internalType": "uint256", "name": "amount", "type": "uint256"}],
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "unstakeAll",
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [],
     "name": "claimRewards",
-    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "compoundRewards",
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   }
