@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
         return {
           ...packet,
           claimCount: count || 0,
-          shareLink: `${process.env.NEXT_PUBLIC_BASE_URL || "https://saku.app"}/packet/claim/${packet.packet_code}`,
+          shareLink: `${origin}/packet/claim/${packet.packet_code}`,
           isExpired: new Date(packet.contract_expires_at) < new Date(),
           isFullyClaimed: packet.winner_count >= packet.max_winners || packet.remaining_amount <= 0,
         };

@@ -7,44 +7,41 @@ import { CONTRACTS, NETWORK_CONFIG, IDRX_DECIMALS } from "@/lib/config";
 import { SAKU_REGISTRY_ABI } from "@/lib/abi";
 import { fromTokenAmount } from "@/lib/blockchain";
 
-/**
- * GET /api/packet/[code]
- * Get packet information by code
- */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: any } // Gunakan any untuk fleksibilitas versi Next.js
 ) {
   const supabase = await createSakuServerClient();
+  
+  // Penanganan params untuk berbagai versi Next.js
+  const resolvedParams = await params; 
+  const codeFromUrl = resolvedParams?.code;
+
+  if (!codeFromUrl) {
+    return NextResponse.json(
+      { error: "Packet code is required in the URL path." },
+      { status: 400 }
+    );
+  }
+
+  const packetCode = codeFromUrl.trim().toUpperCase();
 
   try {
-    const packetCode = params.code?.toUpperCase();
-
-    if (!packetCode) {
-      return NextResponse.json(
-        { error: "Packet code is required" },
-        { status: 400 }
-      );
-    }
-
-    // Try to get packet from database first
+    // 1. Cari di Database
     const { data: packet, error: packetError } = await supabase
       .from("packets")
       .select("*")
       .eq("packet_code", packetCode)
       .single();
 
-    // If not in database, return error (we need the amplopId from database)
     if (packetError || !packet) {
       return NextResponse.json(
-        { error: "Packet not found" },
+        { error: `Packet "${packetCode}" tidak ditemukan.` },
         { status: 404 }
       );
     }
 
-    const amplopId = packet.packet_code_hash;
-
-    // Get fresh data from blockchain
+    // 2. Koneksi Blockchain
     const provider = new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl);
     const registryContract = new ethers.Contract(
       CONTRACTS.REGISTRY_ADDRESS,
@@ -52,10 +49,22 @@ export async function GET(
       provider
     );
 
-    // Get amplop data from blockchain
-    const amplopData = await registryContract.getAmplop(amplopId);
+    const amplopId = packet.packet_code_hash;
 
-    // Check if current user has claimed
+    // 3. Ambil data On-chain
+    const [amplopData, remainingInfo] = await Promise.all([
+      registryContract.getAmplop(amplopId),
+      registryContract.getAmplopRemaining(amplopId)
+    ]);
+
+    if (!amplopData.exists) {
+      return NextResponse.json(
+        { error: "Hash packet tidak valid di blockchain." },
+        { status: 404 }
+      );
+    }
+
+    // 4. Cek Klaim (Auth optional)
     let hasClaimed = false;
     const auth = await validateAuth(request);
     if (auth.valid && auth.phone) {
@@ -71,26 +80,6 @@ export async function GET(
       }
     }
 
-    // Get remaining info
-    const [remaining, remainingWinners] = await registryContract.getAmplopRemaining(amplopId);
-
-    // Get claimers from database
-    const { data: claims } = await supabase
-      .from("packet_claims")
-      .select("claimer_wallet_address, claimed_amount, created_at")
-      .eq("packet_id", packet.id)
-      .order("created_at", { ascending: true });
-
-    // Calculate status
-    const now = Math.floor(Date.now() / 1000);
-    const expiryTime = Number(amplopData.expiry);
-    const isExpired = now > expiryTime;
-    const isFullyClaimed = Number(amplopData.claimedCount) >= Number(amplopData.maxWinners) || remaining <= 0;
-
-    let status = "ACTIVE";
-    if (isExpired) status = "EXPIRED";
-    else if (isFullyClaimed) status = "CLAIMED";
-
     return NextResponse.json({
       success: true,
       packet: {
@@ -100,25 +89,17 @@ export async function GET(
         senderName: amplopData.senderName,
         message: amplopData.message,
         totalAmount: fromTokenAmount(amplopData.totalAmount, IDRX_DECIMALS),
-        remainingAmount: fromTokenAmount(remaining, IDRX_DECIMALS),
+        remainingAmount: fromTokenAmount(remainingInfo[0], IDRX_DECIMALS),
         maxWinners: Number(amplopData.maxWinners),
         winnerCount: Number(amplopData.claimedCount),
         distributionType: Number(amplopData.distType) === 0 ? "EQUAL" : "RANDOM",
-        status,
+        status: Number(amplopData.claimedCount) >= Number(amplopData.maxWinners) ? "CLAIMED" : "ACTIVE",
         createdAt: new Date(Number(amplopData.createdAt) * 1000).toISOString(),
-        expiresAt: new Date(expiryTime * 1000).toISOString(),
-        exists: amplopData.exists,
+        expiresAt: new Date(Number(amplopData.expiry) * 1000).toISOString(),
         hasClaimed,
-        remainingWinners: Number(remainingWinners),
-        claims: claims || [],
-        source: "blockchain",
       },
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json(
-      { error: `Failed to get packet: ${message}` },
-      { status: 500 }
-    );
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

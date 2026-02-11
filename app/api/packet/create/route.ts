@@ -186,6 +186,7 @@ export async function POST(request: NextRequest) {
     }
 
     const displayCode = packetCode || amplopId.slice(0, 8).toUpperCase();
+    const origin = request.nextUrl.origin;
 
     return NextResponse.json({
       success: true,
@@ -193,7 +194,7 @@ export async function POST(request: NextRequest) {
       amplopId,
       transactionHash: receipt.hash,
       expiresAt: new Date(expiresAt * 1000).toISOString(),
-      shareLink: `${process.env.NEXT_PUBLIC_BASE_URL || "https://saku.app"}/packet/claim/${displayCode}`,
+      shareLink: `${origin}/packet/claim/${displayCode}`,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
