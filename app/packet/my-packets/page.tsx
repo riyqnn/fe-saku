@@ -29,23 +29,22 @@ interface Packet {
 
 export default function MyPacketsPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, token } = useAuth()
 
   const [isLoading, setIsLoading] = useState(true)
   const [packets, setPackets] = useState<Packet[]>([])
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (user) {
+    if (user && token) {
       fetchPackets()
     }
-  }, [user])
+  }, [user, token])
 
   const fetchPackets = async () => {
     setIsLoading(true)
 
     try {
-      const token = localStorage.getItem("saku_auth_token")
       if (!token) {
         router.push("/get-started")
         return

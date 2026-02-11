@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import { createSakuServerClient } from "@/lib/supabaseServer";
 import { CONTRACTS, NETWORK_CONFIG, IDRX_DECIMALS } from "@/lib/config";
 import { SAKU_REGISTRY_ABI } from "@/lib/abi";
-import { fromTokenAmount } from "@/lib/blockchain";
+import { toTokenAmount, fromTokenAmount } from "@/lib/blockchain";
 import { hashPhoneNumber } from "@/utils/phoneHash";
 import { decrypt } from "@/utils/encrypt";
 import { validateAuth } from "@/lib/auth-middleware";
@@ -14,7 +14,6 @@ import { validateAuth } from "@/lib/auth-middleware";
  *
  * Body:
  * - packetCode: string (the display code, used to look up amplopId)
- * - amplopId: string (optional, the actual amplopId from blockchain)
  */
 export async function POST(request: NextRequest) {
   const supabase = await createSakuServerClient();
@@ -27,14 +26,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { packetCode, amplopId: providedAmplopId } = body;
+    const { packetCode } = body;
     const phoneNumber = auth.phone!;
 
-    if (!packetCode && !providedAmplopId) {
-      return NextResponse.json(
-        { error: "Packet code or amplopId is required" },
-        { status: 400 }
-      );
+    if (!packetCode) {
+      return NextResponse.json({ error: "Packet code is required" }, { status: 400 });
     }
 
     // Get user's profile
@@ -46,41 +42,23 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (profileError || !profile) {
-      return NextResponse.json(
-        { error: "User profile not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User profile not found" }, { status: 404 });
     }
 
-    // Get packet from database to find the amplopId
-    let amplopId = providedAmplopId;
-    let packet: any = null;
+    // Get packet from database
+    const { data: packet, error: packetError } = await supabase
+      .from("packets")
+      .select("*")
+      .eq("packet_code", packetCode.toUpperCase())
+      .single();
 
-    if (packetCode && !amplopId) {
-      const { data: packetData, error: packetError } = await supabase
-        .from("packets")
-        .select("*")
-        .eq("packet_code", packetCode.toUpperCase())
-        .single();
-
-      if (packetError || !packetData) {
-        return NextResponse.json(
-          { error: "Packet not found" },
-          { status: 404 }
-        );
-      }
-      packet = packetData;
-      amplopId = packet.packet_code_hash;
+    if (packetError || !packet) {
+      return NextResponse.json({ error: "Packet not found" }, { status: 404 });
     }
 
-    if (!amplopId) {
-      return NextResponse.json(
-        { error: "Could not find packet" },
-        { status: 404 }
-      );
-    }
+    const amplopId = packet.packet_code_hash;
 
-    // Check if already claimed
+    // Check if already claimed (from database, not contract)
     const { data: existingClaim } = await supabase
       .from("packet_claims")
       .select("id")
@@ -89,11 +67,27 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (existingClaim) {
-      return NextResponse.json(
-        { error: "You have already claimed this packet" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "You have already claimed this packet" }, { status: 400 });
     }
+
+    // Check if packet is expired
+    const now = Math.floor(Date.now() / 1000);
+    const expiryTime = Math.floor(new Date(packet.contract_expires_at).getTime() / 1000);
+    if (now > expiryTime) {
+      return NextResponse.json({ error: "This packet has expired" }, { status: 400 });
+    }
+
+    // Check if packet is fully claimed
+    if (packet.winner_count >= packet.max_winners || packet.remaining_amount <= 0) {
+      return NextResponse.json({ error: "This packet has been fully claimed" }, { status: 400 });
+    }
+
+    // Calculate claim amount OFF-CHAIN based on distribution type
+    const claimAmount = calculateClaimAmount(
+      packet.distribution_type,
+      packet.remaining_amount,
+      packet.max_winners - packet.winner_count
+    );
 
     // Decrypt private key
     let privateKey: string;
@@ -104,10 +98,7 @@ export async function POST(request: NextRequest) {
         profile.auth_tag
       );
     } catch (decryptError) {
-      return NextResponse.json(
-        { error: "Failed to decrypt private key" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Failed to decrypt private key" }, { status: 500 });
     }
 
     // Create provider and signer
@@ -116,10 +107,7 @@ export async function POST(request: NextRequest) {
 
     // Verify signer address matches profile
     if (signer.address.toLowerCase() !== profile.wallet_address.toLowerCase()) {
-      return NextResponse.json(
-        { error: "Private key does not match wallet address" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Private key does not match wallet address" }, { status: 401 });
     }
 
     // Create contract instance
@@ -129,69 +117,43 @@ export async function POST(request: NextRequest) {
       signer
     );
 
-    // Check if already claimed on blockchain
-    const hasClaimed = await registryContract.amplopHasClaimed(amplopId, profile.wallet_address);
-    if (hasClaimed) {
-      return NextResponse.json(
-        { error: "Already claimed this packet" },
-        { status: 400 }
-      );
-    }
+    // Convert claim amount to token units
+    const claimAmountToken = toTokenAmount(claimAmount.toString(), IDRX_DECIMALS);
 
-    // Claim amplop on blockchain
-    const tx = await registryContract.claimAmplop(amplopId);
+    // Claim amplop on blockchain with calculated amount
+    const tx = await registryContract.claimAmplop(amplopId, claimAmountToken);
     const receipt = await tx.wait();
 
-    // Extract claimed amount from event
-    let claimedAmount = BigInt(0);
-    if (receipt && receipt.logs) {
-      for (const log of receipt.logs) {
-        try {
-          const parsed = registryContract.interface.parseLog(log);
-          if (parsed && parsed.name === "AmplopClaimed") {
-            claimedAmount = parsed.args.amount;
-            break;
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-    }
-
-    const claimedAmountFormatted = fromTokenAmount(claimedAmount, IDRX_DECIMALS);
-
     // Save claim to database
-    if (packet) {
-      await supabase.from("packet_claims").insert([
-        {
-          packet_id: packet.id,
-          packet_code_hash: amplopId,
-          claimer_phone_hash: phoneHash,
-          claimer_wallet_address: profile.wallet_address,
-          claimed_amount: parseFloat(claimedAmountFormatted),
-          contract_tx_hash: receipt.hash,
-        },
-      ]);
+    await supabase.from("packet_claims").insert([
+      {
+        packet_id: packet.id,
+        packet_code_hash: amplopId,
+        claimer_phone_hash: phoneHash,
+        claimer_wallet_address: profile.wallet_address,
+        claimed_amount: claimAmount,
+        contract_tx_hash: receipt.hash,
+      },
+    ]);
 
-      // Update packet in database
-      const newWinnerCount = (packet.winner_count || 0) + 1;
-      const newRemainingAmount = (packet.remaining_amount || packet.total_amount) - parseFloat(claimedAmountFormatted);
-      const newStatus = newWinnerCount >= packet.max_winners || newRemainingAmount <= 0 ? "CLAIMED" : "ACTIVE";
+    // Update packet in database
+    const newWinnerCount = packet.winner_count + 1;
+    const newRemainingAmount = packet.remaining_amount - claimAmount;
+    const newStatus = newWinnerCount >= packet.max_winners || newRemainingAmount <= 0 ? "CLAIMED" : "ACTIVE";
 
-      await supabase
-        .from("packets")
-        .update({
-          winner_count: newWinnerCount,
-          remaining_amount: newRemainingAmount,
-          status: newStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", packet.id);
-    }
+    await supabase
+      .from("packets")
+      .update({
+        winner_count: newWinnerCount,
+        remaining_amount: newRemainingAmount,
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", packet.id);
 
     return NextResponse.json({
       success: true,
-      claimedAmount: claimedAmountFormatted,
+      claimedAmount: claimAmount.toString(),
       transactionHash: receipt.hash,
       packetCode,
       amplopId,
@@ -202,5 +164,34 @@ export async function POST(request: NextRequest) {
       { error: `Failed to claim packet: ${message}` },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * Calculate claim amount based on distribution type (OFF-CHAIN)
+ */
+function calculateClaimAmount(
+  distributionType: string,
+  remainingAmount: number,
+  remainingWinners: number
+): number {
+  if (remainingWinners <= 0 || remainingAmount <= 0) {
+    return 0;
+  }
+
+  if (distributionType === "EQUAL") {
+    // EQUAL: Each claimer gets the same amount
+    return Math.floor(remainingAmount / remainingWinners);
+  } else {
+    // RANDOM: Each claimer gets a random amount
+    // Ensure minimum 1 and leave enough for remaining winners
+    const minAmount = 1;
+    const maxAmount = Math.max(minAmount, remainingAmount - (remainingWinners - 1) * minAmount);
+
+    if (maxAmount <= minAmount) {
+      return minAmount;
+    }
+
+    return Math.floor(Math.random() * (maxAmount - minAmount + 1)) + minAmount;
   }
 }

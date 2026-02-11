@@ -32,7 +32,7 @@ export default function ClaimPacketPage() {
   const params = useParams()
   const packetCode = params.code as string
 
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const { refetch: refetchBalance } = useBalance(user?.wallet_address || null)
 
   const [isLoading, setIsLoading] = useState(true)
@@ -98,7 +98,12 @@ export default function ClaimPacketPage() {
   const executeClaim = async () => {
     setIsClaiming(true)
     try {
-      const token = localStorage.getItem("saku_auth_token")
+      if (!token) {
+        toast.error("Please login first")
+        router.push("/get-started")
+        return
+      }
+
       const response = await fetch("/api/packet/claim", {
         method: "POST",
         headers: {

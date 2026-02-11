@@ -11,16 +11,11 @@ export enum DistributionType {
 
 export interface AmplopDetails {
   creator: string;
-  senderName: string;
-  message: string;
-  totalAmount: string;
   maxWinners: number;
-  distType: DistributionType;
-  amountPerWinner: string;
-  createdAt: number;
-  expiry: number;
+  totalAmount: string;
   claimedCount: number;
   totalClaimed: string;
+  createdAt: number;
   exists: boolean;
 }
 
@@ -36,11 +31,9 @@ export interface ClaimAmplopResult {
 
 /**
  * Generate a random packet code
- * @param length Length of the code (default 8)
- * @returns Random alphanumeric code
  */
 export function generatePacketCode(length: number = 8): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed confusing chars (0, O, 1, I, L)
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < length; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -50,8 +43,6 @@ export function generatePacketCode(length: number = 8): string {
 
 /**
  * Validate packet code format
- * @param code Packet code to validate
- * @returns true if valid, false otherwise
  */
 export function validatePacketCode(code: string): boolean {
   return /^[A-Za-z0-9]{4,32}$/.test(code);
@@ -68,15 +59,13 @@ export function usePacket(signer: ethers.Signer | null) {
     : null;
 
   /**
-   * Create a new amplop/packet (shareable red envelope)
-   * Uses the Amplop function from the smart contract
+   * Create a new amplop/packet using SIMPLIFIED contract
+   * createAmplop(id, maxWinners, amount) - no senderName, message, distType
    */
   const createPacket = async (
-    senderName: string,
-    message: string,
+    packetCode: string,
     totalAmount: string,
-    maxWinners: number,
-    distType: DistributionType
+    maxWinners: number
   ): Promise<CreateAmplopResult> => {
     try {
       setIsCreating(true);
@@ -88,39 +77,12 @@ export function usePacket(signer: ethers.Signer | null) {
       const tokenAmount = toTokenAmount(totalAmount, IDRX_DECIMALS);
       if (tokenAmount <= BigInt(0)) throw new Error('Amount must be greater than 0');
 
-      // Create the transaction using createAmplop
-      const tx = await contract.createAmplop(
-        senderName || "",
-        message || "",
-        tokenAmount,
-        maxWinners,
-        distType
-      );
+      // Generate amplopId from packetCode using keccak256
+      const amplopId = ethers.keccak256(ethers.toUtf8Bytes(packetCode));
 
-      // Wait for transaction to be mined
+      // Create amplop with simplified function: createAmplop(id, maxWinners, amount)
+      const tx = await contract.createAmplop(amplopId, maxWinners, tokenAmount);
       const receipt = await tx.wait();
-
-      // Get the amplopId from the transaction logs
-      let amplopId = '';
-
-      if (receipt && receipt.logs) {
-        for (const log of receipt.logs) {
-          try {
-            const parsed = contract.interface.parseLog(log);
-            if (parsed && parsed.name === 'AmplopCreated') {
-              amplopId = parsed.args.amplopId;
-              break;
-            }
-          } catch (e) {
-            // Skip logs that can't be parsed
-            continue;
-          }
-        }
-      }
-
-      if (!amplopId) {
-        throw new Error('Could not extract amplopId from transaction');
-      }
 
       return { amplopId, receipt };
     } catch (err: any) {
@@ -133,9 +95,10 @@ export function usePacket(signer: ethers.Signer | null) {
   };
 
   /**
-   * Claim a packet using the amplopId
+   * Claim a packet using the amplopId and calculated amount
+   * claimAmplop(id, amount) - amount is calculated off-chain
    */
-  const claimPacket = async (amplopId: string): Promise<ClaimAmplopResult> => {
+  const claimPacket = async (amplopId: string, claimAmount: string): Promise<ClaimAmplopResult> => {
     try {
       setIsClaiming(true);
       setError(null);
@@ -143,27 +106,14 @@ export function usePacket(signer: ethers.Signer | null) {
       if (!contract) throw new Error('Wallet not connected');
       if (!amplopId) throw new Error('Amplop ID is required');
 
-      const tx = await contract.claimAmplop(amplopId);
+      const claimAmountToken = toTokenAmount(claimAmount, IDRX_DECIMALS);
+
+      // Claim with amount: claimAmplop(id, amount)
+      const tx = await contract.claimAmplop(amplopId, claimAmountToken);
       const receipt = await tx.wait();
 
-      // Extract claimed amount from event
-      let claimedAmount = BigInt(0);
-      if (receipt && receipt.logs) {
-        for (const log of receipt.logs) {
-          try {
-            const parsed = contract.interface.parseLog(log);
-            if (parsed && parsed.name === 'AmplopClaimed') {
-              claimedAmount = parsed.args.amount;
-              break;
-            }
-          } catch (e) {
-            continue;
-          }
-        }
-      }
-
       return {
-        claimedAmount: fromTokenAmount(claimedAmount, IDRX_DECIMALS),
+        claimedAmount: claimAmount,
         receipt
       };
     } catch (err: any) {
@@ -176,7 +126,7 @@ export function usePacket(signer: ethers.Signer | null) {
   };
 
   /**
-   * Get amplop details by ID
+   * Get simplified amplop details by ID
    */
   const getAmplop = async (amplopId: string): Promise<AmplopDetails> => {
     try {
@@ -186,16 +136,11 @@ export function usePacket(signer: ethers.Signer | null) {
 
       return {
         creator: amplop.creator,
-        senderName: amplop.senderName,
-        message: amplop.message,
-        totalAmount: fromTokenAmount(amplop.totalAmount, IDRX_DECIMALS),
         maxWinners: Number(amplop.maxWinners),
-        distType: Number(amplop.distType) as DistributionType,
-        amountPerWinner: fromTokenAmount(amplop.amountPerWinner, IDRX_DECIMALS),
-        createdAt: Number(amplop.createdAt),
-        expiry: Number(amplop.expiry),
+        totalAmount: fromTokenAmount(amplop.totalAmount, IDRX_DECIMALS),
         claimedCount: Number(amplop.claimedCount),
         totalClaimed: fromTokenAmount(amplop.totalClaimed, IDRX_DECIMALS),
+        createdAt: Number(amplop.createdAt),
         exists: amplop.exists,
       };
     } catch (err: any) {
@@ -206,35 +151,7 @@ export function usePacket(signer: ethers.Signer | null) {
   };
 
   /**
-   * Check if current user has claimed a packet
-   */
-  const hasClaimed = async (amplopId: string, walletAddress: string): Promise<boolean> => {
-    try {
-      if (!contract) throw new Error('Wallet not connected');
-      return await contract.hasClaimedAmplop(amplopId, walletAddress);
-    } catch (err) {
-      return false;
-    }
-  };
-
-  /**
-   * Get remaining amount and winners
-   */
-  const getAmplopRemaining = async (amplopId: string): Promise<{ remaining: string; remainingWinners: number }> => {
-    try {
-      if (!contract) throw new Error('Wallet not connected');
-      const [remaining, remainingWinners] = await contract.getAmplopRemaining(amplopId);
-      return {
-        remaining: fromTokenAmount(remaining, IDRX_DECIMALS),
-        remainingWinners: Number(remainingWinners),
-      };
-    } catch (err: any) {
-      throw err;
-    }
-  };
-
-  /**
-   * Get amplop expiry time in seconds (default: 7 days)
+   * Get amplop expiry time in seconds (1 day in simplified contract)
    */
   const getAmplopExpiry = async (): Promise<bigint> => {
     try {
@@ -248,14 +165,14 @@ export function usePacket(signer: ethers.Signer | null) {
   /**
    * Refund expired amplop (creator only)
    */
-  const refundExpiredAmplop = async (amplopId: string): Promise<ethers.ContractTransactionReceipt> => {
+  const refundAmplop = async (amplopId: string): Promise<ethers.ContractTransactionReceipt> => {
     try {
       setIsLoading(true);
       setError(null);
 
       if (!contract) throw new Error('Wallet not connected');
 
-      const tx = await contract.refundExpiredAmplop(amplopId);
+      const tx = await contract.refundAmplop(amplopId);
       const receipt = await tx.wait();
 
       return receipt;
@@ -265,33 +182,6 @@ export function usePacket(signer: ethers.Signer | null) {
       throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  /**
-   * Check if packet is expired
-   */
-  const isPacketExpired = async (amplopId: string): Promise<boolean> => {
-    try {
-      const amplop = await getAmplop(amplopId);
-      const now = Math.floor(Date.now() / 1000);
-      return amplop.expiry < now;
-    } catch (err) {
-      return false;
-    }
-  };
-
-  /**
-   * Calculate time remaining until packet expires
-   */
-  const getTimeUntilExpiry = async (amplopId: string): Promise<number> => {
-    try {
-      const amplop = await getAmplop(amplopId);
-      const now = Math.floor(Date.now() / 1000);
-      const remaining = amplop.expiry - now;
-      return remaining > 0 ? remaining : 0;
-    } catch (err) {
-      return 0;
     }
   };
 
@@ -306,11 +196,7 @@ export function usePacket(signer: ethers.Signer | null) {
     createPacket,
     claimPacket,
     getAmplop,
-    hasClaimed,
-    getAmplopRemaining,
     getAmplopExpiry,
-    refundExpiredAmplop,
-    isPacketExpired,
-    getTimeUntilExpiry,
+    refundAmplop,
   };
 }

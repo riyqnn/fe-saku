@@ -24,7 +24,7 @@ const PACKET_DESIGNS = [
 
 export default function CreatePacketPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const { formattedBalance } = useBalance(user?.wallet_address || null)
   const qrRef = useRef<HTMLDivElement>(null)
 
@@ -40,12 +40,16 @@ export default function CreatePacketPage() {
 
   const handleCreatePacket = async () => {
     if (!amount || parseFloat(amount) <= 0) return toast.error("Enter amount")
-    
+    if (!token) {
+      toast.error("Please login first")
+      router.push("/get-started")
+      return
+    }
+
     setIsLoading(true)
     const autoGenCode = generatePacketCode(8)
 
     try {
-      const token = localStorage.getItem("saku_auth_token")
       const response = await fetch("/api/packet/create", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
@@ -54,7 +58,7 @@ export default function CreatePacketPage() {
           totalAmount: parseFloat(amount),
           maxWinners: parseInt(maxWinners),
           distributionType,
-          designId: selectedDesign.id // Mengirim ID desain ke backend
+          designId: selectedDesign.id
         }),
       })
 
