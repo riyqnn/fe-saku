@@ -120,10 +120,16 @@ export async function POST(req: Request) {
 
     let receipt;
     if (withdrawAll) {
-      const tx = await registryContract.withdrawAll(phoneHash, toAddress);
-      receipt = await tx.wait();
+      // Get balance first, then withdraw the full amount
+      const balance = await idrxContract.balanceOf(wallet.address);
+      if (balance > BigInt(0)) {
+        const tx = await registryContract.withdraw(toAddress, balance);
+        receipt = await tx.wait();
+      } else {
+        return NextResponse.json({ error: 'No balance to withdraw' }, { status: 400 });
+      }
     } else {
-      const tx = await registryContract.withdraw(phoneHash, toAddress, amountBigInt);
+      const tx = await registryContract.withdraw(toAddress, amountBigInt);
       receipt = await tx.wait();
     }
 
