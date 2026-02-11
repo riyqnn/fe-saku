@@ -62,7 +62,9 @@ export async function POST(request: NextRequest) {
 
     // 5. Simpan ke Database (SESUAIKAN DENGAN SKEMA TABEL KAMU)
     // PERHATIKAN: Saya menghapus sender_name dan message karena tidak ada di tabel packets kamu
-    const { error: insertError } = await supabase
+    // 5. Simpan ke Database
+    // Tambahkan .select("id").single() untuk mendapatkan ID yang baru dibuat
+    const { data: newPacket, error: insertError } = await supabase
       .from("packets")
       .insert([
         {
@@ -77,9 +79,34 @@ export async function POST(request: NextRequest) {
           distribution_type: distributionType || "RANDOM",
           status: "ACTIVE",
           contract_tx_hash: receipt.hash,
-          contract_expires_at: new Date(Date.now() + 86400000).toISOString(), // +1 hari
+          contract_expires_at: new Date(Date.now() + 86400000).toISOString(),
+        },
+      ])
+      .select("id")
+      .single();
+
+    if (insertError) {
+      console.error("DATABASE INSERT ERROR:", insertError);
+    }
+
+    // 6. Catat ke Tabel Transactions (Riwayat)
+    // Gunakan newPacket?.id sebagai reference_id
+    const { error: txHistoryError } = await supabase
+      .from("transactions")
+      .insert([
+        {
+          sender_phone: phoneNumber,
+          sender_wallet: profile.wallet_address,
+          amount: totalAmount,
+          tx_hash: receipt.hash,
+          block_number: receipt.blockNumber,
+          type: "PACKET_CREATE",
+          reference_id: newPacket?.id, // Sekarang variabel ini sudah ada nilainya
+          timestamp: new Date().toISOString(),
         },
       ]);
+
+    if (txHistoryError) console.error("History Insert Error:", txHistoryError);
 
     if (insertError) {
       console.error("DATABASE INSERT ERROR:", insertError);
