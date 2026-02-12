@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     const { phoneNumber, receiverPhone, amount } = await req.json()
 
     if (!phoneNumber || !receiverPhone || !amount) {
-      return NextResponse.json({ error: 'Data tidak lengkap' }, { status: 400 })
+      return NextResponse.json({ error: 'Missing required data' }, { status: 400 })
     }
 
     const senderPhone = normalizePhone(phoneNumber)
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       .single()
 
     if (profileError || !profile) {
-      return NextResponse.json({ error: 'Wallet sender tidak ditemukan' }, { status: 401 })
+      return NextResponse.json({ error: 'Sender wallet not found' }, { status: 401 })
     }
 
     const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL)
@@ -51,23 +51,17 @@ export async function POST(req: Request) {
     const registryContract = new ethers.Contract(CONTRACTS.REGISTRY_ADDRESS, SAKU_REGISTRY_ABI, wallet)
     const idrxContract = new ethers.Contract(CONTRACTS.IDRX_ADDRESS, IDRX_ABI, wallet)
 
-    const senderHash = hashPhoneNumber(senderPhone)
-    const isSenderRegistered = await registryContract.isRegistered(senderHash)
-
-    if (!isSenderRegistered) {
-      const registerTx = await registryContract.register(senderHash, wallet.address)
-      await registerTx.wait()
-    }
-
     const receiverHash = hashPhoneNumber(receiverPhoneNormalized)
-    const amountBigInt = ethers.parseUnits(amount.toString(), 6)
-
     const receiverAddress = await registryContract.getAccount(receiverHash)
+
     if (receiverAddress === ethers.ZeroAddress) {
-      return NextResponse.json({ error: 'Penerima tidak terdaftar' }, { status: 400 })
+      return NextResponse.json({ error: 'Receiver is not registered on Saku Network' }, { status: 400 })
     }
 
-    let nonce = await provider.getTransactionCount(wallet.address, 'pending')
+    const safeAmount = parseFloat(amount).toFixed(6) 
+    const amountBigInt = ethers.parseUnits(safeAmount, 6) 
+
+    let nonce = await provider.getTransactionCount(wallet.address, 'latest')
     const allowance = await idrxContract.allowance(wallet.address, CONTRACTS.REGISTRY_ADDRESS)
     
     if (allowance < amountBigInt) {
@@ -76,26 +70,28 @@ export async function POST(req: Request) {
       nonce++ 
     }
 
-    // Transfer IDRX
-    const tx = await registryContract.transferIDRX(receiverHash, amountBigInt, { nonce })
+    const tx = await registryContract.transferUSDC(receiverHash, amountBigInt, { nonce })
     const receipt = await tx.wait()
 
-    if (!receipt || receipt.status !== 1) throw new Error('Transaksi blockchain gagal')
+    if (!receipt || receipt.status !== 1) throw new Error('Blockchain transaction failed')
 
-    // Insert ke Supabase
-    const { data: txData, error: txError } = await supabaseAdmin
+    const { error: dbError } = await supabaseAdmin
       .from('transactions')
       .insert({
         sender_phone: senderPhone,
         receiver_phone: receiverPhoneNormalized,
-        sender_wallet: wallet.address,
-        receiver_wallet: receiverAddress,
+        sender_wallet: wallet.address.toLowerCase(),
+        receiver_wallet: receiverAddress.toLowerCase(),
         amount: parseFloat(amount),
         tx_hash: receipt.hash,
         block_number: receipt.blockNumber,
         type: TX_TYPES.TRANSFER,
         timestamp: new Date().toISOString()
       })
+
+    if (dbError) {
+      console.error("DB Error:", dbError)
+    }
 
     return NextResponse.json({
       success: true,
@@ -107,6 +103,7 @@ export async function POST(req: Request) {
     })
 
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Transfer gagal' }, { status: 500 })
+    console.error("Transfer Fatal Error:", err)
+    return NextResponse.json({ error: err.message || 'Transfer failed' }, { status: 500 })
   }
 }

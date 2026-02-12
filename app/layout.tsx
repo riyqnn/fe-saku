@@ -40,6 +40,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`overflow-x-hidden ${geist.variable} ${geistMono.variable}`}>
+      <head>
+        <meta 
+          httpEquiv="Content-Security-Policy" 
+          content="img-src 'self' data: blob: https:; connect-src 'self' https: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;" 
+        />
+      </head>
       <body className="font-sans antialiased overflow-x-hidden">
         <MiniAppReady />
         <AuthProvider>{children}</AuthProvider>

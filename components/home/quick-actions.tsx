@@ -18,42 +18,35 @@ const quickActions = [
     id: "topup",
     label: "Top Up",
     icon: ArrowDownLeft,
-    color: "bg-amber-50 text-amber-600",
+    color: "bg-orange-100 text-[#F0A353]",
     href: "/topup",
   },
   {
     id: "transfer",
     label: "Transfer",
     icon: Send,
-    color: "bg-blue-50 text-blue-600",
+    color: "bg-blue-100 text-blue-600",
     href: "/transfer",
-  },
-  {
-    id: "pay",
-    label: "Pay",
-    icon: QrCode,
-    color: "bg-emerald-50 text-emerald-600",
-    href: "/pay",
   },
   {
     id: "packet",
     label: "Packet",
     icon: Gift,
-    color: "bg-red-50 text-red-600",
-    href: "/packet/create", // Sesuaikan dengan route Dana Kaget kamu
+    color: "bg-red-100 text-red-600",
+    href: "/packet/create",
   },
   {
     id: "split-bill",
     label: "Split Bill",
     icon: Users2,
-    color: "bg-purple-50 text-purple-600",
+    color: "bg-purple-100 text-purple-600",
     href: "/split-bill",
   },
   {
     id: "withdraw",
     label: "Withdraw",
     icon: ArrowUpRight,
-    color: "bg-slate-100 text-slate-600",
+    color: "bg-slate-200 text-slate-600",
     href: "/withdraw",
   },
 ]
@@ -69,64 +62,70 @@ export default function QuickActions() {
     try {
       setError(null)
       setLoading(actionId)
-
       if (!walletAddress) {
-        setError("Wallet belum siap. Mohon selesaikan setup.")
+        setError("Wallet setup required")
         setLoading(null)
         return
       }
-
       router.push(href)
     } catch (err) {
-      setError("Terjadi kesalahan sistem")
+      setError("System error")
       setLoading(null)
     }
   }
 
   return (
-    <div className="animate-fade-in-up font-sans px-1" style={{ animationDelay: "100ms" }}>
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-sm font-semibold text-black/40">Layanan Utama</h2>
-      </div>
+    <div className="animate-fade-in-up font-sans" style={{ animationDelay: "100ms" }}>
+      <div className="bg-white/40 backdrop-blur-xl border border-white/60 rounded-xl p-6 shadow-[0_15px_35px_rgba(240,163,83,0.08)] relative overflow-hidden">
+        
+        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl" />
 
-      {error && (
-        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-100 animate-in fade-in slide-in-from-top-2">
-          <p className="text-[11px] font-bold text-red-600">{error}</p>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-sm font-semibold text-black/40 ">Main Services</h2>
+          <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-black/5 to-transparent ml-4" />
         </div>
-      )}
 
-      <div className="grid grid-cols-4 gap-y-6 gap-x-2">
-        {quickActions.map((action, idx) => {
-          const Icon = action.icon
-          const isLoading = loading === action.id
-          const isDisabled = !walletAddress || isLoading || isCheckingWallet
+        {error && (
+          <div className="mb-4 p-3 rounded-2xl bg-red-50/80 border border-red-100 backdrop-blur-sm">
+            <p className="text-[10px] font-black text-red-600  tracking-wider text-center">{error}</p>
+          </div>
+        )}
 
-          return (
-            <button
-              key={action.id}
-              onClick={() => handleAction(action.id, action.href)}
-              disabled={isDisabled}
-              className="flex flex-col items-center group transition-all active:scale-90 disabled:opacity-50"
-              style={{ 
-                animation: `slideInUp 0.4s ease-out forwards ${idx * 50}ms`,
-                opacity: 0 
-              }}
-            >
-              <div
-                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl ${action.color} flex items-center justify-center transition-all duration-200 group-hover:shadow-md border border-black/[0.03]`}
+        <div className="grid grid-cols-4 gap-y-7 gap-x-3">
+          {quickActions.map((action, idx) => {
+            const Icon = action.icon
+            const isLoading = loading === action.id
+            const isDisabled = !walletAddress || isLoading || isCheckingWallet
+
+            return (
+              <button
+                key={action.id}
+                onClick={() => handleAction(action.id, action.href)}
+                disabled={isDisabled}
+                className="flex flex-col items-center group transition-all active:scale-95 disabled:opacity-40"
               >
-                {isLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Icon className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />
-                )}
-              </div>
-              <span className="text-[10px] sm:text-xs font-bold text-black/70 mt-2.5 tracking-tight text-center">
-                {action.label}
-              </span>
-            </button>
-          )
-        })}
+                <div
+                  className={`
+                    w-13 h-13 sm:w-15 sm:h-15 rounded-[1.4rem] ${action.color} 
+                    flex items-center justify-center transition-all duration-300 
+                    border-2 border-white shadow-sm
+                    group-hover:shadow-md group-hover:-translate-y-1 group-hover:rotate-3
+                  `}
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Icon className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />
+                  )}
+                </div>
+                
+                <span className="text-[9px] sm:text-[10px] font-black text-black/60 mt-3 text-center transition-colors group-hover:text-black">
+                  {action.label}
+                </span>
+              </button>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

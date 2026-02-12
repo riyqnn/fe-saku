@@ -1,21 +1,23 @@
 "use client"
 
 import { usePendingBills } from "@/hooks/usePendingBills"
-import { Receipt, ArrowRight, Sparkles, Loader2, User, XCircle } from "lucide-react"
+import { ArrowRight, Loader2, XCircle, Wallet, Info, AlertCircle, Edit3 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { createClient } from "@supabase/supabase-js"
+import { useAuth } from "@/hooks/useAuth"
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 export default function PendingBillsSection() {
   const router = useRouter()
-  // Note: Make sure your usePendingBills hook fetches bills where status is 'pending' OR 'rejected'
+  const { user } = useAuth()
   const { bills, loading } = usePendingBills() 
   const [creatorNames, setCreatorNames] = useState<Record<string, string>>({})
 
   useEffect(() => {
     const fetchNames = async () => {
+      // Ambil ID creator untuk bill masuk, atau debtor untuk bill yang ditolak
       const uniquePhoneNumbers = [...new Set(bills.map(b => b.creator_id))]
       if (uniquePhoneNumbers.length === 0) return
 
@@ -37,72 +39,69 @@ export default function PendingBillsSection() {
   }, [bills])
 
   if (loading) return (
-    <div className="flex items-center justify-center p-8 bg-primary/5 rounded-[2.5rem] border border-dashed border-primary/20">
-       <Loader2 className="w-5 h-5 animate-spin text-primary" />
+    <div className="flex items-center justify-center p-12">
+       <Loader2 className="w-6 h-6 animate-spin text-slate-200" />
     </div>
   )
   
   if (bills.length === 0) return null
 
   return (
-    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 font-sans">
-      <div className="flex items-center justify-between px-4">
-        <h3 className="text-[11px] font-black text-black/40 tracking-widest uppercase italic">
-          Bill Requests ({bills.length})
-        </h3>
-        <div className="p-1.5 bg-primary/20 rounded-lg">
-            <Sparkles className="w-3 h-3 text-amber-600 animate-pulse" />
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 font-sans px-2">
+      {/* Header Section */}
+      <div className="flex items-center justify-between px-2">
+        <div className="flex items-center gap-2">
+            <div className="w-1 h-4 bg-primary rounded-full" />
+            <h3 className="text-xs font-bold text-slate-900 tracking-tight">
+                Action Required
+            </h3>
         </div>
+        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-full">
+            {bills.length} task{bills.length > 1 ? 's' : ''}
+        </span>
       </div>
 
-      <div className="space-y-3">
-        {bills.map((bill) => {
-          const creatorDisplayName = creatorNames[bill.creator_id] || bill.creator_id
-          // Check if any item in this bill was rejected by you
-          // Assuming your hook provides a 'status' field for the debtor's portion
-          const isRejected = bill.status === 'rejected'
+      <div className="flex flex-col gap-2">
+      {bills.map((bill) => {
+        const isCreatorAction = bill.has_rejection && bill.creator_id === user?.phone_number;
+        const creatorDisplayName = creatorNames[bill.creator_id] || bill.creator_id;
 
-          return (
-            <button 
-              key={bill.id} 
-              onClick={() => router.push(`/split-bill/details/${bill.id}`)}
-              className={`w-full p-6 rounded-[2.5rem] bg-white border flex items-center justify-between group active:scale-95 transition-all hover:shadow-xl hover:shadow-primary/5 
-                ${isRejected ? "border-red-100 opacity-80" : "border-black/5 shadow-sm hover:border-primary/50"}`}
-            >
-              <div className="flex items-center gap-4 text-left">
-                <div className={`p-4 rounded-2xl group-hover:rotate-12 transition-transform duration-300 
-                  ${isRejected ? "bg-red-50 text-red-500" : "bg-primary text-amber-900"}`}>
-                  {isRejected ? <XCircle className="w-6 h-6" /> : <Receipt className="w-6 h-6 opacity-30" />}
-                </div>
-                <div>
-                  <p className={`text-[10px] font-black capitalize leading-none mb-1.5 flex items-center gap-1 italic 
-                    ${isRejected ? "text-red-500" : "text-amber-600"}`}>
-                    <User size={10} strokeWidth={3} />
-                    From {creatorDisplayName}
-                  </p>
-                  <p className={`text-base font-black capitalize tracking-tight ${isRejected ? "text-red-900/40" : "text-black/85"}`}>
-                    {bill.description || "Untitled bill"}
-                  </p>
-                  {isRejected && (
-                    <span className="text-[9px] font-black text-red-500 uppercase tracking-widest italic bg-red-50 px-2 py-0.5 rounded-full">
-                      Declined by you
-                    </span>
-                  )}
-                </div>
-              </div>
+        return (
+          <button 
+            key={bill.id} 
+            onClick={() => router.push(isCreatorAction ? `/split-bill/edit/${bill.id}` : `/split-bill/details/${bill.id}`)}
+            className={`w-full flex items-center gap-4 p-4 rounded-[2rem] border transition-all ${
+              isCreatorAction ? "bg-red-50 border-red-100" : "bg-white border-transparent hover:bg-slate-50 shadow-sm"
+            }`}
+          >
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-slate-100 font-bold">
+              {isCreatorAction ? "!" : creatorDisplayName.charAt(0)}
+            </div>
+            
+            <div className="flex-1 text-left">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">
+                {isCreatorAction ? "Action Required" : `From ${creatorDisplayName}`}
+              </p>
+              <h4 className="text-sm font-bold text-slate-900">{bill.description}</h4>
+            </div>
 
-              <div className="text-right flex flex-col items-end gap-1">
-                <p className={`text-sm font-black tracking-tighter italic ${isRejected ? "line-through text-black/20" : "text-black"}`}>
-                  IDR {bill.your_total_debt.toLocaleString()}
-                </p>
-                <div className="flex items-center gap-1 text-[10px] font-black text-black/30 capitalize italic">
-                  <span>{bill.items_count} items</span>
-                  <ArrowRight size={10} className="group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            </button>
-          )
-        })}
+            <div className="text-right">
+              <p className="text-sm font-bold text-slate-900">
+                {parseFloat(isCreatorAction ? bill.total_amount : bill.your_total_debt).toFixed(2)}
+              </p>
+              <span className="text-[10px] font-bold text-slate-400">USDC</span>
+            </div>
+          </button>
+        )
+      })}
+      </div>
+
+      {/* Dynamic Info Prompt */}
+      <div className="mx-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-start gap-3">
+        <Info size={14} className="text-slate-400 shrink-0 mt-0.5" />
+        <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+            Keep your finances clean. You have tasks that need your response to settle the squad's bills.
+        </p>
       </div>
     </div>
   )

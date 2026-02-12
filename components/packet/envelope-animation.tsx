@@ -73,8 +73,8 @@ export default function EnvelopeAnimation({
             <div
               className="rounded-full flex items-center justify-center relative overflow-hidden"
               style={{
-                width: "100px",
-                height: "100px",
+                width: "70px",
+                height: "70px",
                 background: "white",
                 boxShadow: "0 8px 20px rgba(0, 0, 0, 0.2)"
               }}
@@ -83,8 +83,8 @@ export default function EnvelopeAnimation({
               <Image
                 src="/logo.png"
                 alt="Logo"
-                width={100}
-                height={100}
+                width={60}
+                height={60}
                 className="object-contain"
                 priority
               />

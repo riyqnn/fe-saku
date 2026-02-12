@@ -37,31 +37,26 @@ export function useSakuQRPayment() {
     try {
       setIsLoading(true);
 
-      // 1. Validasi User Login
       if (!user?.phone_number || !token) {
         throw new Error("User tidak ditemukan. Silakan login ulang.");
       }
 
-      // 2. Parse Data QR
       const parts = qrData.split(':');
       if (parts.length < 4) throw new Error("Format QR tidak valid");
 
       const merchantPhone = parts[2];
-      const amount = parts[3];
+      const amount = parts[3]; // Ambil nominal dari hasil parsing QR
 
-      // 3. Persiapkan Data Pengirim
-      // Backend mewajibkan field 'phoneNumber' sebagai pengirim di dalam Body
       const senderPhone = normalizePhone(user.phone_number);
 
-      // 4. Panggil API Backend (/api/transfer/phone)
       const response = await fetch('/api/transfer/phone', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // Menggunakan token dari useAuth
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          phoneNumber: senderPhone, // INI WAJIB ADA sesuai backend kamu
+          phoneNumber: senderPhone,
           receiverPhone: merchantPhone,
           amount: amount
         })
@@ -73,15 +68,20 @@ export function useSakuQRPayment() {
         throw new Error(result.error || 'Pembayaran gagal');
       }
 
-      return { success: true, transactionHash: result.transactionHash };
+      // --- PERBAIKAN DI SINI ---
+      // Tambahkan amount ke dalam return object agar bisa dibaca PayPage
+      return { 
+        success: true, 
+        transactionHash: result.transactionHash,
+        amount: amount // Kirim balik amount yang berhasil dibayar
+      };
 
     } catch (err: any) {
-      // Re-throw error agar bisa ditangkap di UI (toast)
       throw err; 
     } finally {
       setIsLoading(false);
     }
-  }, [user, token]); // Dependency array penting agar user/token selalu update
+  }, [user, token]);
 
   return {
     generateQR,

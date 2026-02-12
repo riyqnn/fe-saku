@@ -1,18 +1,18 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { LogOut } from "lucide-react"
+import { LogOut, User, Users, Settings } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth" 
 import ProfileCard from "@/components/profile/profile-card"
 import FoldersManager from "@/components/profile/folders-list" 
-// Import komponen yang sama dengan Home
 import HomeHeader from "@/components/home/header"
 import BottomNavigation from "@/components/home/bottom-navigation"
 
 export default function ProfilePage() {
   const router = useRouter()
   const { isLoading, logout, isAuthenticated } = useAuth()
+  const [activeTab, setActiveTab] = useState<'profile' | 'contacts'>('profile')
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -20,44 +20,59 @@ export default function ProfilePage() {
     }
   }, [isLoading, isAuthenticated, router])
 
-  const handleLogout = async () => {
-    await logout()
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#F9EFE5] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-[#7F8790] mt-4 font-medium">Loading profile...</p>
-        </div>
-      </div>
-    )
-  }
+  if (isLoading) return (
+    <div className="min-h-screen bg-[#F9EFE5] flex items-center justify-center">
+      <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  )
 
   if (!isAuthenticated) return null
 
   return (
-    <div className="min-h-dvh bg-background animate-in fade-in duration-500">
+    <div className="min-h-dvh bg-[#FDFCFB] text-foreground animate-in fade-in duration-500">
       <HomeHeader />
 
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-8 pb-32">
-        <ProfileCard />
-
-        <div className="h-px bg-border/50" />
-
-        <FoldersManager />
-
-        <div className="space-y-4 pt-6 border-t border-border/50">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Account Settings</h3>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-6 py-4 rounded-2xl bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/30 text-red-600 font-bold transition-all border border-red-100 dark:border-red-900/30 active:scale-[0.98]"
+      <main className="max-w-lg mx-auto px-5 space-y-6">
+        
+        <div className="flex p-1 bg-muted/20 rounded-2xl border border-border/50">
+          <button 
+            onClick={() => setActiveTab('profile')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${
+              activeTab === 'profile' ? 'bg-white shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'
+            }`}
           >
-            <LogOut className="w-5 h-5" />
-            Sign Out
+            <User className="w-4 h-4" /> My Saku
+          </button>
+          <button 
+            onClick={() => setActiveTab('contacts')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${
+              activeTab === 'contacts' ? 'bg-white shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Users className="w-4 h-4" /> Contacts
           </button>
         </div>
+
+        {activeTab === 'profile' ? (
+          <div className="space-y-8 animate-in slide-in-from-bottom-2 duration-300">
+            <ProfileCard />
+            
+            {/* <div className="space-y-4 pt-4">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Danger Zone</h3>
+              <button
+                onClick={() => logout()}
+                className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-red-50 text-red-600 font-bold transition-all border border-red-100 active:scale-[0.98]"
+              >
+                <LogOut className="w-5 h-5" />
+                Sign Out
+              </button>
+            </div> */}
+          </div>
+        ) : (
+          <div className="animate-in slide-in-from-bottom-2 duration-300">
+            <FoldersManager />
+          </div>
+        )}
       </main>
 
       <BottomNavigation />

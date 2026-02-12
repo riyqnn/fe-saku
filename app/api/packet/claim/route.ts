@@ -15,8 +15,6 @@ import { validateAuth } from "@/lib/auth-middleware";
  * Body:
  * - packetCode: string (the display code, used to look up amplopId)
  */
-// ... (import tetap sama)
-
 export async function POST(request: NextRequest) {
   const supabase = await createSakuServerClient();
 

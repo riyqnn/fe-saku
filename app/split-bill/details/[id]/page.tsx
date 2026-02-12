@@ -1,18 +1,22 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, use, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { 
   ArrowLeft, Loader2, Wallet, Info, CheckCircle2, 
-  Clock, Users, PartyPopper, XCircle, Edit3 
+  Clock, Users, PartyPopper, XCircle, Edit3, ChevronRight,
+  Receipt, User, ListFilter
 } from "lucide-react"
 import { createClient } from "@supabase/supabase-js"
 import { useAuth } from "@/hooks/useAuth"
 import { hashPhoneNumber } from "@/utils/phoneHash"
 import { useSakuTransfer } from "@/hooks/useSakuTransfer" 
 import { toast } from "sonner"
+import SuccessStep from "@/components/transfer/steps/success-step"
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+
+type TabType = "pay" | "details"
 
 export default function BillDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
@@ -20,312 +24,307 @@ export default function BillDetailsPage({ params }: { params: Promise<{ id: stri
   const router = useRouter()
   const { user } = useAuth()
   
-  const { transferByPhone, loading: isPaying } = useSakuTransfer()
+  const { transferByPhone, loading: isPayingOnChain } = useSakuTransfer()
 
+  const [activeTab, setActiveTab] = useState<TabType>("pay")
   const [bill, setBill] = useState<any>(null)
-  const [creatorName, setCreatorName] = useState<string | null>(null)
+  const [profiles, setProfiles] = useState<Record<string, string>>({})
   const [allBillItems, setAllBillItems] = useState<any[]>([])
   const [fetching, setFetching] = useState(true)
   const [isSuccess, setIsSuccess] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
+  const [creatorName, setCreatorName] = useState<string | null>(null);
 
-  const myHash = user?.phone_number ? hashPhoneNumber(user.phone_number) : ""
+  const myHash = useMemo(() => user?.phone_number ? hashPhoneNumber(user.phone_number) : "", [user])
   const isCreator = bill?.creator_id === user?.phone_number
 
-  useEffect(() => {
-    const fetchDetails = async () => {
-      if (!user?.phone_number || !id) return
-      try {
-        const { data: header } = await supabase.from('split_bills').select('*').eq('id', id).single()
-        
-        if (header) {
-          setBill(header)
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('phone_number', header.creator_id)
-            .single()
-          setCreatorName(profile?.full_name || header.creator_id)
-        }
-        
-        const { data: allItems } = await supabase
-          .from('split_bill_items')
-          .select('*')
-          .eq('bill_id', id)
+  const fetchDetails = async () => {
+    if (!user?.phone_number || !id) return
+    try {
+      const { data: header } = await supabase.from('split_bills').select('*').eq('id', id).single()
+      if (!header) return
+      setBill(header)
 
-        setAllBillItems(allItems || [])
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setFetching(false)
-      }
+      const { data: allItems } = await supabase.from('split_bill_items').select('*').eq('bill_id', id)
+      setAllBillItems(allItems || [])
+
+      const uniqueHashes = [...new Set((allItems || []).map(i => i.debtor_phone_hash))]
+      const { data: profs } = await supabase.from('profiles').select('phone_hash, full_name').in('phone_hash', uniqueHashes)
+      
+      const profMap: Record<string, string> = {}
+      profs?.forEach(p => { profMap[p.phone_hash] = p.full_name })
+      setProfiles(profMap)
+
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setFetching(false)
     }
+  }
+
+  useEffect(() => {
     fetchDetails()
   }, [user, id])
 
-  const myPendingItems = allBillItems.filter(item => item.debtor_phone_hash === myHash && item.status !== 'paid' && item.status !== 'rejected')
-  const totalToPay = myPendingItems.reduce((acc, item) => acc + item.amount, 0)
+  // --- CALCULATIONS ---
+  const groupedFullItems = useMemo(() => {
+    return allBillItems.reduce((acc: any[], item) => {
+      const existing = acc.find(i => i.item_name === item.item_name)
+      if (existing) {
+        existing.eaters.push(item.debtor_phone_hash)
+        existing.total_item_price += item.amount
+      } else {
+        acc.push({ item_name: item.item_name, total_item_price: item.amount, eaters: [item.debtor_phone_hash] })
+      }
+      return acc;
+    }, [])
+  }, [allBillItems])
 
-  // FIX: Properly defining rejected items and the boolean check
-  const rejectedItems = allBillItems.filter(item => item.status === 'rejected')
-  const hasRejection = rejectedItems.length > 0
+  const myItems = allBillItems.filter(i => i.debtor_phone_hash === myHash)
+  const myPendingItems = myItems.filter(i => i.status !== 'paid' && i.status !== 'rejected')
   
-  const paidItemsCount = allBillItems.filter(i => i.status === 'paid').length
-  const totalItemsCount = allBillItems.length
-  const progressPercent = totalItemsCount > 0 ? (paidItemsCount / totalItemsCount) * 100 : 0
+  const mySubtotal = myItems.reduce((acc, i) => acc + i.amount, 0)
+  
+  // Perhitungan Pajak & Diskon Proporsional
+  const subtotalMeja = useMemo(() => bill ? bill.total_amount - bill.tax_amount + bill.discount_amount : 0, [bill])
+  const myTaxShare = useMemo(() => subtotalMeja > 0 ? (mySubtotal / subtotalMeja) * bill.tax_amount : 0, [mySubtotal, subtotalMeja, bill])
+  const myDiscountShare = useMemo(() => subtotalMeja > 0 ? (mySubtotal / subtotalMeja) * bill.discount_amount : 0, [mySubtotal, subtotalMeja, bill])
 
+  // FINAL TOTAL YANG HARUS DIBAYAR (Netto)
+  const myFinalTotal = useMemo(() => mySubtotal + myTaxShare - myDiscountShare, [mySubtotal, myTaxShare, myDiscountShare])
+  const myTotalToPay = myPendingItems.length > 0 ? myFinalTotal : 0
+
+  const isAlreadyRejected = myItems.some(i => i.status === 'rejected')
+  const progressPercent = allBillItems.length > 0 ? (allBillItems.filter(i => i.status === 'paid').length / allBillItems.length) * 100 : 0
+
+  // --- ACTIONS ---
   const handleSettlement = async () => {
-      if (!bill || totalToPay <= 0) return
+    if (!bill || myTotalToPay <= 0) return
 
-      toast.promise(
-        (async () => {
-          // 1. Proses Transfer On-Chain
-          const result = await transferByPhone({
-            receiverPhone: bill.creator_id,
-            amount: totalToPay.toString()
-          })
+    toast.promise(
+      (async () => {
+        const result = await transferByPhone({
+          receiverPhone: bill.creator_id,
+          amount: myTotalToPay.toString()
+        })
 
-          if (!result.success) throw new Error(result.error || "Blockchain transfer failed")
+        if (!result.success) throw new Error(result.error || "Payment failed")
 
-          // 2. Update status item milik user menjadi 'paid'
-          const { error: updateError } = await supabase
-            .from('split_bill_items')
-            .update({ status: 'paid', is_paid: true })
-            .eq('bill_id', id)
-            .eq('debtor_phone_hash', myHash)
+        const { error: updateError } = await supabase
+          .from('split_bill_items')
+          .update({ status: 'paid', is_paid: true })
+          .eq('bill_id', id)
+          .eq('debtor_phone_hash', myHash)
 
-          if (updateError) throw new Error("Status update failed.")
+        if (updateError) throw updateError
 
-          // 3. Cek apakah ini adalah item terakhir yang perlu dibayar
-          // Kita ambil data terbaru dari database setelah update tadi
-          const { data: latestItems } = await supabase
-            .from('split_bill_items')
-            .select('status')
-            .eq('bill_id', id)
-
-          const allSettled = latestItems?.every(item => item.status === 'paid')
-
-          // 4. Jika semua sudah 'paid', update header split_bills menjadi 'paid'
-          if (allSettled) {
-            await supabase
-              .from('split_bills')
-              .update({ status: 'paid' })
-              .eq('id', id)
-          }
-
-          setIsSuccess(true)
-          setTimeout(() => router.push('/home'), 3000)
-          return result
-        })(),
-        {
-          loading: 'Processing on-chain payment...',
-          success: 'Payment Success! 💸',
-          error: (err) => `Error: ${err.message}`
+        const { data: latestItems } = await supabase.from('split_bill_items').select('status').eq('bill_id', id)
+        if (latestItems?.every(item => item.status === 'paid')) {
+          await supabase.from('split_bills').update({ status: 'paid' }).eq('id', id)
         }
-      )
-    }
+
+        setIsSuccess(true)
+        setTimeout(() => router.push('/home'), 3000)
+        return result
+      })(),
+      {
+        loading: 'Authorizing blockchain transaction...',
+        success: 'USDC Sent Successfully! 💸',
+        error: (err) => `Payment Error: ${err.message}`
+      }
+    )
+  }
 
   const handleReject = async () => {
-    const confirmReject = window.confirm("Are you sure this isn't your bill? The creator will be notified.")
-    if (!confirmReject) return
-
+    const reasons = ["This isn't my bill", "Items are incorrect", "Amount is wrong", "Other"]
+    const reasonIndex = window.prompt(`Why are you declining?\n` + reasons.map((r, i) => `${i + 1}. ${r}`).join("\n"))
+    if (reasonIndex === null) return
+    
     setIsRejecting(true)
     try {
-      const response = await fetch('/api/split-bill/reject', {
+      await fetch('/api/split-bill/reject', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ billId: id, phoneHash: myHash })
+        body: JSON.stringify({ billId: id, phoneHash: myHash, reason: reasons[parseInt(reasonIndex)-1] || "Other" })
       })
-
-      if (!response.ok) throw new Error("Failed to reject bill")
-
-      toast.success("Bill portion declined. Returning home...")
-      setTimeout(() => router.push('/home'), 2000)
-    } catch (err: any) {
-      toast.error(err.message)
-    } finally {
+      toast.success("Bill portion declined")
+      router.push('/home')
+    } catch (err) {
       setIsRejecting(false)
     }
   }
 
-  if (fetching) return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
-    </div>
-  )
+  if (fetching) return <div className="min-h-screen flex items-center justify-center bg-white"><Loader2 className="w-6 h-6 animate-spin text-slate-200" /></div>
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-primary flex items-center justify-center p-6 text-center z-[100] fixed inset-0">
-        <div className="max-w-md w-full bg-white rounded-[3rem] p-12 shadow-2xl space-y-6 animate-in zoom-in duration-500">
-          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <PartyPopper className="w-12 h-12 text-green-600 animate-bounce" />
-          </div>
-          <h1 className="text-4xl font-black italic tracking-tighter text-black">Paid!</h1>
-          <div className="space-y-2">
-            <p className="text-sm font-bold text-black/60">Your portion of <span className="text-black font-black italic">"{bill?.description}"</span> is settled.</p>
-            <p className="text-[10px] font-bold text-primary tracking-widest italic">On-chain transaction confirmed</p>
-          </div>
-          <div className="pt-4 flex items-center justify-center gap-2 text-black/20 animate-pulse">
-            <Loader2 size={14} className="animate-spin" />
-            <span className="text-[9px] font-black tracking-widest">Returning to Home...</span>
-          </div>
-        </div>
-      </div>
+      <SuccessStep
+        txHash={null} 
+        receiverName={creatorName || "Creator"}
+        receiverPhone={bill?.creator_id || ""}
+        amount={myFinalTotal.toString()}
+        billDescription={bill?.description || "Split Bill"}
+        onComplete={() => router.push('/home')}
+      />
     )
   }
 
   return (
-    <div className="min-h-screen h-dvh bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans">
-      <div className="p-6 flex items-center justify-between border-b border-border sticky top-0 bg-white/80 backdrop-blur-md z-30">
-        <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="p-2 hover:bg-black/5 rounded-xl transition-all">
-            <ArrowLeft className="w-6 h-6 text-black" />
-          </button>
-          <h1 className="text-xl font-black italic tracking-tight">Bill Detail</h1>
-        </div>
-        {isCreator && (
-          <div className="px-3 py-1 bg-black rounded-full">
-            <p className="text-[10px] font-black text-primary tracking-widest italic">Creator View</p>
-          </div>
-        )}
+    <div className="min-h-screen bg-white flex flex-col max-w-lg mx-auto border-x border-slate-50 font-sans pb-32">
+      <div className="px-6 py-5 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-md z-30 border-b border-slate-50">
+        <button onClick={() => router.back()} className="p-2.5 bg-slate-50 rounded-xl hover:bg-slate-100 transition-all text-slate-600">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <h1 className="text-sm font-bold text-slate-900 uppercase tracking-widest text-center">Bill Details</h1>
+        <div className="w-10" /> 
       </div>
 
-      <main className="p-6 space-y-6 flex-1">
-        {/* REJECTION ALERT FOR CREATOR */}
-        {isCreator && hasRejection && (
-          <div className="p-5 bg-red-50 border-2 border-red-100 rounded-[2.5rem] animate-in slide-in-from-top duration-500">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-red-500 rounded-full text-white shadow-lg shadow-red-200">
-                <XCircle size={16} />
-              </div>
-              <div className="space-y-2">
-                <p className="text-[11px] font-black text-red-600 tracking-widest italic">Action Required</p>
-                <p className="text-xs font-bold text-red-900/70 leading-relaxed">
-                  A member declined their portion. You may have the wrong phone number or incorrect amount.
-                </p>
-                <button 
-                  onClick={() => router.push(`/split-bill/edit/${id}`)}
-                  className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl text-[10px] font-black text-red-600 border border-red-100 shadow-sm active:scale-95 transition-all italic"
-                >
-                  <Edit3 size={12} /> Edit Bill Details
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <section className={`p-8 rounded-[2.5rem] shadow-xl transition-all ${isCreator ? "bg-black text-white" : "bg-gradient-to-br from-primary via-amber-200 to-primary/80"}`}>
-          <div className="space-y-4">
-            <div>
-              <p className={`text-[10px] font-bold tracking-[0.2em] opacity-60`}>
-                {isCreator ? "Collection Progress" : `Pay to ${creatorName}`}
+      <main className="flex-1 overflow-y-auto">
+        <div className="p-6">
+          <section className={`p-8 rounded-[2.5rem] border transition-all ${isCreator ? "bg-slate-900 border-slate-800 shadow-xl" : "bg-primary/10 border-primary/20"}`}>
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${isCreator ? "text-slate-400" : "text-primary"}`}>
+                  {isCreator ? "Collection Progress" : "Your Total Share"}
               </p>
-              <p className="text-4xl font-black italic tracking-tighter mt-1">
-                {isCreator ? `${Math.round(progressPercent)}%` : `IDR ${totalToPay.toLocaleString()}`}
+              <div className="flex items-baseline gap-1.5 mt-1">
+                  <span className={`text-4xl font-bold tracking-tight ${isCreator ? "text-white" : "text-slate-900"}`}>
+                      {/* Tampilkan MyFinalTotal yang sudah kena Tax & Discount */}
+                      {isCreator ? `${Math.round(progressPercent)}%` : myFinalTotal.toFixed(2)}
+                  </span>
+                  {!isCreator && <span className="text-sm font-bold text-slate-400 uppercase">usdc</span>}
+              </div>
+              <p className="text-[9px] font-medium text-slate-500 mt-1 uppercase tracking-tighter">
+                {!isCreator && "Tax & Discount included"}
               </p>
-            </div>
-            {isCreator ? (
-              <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
-                <div className="bg-primary h-full transition-all duration-1000" style={{ width: `${progressPercent}%` }} />
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-black/5 rounded-full w-fit text-[10px] font-bold italic">
-                <Info size={12} /> TAX & DISCOUNT INCLUDED
-              </div>
-            )}
+              {isCreator && (
+                  <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-6">
+                      <div className="bg-primary h-full transition-all duration-1000 ease-out" style={{ width: `${progressPercent}%` }} />
+                  </div>
+              )}
+          </section>
+        </div>
+
+        <div className="px-6 mb-6">
+          <div className="flex p-1 bg-slate-100 rounded-2xl">
+            <button onClick={() => setActiveTab("pay")} className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'pay' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400"}`}>
+              <Wallet size={14} /> My Portion
+            </button>
+            <button onClick={() => setActiveTab("details")} className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'details' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400"}`}>
+              <Receipt size={14} /> Full Details
+            </button>
           </div>
-        </section>
+        </div>
 
-        <section className="bg-white rounded-[3rem] p-8 border border-black/5 shadow-sm space-y-8">
-          <div className="text-center space-y-1">
-            <h2 className="text-2xl font-black italic tracking-tight capitalize">{bill?.description || "Shared Bill"}</h2>
-            <p className="text-[10px] font-bold text-black/30 tracking-[0.2em]">
-              {bill?.created_at ? new Date(bill.created_at).toLocaleDateString('en-US', { dateStyle: 'long' }) : ""}
-            </p>
-          </div>
-
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h3 className="text-[10px] font-bold text-black/40 tracking-widest italic">Itemized Breakdown</h3>
-                <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary italic">
-                  <Users size={12} /> {allBillItems.length} ITEMS
-                </div>
-            </div>
-
-            <div className="space-y-4">
-              {allBillItems.map((item) => {
-                const isMine = item.debtor_phone_hash === myHash
-                const isItemRejected = item.status === 'rejected'
-                
-                return (
-                  <div key={item.id} className={`flex justify-between items-center group ${isItemRejected ? "opacity-40" : ""}`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center 
-                        ${isItemRejected ? "bg-red-50 text-red-500" : 
-                          item.status === 'paid' ? "bg-green-100 text-green-600" : "bg-muted text-black/20"}`}>
-                        {isItemRejected ? <XCircle size={16} /> : item.status === 'paid' ? <CheckCircle2 size={16} /> : <Clock size={16} />}
+        <div className="px-6 space-y-8">
+          {activeTab === "pay" ? (
+            <div className="space-y-6 animate-in slide-in-from-left-2 duration-300">
+              <div className="space-y-4">
+                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Items assigned to you</h3>
+                <div className="bg-white rounded-3xl border border-slate-100 divide-y divide-slate-50 shadow-sm">
+                  {myItems.map((item) => (
+                    <div key={item.id} className="p-5 flex justify-between items-center">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.status === 'paid' ? "bg-emerald-50 text-emerald-500" : "bg-slate-50 text-slate-400"}`}>
+                          {item.status === 'paid' ? <CheckCircle2 size={18} /> : <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-slate-800 truncate lowercase">{item.item_name}</p>
+                          <p className="text-[10px] font-medium text-slate-400">Splitted share</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className={`text-sm font-bold capitalize ${isMine ? "text-primary" : "text-black"}`}>
-                          {item.item_name} {isItemRejected && <span className="text-[9px] text-red-600 italic font-black ml-1">Rejected</span>}
-                        </p>
-                        <p className="text-[9px] font-bold text-black/30 tracking-widest">
-                          {isItemRejected ? "Declined by member" : item.status === 'paid' ? "Paid" : "Pending"}
-                        </p>
+                      <p className="text-sm font-bold text-slate-900">{item.amount.toFixed(2)}</p>
+                    </div>
+                  ))}
+                  {myItems.length === 0 && <div className="p-10 text-center text-slate-400 text-xs italic lowercase">no items assigned to you.</div>}
+                </div>
+              </div>
+
+              <div className="px-5 py-6 bg-slate-50 rounded-[2.5rem] border border-slate-100 space-y-3 shadow-inner shadow-black/[0.02]">
+                <div className="flex justify-between text-xs font-medium text-slate-500 lowercase">
+                  <span>your items subtotal</span>
+                  <span className="font-bold text-slate-900">{mySubtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-xs font-medium text-slate-400 lowercase">
+                  <span>your tax share (prop.)</span>
+                  <span className="text-slate-600">+{myTaxShare.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-xs font-medium text-emerald-500 lowercase">
+                  <span>your discount share</span>
+                  <span>-{myDiscountShare.toFixed(2)}</span>
+                </div>
+                <div className="pt-4 border-t border-slate-200 flex justify-between items-baseline">
+                  <span className="text-sm font-bold text-slate-900 lowercase">total payable</span>
+                  <div className="flex items-baseline gap-1">
+                      <span className="text-2xl font-bold text-slate-900">{myFinalTotal.toFixed(2)}</span>
+                      <span className="text-[10px] font-bold text-slate-400">USDC</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6 animate-in slide-in-from-right-2 duration-300">
+              <div className="space-y-4">
+                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Squad breakdown</h3>
+                <div className="bg-white rounded-3xl border border-slate-100 divide-y divide-slate-50 shadow-sm">
+                  {groupedFullItems.map((item, idx) => (
+                    <div key={idx} className="p-5 space-y-3">
+                      <div className="flex justify-between items-start gap-4">
+                        <p className="text-sm font-bold text-slate-800 lowercase truncate flex-1">{item.item_name}</p>
+                        <p className="text-sm font-bold text-slate-900">{item.total_item_price.toFixed(2)}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {item.eaters.map((eHash: string, i: number) => (
+                          <span key={i} className={`text-[9px] px-2 py-0.5 rounded-lg border font-bold lowercase ${eHash === myHash ? "bg-primary text-slate-900 border-primary shadow-sm" : "bg-slate-50 border-slate-200 text-slate-400"}`}>
+                            {eHash === myHash ? "me" : (profiles[eHash] || "user").split(' ')[0].toLowerCase()}
+                          </span>
+                        ))}
                       </div>
                     </div>
-                    <p className={`text-sm font-black italic ${isItemRejected ? "line-through text-black/20" : ""}`}>
-                      Rp {item.amount.toLocaleString()}
-                    </p>
-                  </div>
-                )
-              })}
-            </div>
+                  ))}
+                </div>
+              </div>
 
-            <div className="border-t-2 border-dashed border-black/5 pt-6 space-y-3">
-              <div className="flex justify-between text-[11px] font-bold text-black/40 tracking-widest">
-                <span>Total Tax</span>
-                <span>Rp {bill?.tax_amount?.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-[11px] font-bold text-amber-600 tracking-widest">
-                <span>Total Discount</span>
-                <span>-Rp {bill?.discount_amount?.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between pt-4 border-t border-black/5">
-                <span className="text-sm font-black italic">Grand Total</span>
-                <span className="text-lg font-black italic text-black">Rp {bill?.total_amount?.toLocaleString()}</span>
+              <div className="px-5 py-2 space-y-3">
+                <div className="flex justify-between text-xs font-medium text-slate-400 lowercase">
+                  <span>grand tax amount</span>
+                  <span>{bill?.tax_amount?.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-xs font-medium text-emerald-500 lowercase">
+                  <span>grand discounts</span>
+                  <span>-{bill?.discount_amount?.toFixed(2)}</span>
+                </div>
+                <div className="pt-4 border-t border-slate-100 flex justify-between items-baseline">
+                  <span className="text-sm font-bold text-slate-900 lowercase">total master receipt</span>
+                  <div className="flex items-baseline gap-1">
+                      <span className="text-xl font-bold text-slate-900">{bill?.total_amount?.toFixed(2)}</span>
+                      <span className="text-[10px] font-bold text-slate-400">USDC</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          )}
+        </div>
       </main>
 
-      {!isCreator && totalToPay > 0 && (
-        <div className="p-6 bg-white/80 backdrop-blur-xl border-t border-border sticky bottom-0 z-30 space-y-4">
+      {!isCreator && myTotalToPay > 0 && !isAlreadyRejected && activeTab === 'pay' && (
+        <div className="p-6 bg-white/90 backdrop-blur-xl border-t border-slate-100 sticky bottom-0 z-30 space-y-4">
           <button 
             onClick={handleSettlement}
-            disabled={isPaying || isRejecting}
-            className="w-full py-6 rounded-[3rem] bg-black text-primary font-black tracking-[0.2em] shadow-2xl flex items-center justify-center gap-4 active:scale-95 disabled:opacity-30 transition-all italic"
+            disabled={isPayingOnChain || isRejecting}
+            className="w-full py-5 rounded-2xl bg-slate-900 text-white font-bold text-sm shadow-xl flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-30 transition-all"
           >
-            {isPaying ? <Loader2 className="animate-spin" size={18}/> : <Wallet size={18}/>} 
-            Settle My Portion
+            {isPayingOnChain ? <Loader2 className="animate-spin" size={18}/> : <Wallet size={16}/>} 
+            pay {myFinalTotal.toFixed(2)} USDC
           </button>
           
-          <button 
-            onClick={handleReject}
-            disabled={isPaying || isRejecting}
-            className="w-full py-2 text-[10px] font-black text-black/20 hover:text-red-500 tracking-widest flex items-center justify-center gap-2 transition-all italic"
-          >
-            {isRejecting ? <Loader2 className="animate-spin" size={12}/> : <XCircle size={12}/>}
-            This is not my bill
+          <button onClick={handleReject} disabled={isPayingOnChain || isRejecting} className="w-full py-2 text-[10px] font-bold text-slate-400 hover:text-red-500 transition-all uppercase tracking-widest">
+            {isRejecting ? <Loader2 className="animate-spin" size={12}/> : "this isn't my bill"}
           </button>
         </div>
       )}
 
-      {isCreator && progressPercent < 100 && !hasRejection && (
-        <div className="px-6 text-center">
-          <p className="text-[10px] font-bold text-black/30 tracking-widest italic">Waiting for members to settle...</p>
+      {!isCreator && isAlreadyRejected && (
+        <div className="p-6 bg-slate-50 border-t border-slate-100 sticky bottom-0 z-30 text-center">
+            <p className="text-xs font-semibold text-red-500 lowercase tracking-widest">you have declined this bill</p>
         </div>
       )}
     </div>

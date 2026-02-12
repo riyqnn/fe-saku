@@ -3,132 +3,170 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { 
-  QrCode, Scan, CheckCircle, Loader2, 
-  Camera, X, Wallet, Sparkles, Copy, Check
+  QrCode, Scan, Loader2, Camera, X, Wallet, 
+  Sparkles, Copy, Check, Image as ImageIcon, Download
 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { useSakuQRPayment } from "@/hooks/useSakuQRPayment"
-import { useBalance } from "@/hooks/useBalance"
 import { QRCodeSVG } from "qrcode.react" 
 import { toast } from "sonner"
 import { Html5Qrcode } from "html5-qrcode"
+import { toPng } from "html-to-image"
 import Header from "@/components/layout/Header"
+import SuccessStep from "@/components/transfer/steps/success-step"
 
 export default function PayPage() {
   const router = useRouter()
   const { user } = useAuth()
   const { generateQR, claimPayment, loading: qrLoading } = useSakuQRPayment()
-  const { formattedBalance, refetch: refetchBalance } = useBalance(user?.wallet_address || null)
 
-  const [activeTab, setActiveTab] = useState<"receive" | "pay">("receive")
-
+  const [activeTab, setActiveTab] = useState<"scan" | "receive">("scan")
   const [amount, setAmount] = useState("")
   const [qrData, setQrData] = useState<string | null>(null)
   const [payInput, setPayInput] = useState("")
-  const [success, setSuccess] = useState(false)
+  const [successData, setSuccessData] = useState<{amount: string, txHash: string} | null>(null)
   const [isScannerActive, setIsScannerActive] = useState(false)
-  const [isCopied, setIsCopied] = useState(false)
   
+  // Refs for scanner management
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const isTransitioning = useRef(false)
+  const qrRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // --- SCANNER LOGIC WITH SAFETY CHECKS ---
   const startScanner = async () => {
-    if (isTransitioning.current) return
+    if (isTransitioning.current || scannerRef.current?.isScanning) return
     
+    isTransitioning.current = true
     try {
+      // Pastikan element "reader" ada sebelum init
       const element = document.getElementById("reader")
       if (!element) return
 
       const html5QrCode = new Html5Qrcode("reader")
       scannerRef.current = html5QrCode
-      setIsScannerActive(true)
-
-      const config = { 
-        fps: 20, 
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0 
-      }
 
       await html5QrCode.start(
         { facingMode: "environment" }, 
-        config,
+        { fps: 20, qrbox: { width: 250, height: 250 } },
         (text) => { 
           setPayInput(text)
-          toast.success("QR Detected! ✅")
-          stopScanner() 
+          toast.success("QR captured!")
+          safeStopScanner() 
         },
-        () => {}
+        () => {} // Silent on failure to scan frame
       )
+      setIsScannerActive(true)
     } catch (err) { 
+      console.error("Scanner start error:", err)
       setIsScannerActive(false)
+    } finally {
+      isTransitioning.current = false
     }
   }
 
-  const stopScanner = async () => {
-    if (scannerRef.current && scannerRef.current.isScanning && !isTransitioning.current) {
-      isTransitioning.current = true
+  const safeStopScanner = async () => {
+    // 1. Cek apakah ada instance scanner dan sedang aktif
+    if (!scannerRef.current || isTransitioning.current) return;
+    
+    // 2. Gunakan status internal library untuk memastikan kondisi
+    if (scannerRef.current.isScanning) {
+      isTransitioning.current = true;
       try {
-        await scannerRef.current.stop()
-        scannerRef.current = null
-        setIsScannerActive(false)
+        // 3. Hentikan scanner secara asinkron
+        await scannerRef.current.stop();
+        
+        // 4. Bersihkan elemen DOM secara paksa agar React tidak bingung
+        const readerEl = document.getElementById("reader");
+        if (readerEl) {
+          readerEl.innerHTML = ""; 
+        }
+        
+        scannerRef.current = null;
+        setIsScannerActive(false);
       } catch (err) {
-        console.error("Scanner stop error:", err)
+        // 5. Tangkap error NotFoundError tanpa memunculkan error console yang mengganggu
+        console.warn("Scanner stopped with minor DOM cleanup warning:", err);
       } finally {
-        isTransitioning.current = false
+        isTransitioning.current = false;
       }
     }
-  }
+  };
 
-  const handleCopy = () => {
-    if (qrData) {
-      navigator.clipboard.writeText(qrData)
-      setIsCopied(true)
-      toast.success("Payment code copied! 📋")
-      setTimeout(() => setIsCopied(false), 2000)
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    // Gunakan instance baru untuk file scan agar tidak tabrakan dengan video stream
+    const fileScanner = new Html5Qrcode("reader")
+    try {
+      const result = await fileScanner.scanFile(file, true)
+      setPayInput(result)
+      toast.success("QR detected from image!")
+    } catch (err) {
+      toast.error("No valid QR code found in image")
     }
   }
 
   useEffect(() => {
-    if (activeTab === "pay") {
-      const timer = setTimeout(() => startScanner(), 400) 
-      return () => clearTimeout(timer)
+    if (activeTab === "scan") {
+      // Kasih delay dikit biar DOM "reader" siap di-render React
+      const timer = setTimeout(() => startScanner(), 500)
+      return () => {
+        clearTimeout(timer)
+        safeStopScanner()
+      }
     } else {
-      stopScanner()
+      safeStopScanner()
     }
   }, [activeTab])
 
-  useEffect(() => {
-    return () => {
-      stopScanner()
-    }
-  }, [])
-
-  const handleClaimPayment = async () => {
-    if (!payInput) return toast.error("Scan QR dulu bos")
+  const handleClaim = async () => {
+    if (!payInput) return toast.error("scan or enter code first")
     
-    toast.promise(claimPayment(payInput), {
-      loading: 'Securing transaction on-chain...',
-      success: (result) => {
-        setSuccess(true)
-        refetchBalance()
-        return "Payment successful! 💸"
-      },
-      error: (err) => err.message || "Payment failed."
-    })
+    try {
+        // Gunakan toast.promise agar user tahu proses blockchain sedang jalan
+        const result = await claimPayment(payInput)
+        
+        if (result.success) {
+            // PASTIKAN PROPERTI INI MATCH SAMA RESPONSE API LO
+            setSuccessData({ 
+                amount: result.amount, // API balikin result.amount
+                txHash: result.transactionHash // API balikin result.transactionHash
+            })
+            toast.success("payment successful!")
+        }
+    } catch (err: any) {
+        toast.error(err.message || "payment failed")
+    }
   }
 
-  if (success) {
+  const downloadQR = async () => {
+    if (!qrRef.current) return
+    try {
+      const dataUrl = await toPng(qrRef.current, { backgroundColor: '#fff', pixelRatio: 3 })
+      const link = document.createElement('a')
+      link.href = dataUrl
+      link.download = `SAKU-QR-${amount}.png`
+      // Simulasi click di window agar CSP blob tidak memblokir link internal
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (err) {
+      toast.error("Failed to download. Screenshot the QR instead.")
+    }
+  }
+
+  if (successData) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6 text-center">
-        <div className="max-w-md w-full bg-white rounded-[2.5rem] p-10 shadow-2xl space-y-6 animate-in zoom-in duration-300">
-          <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
-            <CheckCircle className="w-10 h-10 text-primary" />
-          </div>
-          <h1 className="text-3xl font-bold italic">Success!</h1>
-          <p className="text-black/50">Your funds have been processed securely on-chain.</p>
-          <button onClick={() => router.push("/home")} className="w-full py-4 rounded-2xl bg-primary font-bold shadow-lg active:scale-95 transition-all">Back Home</button>
-        </div>
-      </div>
+      <SuccessStep 
+        txHash={successData.txHash}
+        receiverName="Saku Merchant"
+        receiverPhone="QR Payment"
+        amount={successData.amount}
+        billDescription="QR Payment Settlement"
+        onComplete={() => router.push("/home")}
+      />
     )
   }
 
@@ -136,122 +174,143 @@ export default function PayPage() {
     <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans pb-32 overflow-x-hidden">
       <Header />
 
-      <div className="p-6 space-y-6 flex-1 overflow-y-auto">
-        <div className="relative p-8 rounded-[2.5rem] bg-gradient-to-br from-primary via-amber-200 to-primary/80 shadow-xl shadow-primary/20">
-          <div className="flex items-center gap-2 mb-1">
-            <Sparkles size={14} className="text-amber-900/60" />
-            <p className="text-[10px] font-bold text-amber-900/60 tracking-widest uppercase">Saku Balance</p>
+      <div className="p-6 space-y-6 flex-1">
+        {/* Tab Switcher */}
+        <div className="flex p-1.5 bg-muted rounded-2xl border border-border shadow-inner">
+          <button 
+            onClick={() => setActiveTab("scan")} 
+            className={`flex-1 py-3 rounded-xl font-bold text-[10px] tracking-widest uppercase transition-all flex items-center justify-center gap-2 ${activeTab === "scan" ? "bg-white shadow-sm text-slate-900" : "text-muted-foreground"}`}
+          >
+            <Scan size={14} /> scan qr
+          </button>
+          <button 
+            onClick={() => setActiveTab("receive")} 
+            className={`flex-1 py-3 rounded-xl font-bold text-[10px] tracking-widest uppercase transition-all flex items-center justify-center gap-2 ${activeTab === "receive" ? "bg-white shadow-sm text-slate-900" : "text-muted-foreground"}`}
+          >
+            <QrCode size={14} /> receive usdc
+          </button>
+        </div>
+
+        {/* --- SCAN TAB --- */}
+        {activeTab === "scan" && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="relative w-full aspect-square rounded-[3rem] bg-slate-900 overflow-hidden border-4 border-white shadow-2xl">
+               <div id="reader" className="w-full h-full"></div>
+               
+               {/* Finder Overlay UI */}
+               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                  <div className="w-64 h-64 border-2 border-primary/50 rounded-[2.5rem] relative shadow-[0_0_0_999px_rgba(0,0,0,0.4)]">
+                    <div className="absolute -top-1 -left-1 w-10 h-10 border-t-4 border-l-4 border-primary rounded-tl-3xl" />
+                    <div className="absolute -top-1 -right-1 w-10 h-10 border-t-4 border-r-4 border-primary rounded-tr-3xl" />
+                    <div className="absolute -bottom-1 -left-1 w-10 h-10 border-b-4 border-l-4 border-primary rounded-bl-3xl" />
+                    <div className="absolute -bottom-1 -right-1 w-10 h-10 border-b-4 border-r-4 border-primary rounded-br-3xl" />
+                  </div>
+               </div>
+
+               {!isScannerActive && (
+                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-white p-10 text-center space-y-4">
+                   <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center">
+                    <Camera className="w-8 h-8 text-primary" />
+                   </div>
+                   <button onClick={startScanner} className="px-8 py-3 bg-primary text-slate-900 rounded-xl font-bold text-[10px] tracking-widest uppercase active:scale-95 transition-all">Start Camera</button>
+                 </div>
+               )}
+            </div>
+
+            <div className="flex justify-center">
+                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
+                <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2 px-6 py-3 bg-white border border-border rounded-full text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 active:scale-95 transition-all"
+                >
+                    <ImageIcon size={14} /> upload from gallery
+                </button>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t border-dashed border-border">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-400 tracking-widest uppercase ml-2">Manual Entry</label>
+                <input 
+                  value={payInput} 
+                  onChange={(e) => setPayInput(e.target.value)} 
+                  placeholder="Paste payment code here..." 
+                  className="w-full bg-slate-100/50 border border-transparent rounded-2xl px-6 py-5 font-mono text-[10px] outline-none focus:bg-white focus:border-primary/20 transition-all" 
+                />
+              </div>
+              <button 
+                onClick={handleClaim} 
+                disabled={qrLoading || !payInput}
+                className="w-full py-5 rounded-2xl bg-slate-900 text-white font-bold text-sm shadow-xl flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-30 transition-all"
+              >
+                {qrLoading ? <Loader2 className="animate-spin" size={18} /> : <Scan size={18}/>} 
+                verify & pay now
+              </button>
+            </div>
           </div>
-          <p className="text-4xl font-bold text-black/85 tracking-tighter">{formattedBalance}</p>
-        </div>
+        )}
 
-        <div className="flex p-1.5 bg-muted rounded-[2rem] border border-black/5 shadow-inner">
-          {(["receive", "pay"] as const).map((tab) => (
-            <button 
-              key={tab}
-              onClick={() => setActiveTab(tab)} 
-              className={`flex-1 py-3 rounded-[1.5rem] font-bold text-[10px] tracking-widest uppercase transition-all ${activeTab === tab ? "bg-white shadow-sm text-black" : "text-muted-foreground hover:text-black/60"}`}
-            >
-              {tab === "receive" ? "Receive" : "Scan & Pay"}
-            </button>
-          ))}
-        </div>
-
+        {/* --- RECEIVE TAB --- */}
         {activeTab === "receive" && (
-           <div className="space-y-6 animate-in slide-in-from-left duration-300">
+           <div className="space-y-6 animate-in fade-in duration-500">
             {!qrData ? (
              <div className="space-y-5">
-               <div className="space-y-2 px-2">
-                 <label className="text-[10px] font-bold text-black/40 tracking-widest ml-2 uppercase italic">Amount to Request</label>
-                 <div className="relative">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 font-bold text-black/20 text-xl">Rp</span>
+               <div className="space-y-2">
+                 <label className="text-[10px] font-bold text-slate-400 tracking-widest uppercase ml-2">amount to request</label>
+                 <div className="relative group">
+                    <span className="absolute left-8 top-1/2 -translate-y-1/2 font-bold text-slate-300 text-2xl group-focus-within:text-primary transition-colors">$</span>
                     <input 
                       type="number" 
                       value={amount} 
                       onChange={(e) => setAmount(e.target.value)} 
-                      placeholder="0" 
-                      className="w-full bg-muted/50 rounded-[2rem] pl-16 pr-8 py-6 text-3xl font-bold outline-none border-2 border-transparent focus:border-primary/50 transition-all" 
+                      placeholder="0.00" 
+                      className="w-full bg-slate-100/50 border border-transparent rounded-[2.5rem] pl-16 pr-8 py-8 text-4xl font-black outline-none focus:bg-white focus:border-primary/30 transition-all placeholder:text-slate-200 text-slate-900" 
                     />
                  </div>
                </div>
                <button 
                 onClick={() => {
-                  if(!amount || Number(amount) <= 0) return toast.error("Isi nominalnya dulu bos")
+                  if(!amount || Number(amount) <= 0) return toast.error("Invalid amount")
                   generateQR(user?.phone_number!, amount).then(r => r.success && setQrData(r.qrHash))
                 }} 
                 disabled={qrLoading || !amount}
-                className="w-full py-6 rounded-[2rem] bg-black text-white font-bold text-lg shadow-xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-30 transition-all"
+                className="w-full py-5 rounded-2xl bg-slate-900 text-white font-bold text-sm shadow-xl flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-30 transition-all"
                >
-                 {qrLoading ? <Loader2 className="animate-spin" /> : <QrCode size={20}/>} 
-                 Generate Payment QR
+                 {qrLoading ? <Loader2 className="animate-spin" size={18} /> : <QrCode size={18}/>} 
+                 generate usdc qr
                </button>
              </div>
            ) : (
-             <div className="flex flex-col items-center p-8 bg-white rounded-[3rem] border border-primary/10 shadow-2xl space-y-8 animate-in zoom-in duration-300">
-               <div className="p-6 bg-white rounded-[2.5rem] shadow-inner border-[8px] border-primary/5">
-                <QRCodeSVG value={qrData} size={200} level="H" />
-               </div>
-               <div className="text-center">
-                 <p className="text-[10px] font-bold text-black/30 tracking-widest uppercase mb-1 italic">Requesting Payment</p>
-                 <p className="text-4xl font-bold text-black/85 tracking-tighter">IDR {Number(amount).toLocaleString()}</p>
+             <div className="flex flex-col items-center animate-in zoom-in duration-300">
+               <div ref={qrRef} className="p-8 bg-white rounded-[3.5rem] border border-border shadow-lg flex flex-col items-center space-y-6">
+                 <div className="p-5 bg-slate-50 rounded-3xl border-4 border-slate-100">
+                    <QRCodeSVG value={qrData} size={220} level="H" includeMargin />
+                 </div>
+                 <div className="text-center space-y-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">payment request</p>
+                    <p className="text-3xl font-black text-slate-900 tracking-tight">{parseFloat(amount).toFixed(2)} <span className="text-slate-400 font-bold text-xl uppercase">usdc</span></p>
+                 </div>
                </div>
 
-               {/* Payment Code Display & Copy */}
-               <div className="w-full space-y-2">
-                 <p className="text-[10px] font-bold text-black/40 tracking-widest uppercase ml-4 italic">Payment Code</p>
-                 <div className="flex items-center gap-2 bg-muted/50 p-4 rounded-3xl border border-black/5 group">
-                   <code className="flex-1 font-mono text-[10px] font-bold text-black/60 break-all leading-tight px-2">
-                     {qrData}
-                   </code>
-                   <button 
-                    onClick={handleCopy}
-                    className="p-3 bg-white rounded-2xl shadow-sm hover:bg-primary transition-all active:scale-90 border border-black/5"
-                   >
-                     {isCopied ? <Check size={16} className="text-green-600" /> : <Copy size={16} className="text-black/40" />}
+               <div className="w-full mt-8 space-y-3">
+                 <button 
+                    onClick={downloadQR}
+                    className="w-full py-4 rounded-2xl bg-secondary text-white border border-slate-200 text-slate-900 font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.95] transition-all shadow-sm"
+                 >
+                    <Download size={16} /> Save QR to Gallery
+                 </button>
+                 
+                 <div className="flex items-center gap-2 bg-slate-100 p-4 rounded-2xl border border-border overflow-hidden">
+                   <code className="flex-1 font-mono text-[10px] text-slate-500 truncate px-2 uppercase">{qrData}</code>
+                   <button onClick={() => { navigator.clipboard.writeText(qrData || ""); toast.success("Code copied!"); }} className="p-2.5 bg-white rounded-xl shadow-sm active:scale-90 transition-all border border-slate-200">
+                     <Copy size={14} className="text-slate-400" />
                    </button>
                  </div>
                </div>
 
-               <button onClick={() => { setQrData(null); setAmount(""); }} className="text-[10px] font-bold underline text-black/40 hover:text-black tracking-[0.2em] uppercase italic">Create New Request</button>
+               <button onClick={() => { setQrData(null); setAmount(""); }} className="mt-8 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors underline decoration-dashed underline-offset-4">Create New Request</button>
              </div>
            )}
          </div>
-        )}
-
-        {activeTab === "pay" && (
-          <div className="space-y-6 animate-in slide-in-from-right duration-300">
-            <div className="relative w-full aspect-square rounded-[3.5rem] bg-black overflow-hidden border-4 border-muted/20 shadow-2xl flex items-center justify-center">
-               <div id="reader" className="w-full h-full"></div>
-               
-               {!isScannerActive && (
-                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 text-white p-10 text-center space-y-4">
-                   <Camera className="w-12 h-12 text-primary animate-pulse" />
-                   <p className="font-bold italic">Camera Ready</p>
-                   <button onClick={startScanner} className="px-8 py-3 bg-primary text-black rounded-xl font-bold text-[10px] tracking-widest active:scale-95 transition-all">START SCANNING</button>
-                 </div>
-               )}
-            </div>
-
-            <div className="space-y-4">
-              <div className="px-2">
-                <label className="text-[10px] font-bold text-black/40 tracking-widest ml-2 uppercase italic">Manual Payment Hash</label>
-                <input 
-                  value={payInput} 
-                  onChange={(e) => setPayInput(e.target.value)} 
-                  placeholder="Paste payment code here..." 
-                  className="w-full bg-muted/50 rounded-[2rem] px-8 py-5 font-mono text-[10px] outline-none border-2 border-transparent focus:border-primary/50 transition-all" 
-                />
-              </div>
-              <button 
-                onClick={handleClaimPayment} 
-                disabled={qrLoading || !payInput}
-                className="w-full py-6 rounded-[2.5rem] bg-black text-white font-bold text-lg shadow-xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-30 transition-all"
-              >
-                {qrLoading ? <Loader2 className="animate-spin" /> : <Scan size={20}/>} 
-                Verify & Pay Now
-              </button>
-            </div>
-          </div>
         )}
       </div>
     </div>

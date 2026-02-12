@@ -19,8 +19,11 @@ export default function FoldersManager() {
 
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
+  // Di dalam FoldersManager
   const handleSearch = async (val: string) => {
     setSearchQuery(val);
+    
+    // Minimal 3 karakter biar gak berat di database
     if (val.length < 3) {
       setSearchResults([]);
       return;
@@ -28,13 +31,18 @@ export default function FoldersManager() {
 
     setIsSearching(true);
     try {
-      const res = await fetch(`/api/profile/search?query=${val}`);
+      // Tambahkan encodeURIComponent supaya karakter spesial di phone number (+, dsb) aman
+      const res = await fetch(`/api/profile/search?query=${encodeURIComponent(val)}`);
       const data = await res.json();
+      
       if (data.success) {
-        setSearchResults(data.profiles);
+        setSearchResults(data.profiles || []);
+      } else {
+        setSearchResults([]);
       }
     } catch (err) {
-      // Error handled silently
+      console.error("Search error:", err);
+      setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
@@ -42,23 +50,36 @@ export default function FoldersManager() {
 
   const handleSaveContact = async (profile: any) => {
     try {
+      // Pastikan field name & phone_number sesuai dengan apa yang dikembalikan API /search
       const result = await addContact({
-        name: profile.full_name || profile.phone_number,
+        name: profile.full_name || "Saku User",
         phone_number: profile.phone_number
       })
 
       if (result.success) {
-        toast.success("Contact saved!")
+        toast.success(`Kontak ${profile.full_name || 'baru'} berhasil disimpan!`)
         setIsModalOpen(false)
         setSearchQuery("")
         setSearchResults([])
       } else {
-        toast.error(result.error || "Failed to save")
+        toast.error(result.error || "Gagal menyimpan")
       }
     } catch (err) {
-      toast.error("An error occurred")
+      toast.error("Terjadi kesalahan sistem")
     }
   }
+
+    useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchQuery.length >= 3) {
+        handleSearch(searchQuery);
+      } else {
+        setSearchResults([]);
+      }
+    }, 500); // Tunggu 500ms setelah user berhenti mengetik
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
 
   const handleDelete = async (id: string) => {
     await deleteContact(id);
@@ -143,7 +164,7 @@ export default function FoldersManager() {
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => handleSearch(e.target.value)}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search by name or phone..."
                   className="w-full bg-muted/50 border-none rounded-2xl pl-12 pr-4 py-4 text-sm focus:ring-2 ring-primary/20 outline-none"
                 />

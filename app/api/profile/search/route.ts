@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     const { data: profiles, error: dbError } = await supabaseAdmin
       .from('profiles')
       .select('full_name, phone_number, wallet_address')
-      .or(`full_name.ilike.%${query}%,phone_number.ilike.%${query}%`)
+      .or(`full_name.ilike.%${query}%,phone_number.ilike.%${query}%`) 
       .limit(5);
 
     if (dbError) {

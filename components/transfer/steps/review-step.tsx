@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowLeft, Check, AlertCircle } from "lucide-react"
+import { ArrowLeft, Check, ShieldCheck, Zap, Info } from "lucide-react"
 
 export default function ReviewStep({
   receiver,
@@ -15,91 +15,113 @@ export default function ReviewStep({
   onConfirm: () => void
   onBack: () => void
 }) {
-  const formattedAmount = new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
+  // Formatted for USDC
+  const formattedAmount = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
   }).format(amount)
 
   return (
-    <div className="p-5 sm:p-7 space-y-6 sm:space-y-8 font-sans">
-      {/* Back Button */}
-      <div className="flex items-center gap-3 sm:gap-4">
-        <button
-          onClick={onBack}
-          className="p-2 sm:p-2.5 hover:bg-muted rounded-full transition-colors duration-200"
-          aria-label="Go back"
-        >
-          <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 text-black/40 hover:text-black/85 transition-colors" />
-        </button>
-        <h2 className="text-lg sm:text-xl font-bold text-black/85">Review Transfer</h2>
-      </div>
+    <div className="flex flex-col h-full bg-white font-sans animate-in fade-in slide-in-from-right-4 duration-300">
+      <div className="p-6">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-8">
+          <button
+            onClick={onBack}
+            disabled={isLoading}
+            className="p-2 hover:bg-slate-100 rounded-full transition-all duration-200 group disabled:opacity-30"
+          >
+            <ArrowLeft className="w-5 h-5 text-slate-400 group-hover:text-slate-900 transition-colors" />
+          </button>
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">Review Transfer</h2>
+            <p className="text-xs text-slate-500 mt-0.5 font-medium">Double check your transaction details</p>
+          </div>
+        </div>
 
-      {/* Transfer Details Card */}
-      <div className="card-elevated space-y-4 sm:space-y-5 p-5 sm:p-6">
-        {/* Receiver */}
-        <div className="space-y-1.5 sm:space-y-2">
-          <p className="text-xs sm:text-sm font-bold text-black/40 uppercase tracking-widest">To</p>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-black font-bold text-sm sm:text-base flex-shrink-0">
-              {receiver.name.charAt(0).toUpperCase()}
+        {/* Transfer Details Card */}
+        <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 space-y-6">
+          {/* Receiver Info */}
+          <div className="space-y-3">
+            <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400">Recipient</p>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-bold text-lg shadow-lg shadow-slate-200">
+                {receiver.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold text-base text-slate-900 truncate">{receiver.name}</p>
+                <p className="text-xs text-slate-500 font-medium">{receiver.phone}</p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-bold text-sm sm:text-base text-black/85 truncate">{receiver.name}</p>
-              <p className="text-xs sm:text-sm text-black/50">{receiver.phone}</p>
+          </div>
+
+          <div className="h-px bg-slate-200/60" />
+
+          {/* Amount Display */}
+          <div className="space-y-2">
+            <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400">Total Amount</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-black text-slate-900 tracking-tight">{formattedAmount}</span>
+              <span className="text-lg font-bold text-slate-400 uppercase">USDC</span>
+            </div>
+          </div>
+
+          <div className="h-px bg-slate-200/60" />
+
+          {/* Fee & Speed */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-bold text-slate-400">Transaction Fee</span>
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">FREE</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-bold text-slate-400">Estimated Speed</span>
+              <div className="flex items-center gap-1 text-xs font-bold text-slate-700">
+                <Zap className="w-3 h-3 text-secondary fill-secondary" />
+                <span>Instant</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="h-px bg-border/50" />
-
-        {/* Amount */}
-        <div className="space-y-1.5 sm:space-y-2">
-          <p className="text-xs sm:text-sm font-bold text-black/40 uppercase tracking-widest">Amount</p>
-          <p className="text-3xl sm:text-4xl font-bold text-black/85">{formattedAmount}</p>
-        </div>
-
-        {/* Divider */}
-        <div className="h-px bg-border/50" />
-
-        {/* Fee */}
-        <div className="flex items-center justify-between">
-          <p className="text-xs sm:text-sm font-bold text-black/40 uppercase tracking-widest">Fee</p>
-          <p className="text-sm sm:text-base font-bold text-green-600">Free</p>
+        {/* Security / Blockchain Info */}
+        <div className="mt-6 flex gap-3 p-4 rounded-2xl bg-secondary/5 border border-secondary/10">
+          <ShieldCheck className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
+          <p className="text-[11px] font-medium text-slate-600 leading-relaxed">
+            Your transfer will be secured via blockchain. Saku handles the gas fees and token approval automatically for a seamless experience.
+          </p>
         </div>
       </div>
 
-      {/* Info Alert */}
-      <div className="flex gap-3 p-4 sm:p-5 rounded-2xl bg-primary/10 border border-primary/20">
-        <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-700 flex-shrink-0 mt-0.5" />
-        <p className="text-xs sm:text-sm font-medium text-amber-900 leading-relaxed">
-          Transfer will be processed instantly on the blockchain. Server will handle token approval automatically.
-        </p>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex flex-col-reverse sm:flex-col gap-3 sm:gap-4">
-        <button
-          onClick={onConfirm}
-          disabled={isLoading}
-          className="w-full py-4 rounded-2xl bg-black text-white font-bold text-base sm:text-lg shadow-xl shadow-black/10 flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          {isLoading ? "Sending..." : (
-            <>
-              <Check className="w-5 h-5 sm:w-6 sm:h-6" />
-              Send Transfer
-            </>
-          )}
-        </button>
-
-        <button
-          onClick={onBack}
-          disabled={isLoading}
-          className="w-full py-3 rounded-2xl bg-muted/50 text-black/85 font-bold text-sm sm:text-base hover:bg-muted transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          Back
-        </button>
+      {/* Action Area */}
+      <div className="mt-auto p-6 bg-slate-50/50 border-t border-slate-100 rounded-b-3xl">
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={onConfirm}
+            disabled={isLoading}
+            className="w-full py-4 rounded-2xl bg-secondary text-white font-bold text-sm shadow-xl shadow-slate-200 flex items-center justify-center gap-3 hover:bg-primary active:scale-[0.98] transition-all disabled:opacity-40 disabled:grayscale"
+          >
+            {isLoading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <Check className="w-5 h-5" />
+                Confirm & Send Transfer
+              </>
+            )}
+          </button>
+          
+          <button
+            onClick={onBack}
+            disabled={isLoading}
+            className="w-full py-4 rounded-2xl bg-white border border-slate-200 text-slate-500 font-bold text-sm hover:text-slate-900 hover:bg-slate-50 transition-all disabled:opacity-0"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   )

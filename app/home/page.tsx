@@ -25,17 +25,7 @@ export default function Home() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center font-sans">
-        <div className="animate-pulse text-black/50 font-medium text-lg text-center">
-          <video
-            className="w-50"
-            src="/logo.webm"
-            autoPlay
-            muted
-            loop
-            playsInline
-          />
-          Loading Saku...
-        </div>
+        <video className="w-50" src="/logo.webm" autoPlay muted loop playsInline />
       </div>
     )
   }
@@ -43,11 +33,14 @@ export default function Home() {
   if (!isAuthenticated) return null
 
   return (
-    <div className="min-h-dvh bg-background font-sans">
+    <div className="min-h-dvh bg-white font-sans relative max-w-lg mx-auto">
+      <div className="absolute top-0 left-0 right-0 h-[450px] bg-gradient-to-b from-primary via-primary/5 to-transparent pointer-events-none" />
+
       <HomeHeader />
 
-      <main className="max-w-lg mx-auto px-4 space-y-6 py-6 pb-28">
+      <main className="max-w-lg mx-auto px-4 space-y-6 py-2 pb-28 relative z-10">
         <BalanceCardSection />
+          
         <QuickActions />
         <PendingBillsSection />
         <RecentTransactions />

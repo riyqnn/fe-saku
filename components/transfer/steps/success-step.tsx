@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useRef } from "react"
 import { 
-  CheckCircle, ExternalLink, Copy, Check, UserPlus, 
-  Share2, Download, Loader2, MessageCircle, X, CheckCircle2 
+  CheckCircle2, Copy, UserPlus, 
+  Share2, Download, Loader2, Zap, Receipt as ReceiptIcon
 } from "lucide-react"
 import { useContacts } from "@/hooks/useContacts"
+import { animated, useSpring } from "@react-spring/web"
 import { toPng } from "html-to-image"
 import { toast } from "sonner"
 import Image from "next/image"
@@ -15,11 +16,19 @@ interface SuccessStepProps {
   receiverName: string
   receiverPhone: string
   amount: string
+  billDescription: string // Tambahan untuk konteks split bill
   onComplete: () => void
 }
 
-export default function SuccessStep({ txHash, receiverName, receiverPhone, amount, onComplete }: SuccessStepProps) {
-  const [showAnimation, setShowAnimation] = useState(true)
+export default function SuccessStep({ 
+  txHash, 
+  receiverName, 
+  receiverPhone, 
+  amount, 
+  billDescription,
+  onComplete 
+}: SuccessStepProps) {
+  const displayAmount = amount ? parseFloat(amount).toFixed(2) : "0.00"
   const [copied, setCopied] = useState(false)
   const [savingContact, setSavingContact] = useState(false)
   const [contactSaved, setContactSaved] = useState(false)
@@ -29,18 +38,27 @@ export default function SuccessStep({ txHash, receiverName, receiverPhone, amoun
   const receiptRef = useRef<HTMLDivElement>(null)
   const { contacts, addContact } = useContacts()
 
+  // Animations
+  const iconSpring = useSpring({
+    from: { transform: 'scale(0.5) rotate(-20deg)', opacity: 0 },
+    to: { transform: 'scale(1) rotate(0deg)', opacity: 1 },
+    config: { tension: 300, friction: 15 }
+  })
+
+  const textSpring = useSpring({
+    from: { opacity: 0, translateY: 10 },
+    to: { opacity: 1, translateY: 0 },
+    delay: 300
+  })
+
   const isAlreadyContact = contacts.some((c) => c.phone_number === receiverPhone)
   const shouldShowSaveButton = !isAlreadyContact && !contactSaved && receiverPhone && receiverName !== receiverPhone
 
-  useEffect(() => {
-    const timer = setTimeout(() => setShowAnimation(false), 3000)
-    return () => clearTimeout(timer)
-  }, [])
-
-  const handleCopy = () => {
+  const handleCopyHash = () => {
     if (txHash) {
       navigator.clipboard.writeText(txHash)
       setCopied(true)
+      toast.success("Transaction hash copied")
       setTimeout(() => setCopied(false), 2000)
     }
   }
@@ -48,98 +66,24 @@ export default function SuccessStep({ txHash, receiverName, receiverPhone, amoun
   const downloadReceipt = async () => {
     if (!receiptRef.current) return
     setIsGenerating(true)
-    const loadingToast = toast.loading("Generating receipt...")
+    
     try {
       const dataUrl = await toPng(receiptRef.current, { 
-        cacheBust: true, 
-        backgroundColor: '#f8f9fa',
-        pixelRatio: 4 
+        cacheBust: true,
+        backgroundColor: '#1a1a1a', 
+        pixelRatio: 3,
       })
+      
       const link = document.createElement('a')
       link.href = dataUrl
-      link.download = `SAKU-RECEIPT-${txHash?.slice(0, 8)}.png`
+      link.download = `SAKU-SPLIT-RECEIPT-${billDescription.replace(/\s+/g, '-').toUpperCase()}.png`
       link.click()
-      toast.success("Saved to gallery!")
+      toast.success("Receipt saved to gallery")
     } catch (err) {
-      toast.error("Failed to generate image")
+      console.error(err)
+      toast.error("Could not save receipt")
     } finally {
-      toast.dismiss(loadingToast)
       setIsGenerating(false)
-    }
-  }
-
-  // Helper function to convert base64 to Blob
-  const base64ToBlob = (base64: string, type: string): Blob => {
-    const byteCharacters = atob(base64.split(',')[1]);
-    const byteArrays = [];
-    for (let offset = 0; offset < byteCharacters.length; offset += 512) {
-      const slice = byteCharacters.slice(offset, offset + 512);
-      const byteNumbers = new Array(slice.length);
-      for (let i = 0; i < slice.length; i++) {
-        byteNumbers[i] = slice.charCodeAt(i);
-      }
-      byteArrays.push(new Uint8Array(byteNumbers));
-    }
-    return new Blob(byteArrays, { type });
-  };
-
-  const shareToWhatsApp = async () => {
-    if (!receiptRef.current) return;
-
-    setIsGenerating(true);
-    const loadingToast = toast.loading("Preparing receipt...");
-
-    try {
-      // Generate PNG from receipt element
-      const dataUrl = await toPng(receiptRef.current, {
-        cacheBust: true,
-        backgroundColor: '#f8f9fa',
-        pixelRatio: 4,
-      });
-
-      // Convert base64 to Blob directly
-      const blob = base64ToBlob(dataUrl, 'image/png');
-
-      // Create File object for sharing
-      const file = new File(
-        [blob],
-        `Saku-Receipt-${txHash?.slice(0, 8)}.png`,
-        { type: 'image/png' }
-      );
-
-      // Try Web Share API first (works on mobile - sends actual image)
-      if (navigator.share && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'Saku Receipt',
-        });
-        toast.success("Receipt shared!");
-      } else {
-        // Fallback: Upload and share link (desktop)
-        const filename = `Saku-Receipt-${txHash?.slice(0, 8)}.png`;
-        const uploadRes = await fetch('/api/upload-receipt', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: dataUrl, filename }),
-        });
-
-        if (!uploadRes.ok) {
-          throw new Error('Upload failed');
-        }
-
-        const { url } = await uploadRes.json();
-
-        // Share just the image link
-        window.open(`https://wa.me/?text=${encodeURIComponent(url)}`, '_blank');
-        toast.success("Opening WhatsApp...");
-      }
-
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to share receipt.");
-    } finally {
-      toast.dismiss(loadingToast);
-      setIsGenerating(false);
     }
   }
 
@@ -147,142 +91,192 @@ export default function SuccessStep({ txHash, receiverName, receiverPhone, amoun
     try {
       setSavingContact(true)
       const result = await addContact({ name: receiverName, phone_number: receiverPhone })
-      if (result.success) setContactSaved(true)
+      if (result.success) {
+        setContactSaved(true)
+        toast.success("Contact added to Saku")
+      }
     } catch (err) { } finally { setSavingContact(false) }
   }
 
   return (
-    <div className="p-5 sm:p-8 space-y-6 text-center animate-fade-in-scale font-sans">
-      {/* Success Icon */}
-      <div className="py-4">
-        <CheckCircle className="w-20 h-20 text-amber-600 mx-auto" />
+    <div className="fixed inset-0 z-[100] flex flex-col h-full bg-white font-sans overflow-y-auto animate-in fade-in duration-500">
+      <div className="p-8 pt-16 text-center space-y-6">
+        <animated.div style={iconSpring} className="relative inline-block">
+          <div className="absolute inset-0 bg-emerald-100 rounded-full scale-150 blur-2xl opacity-50" />
+          <div className="relative bg-emerald-500 p-5 rounded-full shadow-xl shadow-emerald-200">
+            <CheckCircle2 className="w-12 h-12 text-white" strokeWidth={3} />
+          </div>
+        </animated.div>
+
+        <animated.div style={textSpring} className="space-y-2">
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight lowercase">portion settled!</h2>
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-4xl font-black text-slate-900">{parseFloat(amount).toFixed(2)}</span>
+            <span className="text-xl font-bold text-slate-400 uppercase">usdc</span>
+          </div>
+          <p className="text-sm font-medium text-slate-500">
+            Successfully paid to <span className="text-slate-900 font-bold">{receiverName.toLowerCase()}</span>
+          </p>
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-full border border-slate-100">
+             <ReceiptIcon size={12} className="text-slate-400" />
+             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{billDescription}</span>
+          </div>
+        </animated.div>
       </div>
 
-      <div className="space-y-2">
-        <h2 className="text-2xl font-black italic tracking-tighter uppercase">Transfer Successful!</h2>
-        <p className="text-sm font-bold text-black/50">
-          Rp {Number(amount).toLocaleString()} IDRX sent to {receiverName}
-        </p>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="grid grid-cols-1 gap-3">
+      <div className="px-6 space-y-3 mt-4">
         <button
           onClick={() => setShowReceiptModal(true)}
-          className="w-full py-4 rounded-2xl bg-black text-white font-bold text-sm shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all"
+          className="w-full py-4 rounded-2xl bg-slate-900 text-white font-bold text-sm shadow-xl flex items-center justify-center gap-3 active:scale-[0.98] transition-all"
         >
           <Share2 className="w-4 h-4 text-primary" />
-          SHARE RECEIPT
+          View & Share Receipt
         </button>
 
         {shouldShowSaveButton && (
           <button
             onClick={handleSaveContact}
             disabled={savingContact}
-            className="w-full py-4 rounded-2xl bg-primary/10 border-2 border-primary/20 text-black font-bold text-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
+            className="w-full py-4 rounded-2xl bg-white border border-slate-200 text-slate-900 font-bold text-sm flex items-center justify-center gap-3 active:scale-[0.98] transition-all"
           >
-            <UserPlus className="w-4 h-4 text-primary" />
-            {savingContact ? "SAVING..." : `SAVE ${receiverName.toUpperCase()}`}
+            {savingContact ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+            Save Creator as Contact
           </button>
         )}
       </div>
 
-      {/* Transaction Details Minimal Card */}
-      <div className="bg-muted/40 rounded-[2rem] p-6 border border-black/5 space-y-4">
-        <div className="space-y-2 text-left">
-          <p className="text-[10px] font-bold text-black/40 uppercase tracking-[0.2em]">Transaction Hash</p>
-          <p className="font-mono text-[10px] font-bold text-black/60 break-all bg-white/50 p-3 rounded-xl border border-black/5">
-            {txHash || "Processing..."}
+      <div className="mt-8 px-6">
+        <div className="bg-slate-50 rounded-3xl p-5 space-y-4 border border-slate-100">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">On-Chain Proof</span>
+            <button onClick={handleCopyHash} className="text-[10px] font-bold text-primary hover:opacity-70">
+              {copied ? 'COPIED' : 'COPY HASH'}
+            </button>
+          </div>
+          <p className="font-mono text-[10px] text-slate-500 break-all leading-relaxed bg-white p-3 rounded-xl border border-slate-200/50">
+            {txHash || "Transaction verified on Arbitrum network"}
           </p>
         </div>
       </div>
 
-      <button
-        onClick={onComplete}
-        className="w-full py-6 rounded-[2.5rem] bg-primary text-black font-black uppercase tracking-[0.2em] shadow-2xl active:scale-95 transition-all italic"
-      >
-        Done
-      </button>
+      <div className="mt-auto p-6 space-y-4">
+        {/* <div className="flex items-center justify-center gap-2 text-slate-300">
+            <Zap size={14} className="fill-slate-300" />
+            <span className="text-[9px] font-bold uppercase tracking-[0.2em]">Permanently settled</span>
+        </div> */}
+        <button
+          onClick={onComplete}
+          className="w-full py-4 rounded-2xl bg-primary text-slate-900 font-black uppercase tracking-widest shadow-lg shadow-primary/20 active:scale-[0.98] transition-all"
+        >
+          done
+        </button>
+      </div>
 
-      {/* Receipt Modal (The Struk Style) */}
+      {/* DIGITAL RECEIPT MODAL */}
       {showReceiptModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-sm flex flex-col gap-6">
-            <div 
-              ref={receiptRef}
-              className="bg-white text-black p-10 rounded-[2.5rem] shadow-2xl space-y-8 relative overflow-hidden text-left"
-            >
-              <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
-                backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 2px, #000 2px, #000 4px)`
-              }}></div>
-              
-              <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                  <Image src="/logo.png" alt="Saku" width={40} height={40} className="grayscale" />
-                  <p className="text-[8px] font-bold tracking-[0.2em] text-black/30 uppercase">Official Receipt</p>
-                </div>
-                <div className="text-right space-y-1">
-                   <p className="text-[10px] font-bold">Saku Wallet</p>
-                   <p className="text-[8px] font-semibold text-black/30">Ref: #{txHash?.slice(0,8)}</p>
-                </div>
-              </div>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="w-full max-w-sm space-y-6">
+            
+            <div ref={receiptRef} className="p-4 bg-transparent">
+              <div 
+                className="relative bg-[#F9F9F9] text-slate-800 mx-auto"
+                style={{ 
+                    width: '320px', 
+                    boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
+                }}
+              >
+                {/* Sawtooth top border */}
+                <div 
+                  className="absolute -top-3 left-0 w-full h-3" 
+                  style={{
+                    backgroundImage: `linear-gradient(-45deg, #F9F9F9 6px, transparent 0), linear-gradient(45deg, #F9F9F9 6px, transparent 0)`,
+                    backgroundSize: '12px 12px'
+                  }}
+                />
 
-              <div className="flex flex-col items-center py-4 text-center border-y border-dashed border-black/10">
-                <CheckCircle2 size={48} className="text-green-500 mb-4" strokeWidth={3} />
-                <h2 className="text-[10px] font-bold tracking-[0.3em] text-black/40 uppercase mb-1">Transaction Successful</h2>
-                <p className="text-5xl font-black tracking-tighter mb-1">IDR {Number(amount).toLocaleString()}</p>
-                <p className="text-[9px] font-semibold text-black/20">{new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })}</p>
-              </div>
-
-              <div className="space-y-4">
-                {[
-                  { label: 'Payment Type', value: 'Transfer Sent' },
-                  { label: 'Sent To', value: receiverName },
-                  { label: 'Phone', value: receiverPhone },
-                  { label: 'Amount', value: `IDR ${Number(amount).toLocaleString()}` },
-                  { label: 'Fee', value: 'IDR 0' },
-                ].map((item, i) => (
-                  <div key={i} className="flex justify-between text-[11px] items-center">
-                    <span className="text-black/30 font-bold tracking-widest uppercase text-[9px]">{item.label}</span>
-                    <span className="font-semibold italic text-black/80">{item.value}</span>
+                <div className="p-8 pt-10 pb-10 space-y-6 flex flex-col items-center">
+                  <div className="text-center space-y-2">
+                    <div className="flex justify-center mb-2">
+                      <Image src="/logo.png" alt="Saku" width={42} height={42} className="grayscale contrast-125" />
+                    </div>
+                    <h3 className="text-sm font-black tracking-[0.3em] uppercase">Saku Split</h3>
                   </div>
-                ))}
-              </div>
 
-              <div className="pt-6 border-t border-dashed border-black/10 text-center space-y-4">
-                 <div className="space-y-1">
-                    <p className="text-[7px] font-bold text-black/20 tracking-widest uppercase">Digital Signature</p>
-                    <p className="text-[7px] font-mono text-black/30 break-all px-6">{txHash}</p>
-                 </div>
-                 <p className="text-[8px] font-semibold italic text-black/30">Keep this receipt as your official proof of payment.</p>
+                  <div className="w-full border-b border-dashed border-slate-300" />
+
+                  <div className="text-center space-y-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Settlement Amount</p>
+                    <div className="flex items-center justify-center gap-1">
+                      <span className="text-4xl font-black tracking-tighter text-slate-900">{parseFloat(amount).toFixed(2)}</span>
+                      <span className="text-lg font-bold text-slate-900 uppercase">USDC</span>
+                    </div>
+                    <p className="text-[9px] font-mono font-bold text-emerald-600 mt-1 uppercase tracking-tighter flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-pulse" /> 
+                      Settled on-chain
+                    </p>
+                  </div>
+
+                  <div className="w-full space-y-3 font-mono text-[10px]">
+                    <div className="flex justify-between border-t border-slate-200 pt-3">
+                      <span className="text-slate-400 uppercase">Bill:</span>
+                      <span className="font-bold text-right truncate ml-4 lowercase">"{billDescription}"</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 uppercase">Date:</span>
+                      <span className="font-bold">{new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</span>
+                    </div>
+                    <div className="w-full border-b border-dashed border-slate-200" />
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 uppercase">Creator:</span>
+                      <span className="font-bold">{receiverName.toUpperCase()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 uppercase">Recipient Phone:</span>
+                      <span className="font-bold">+{receiverPhone}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-slate-200 pt-3">
+                      <span className="text-slate-400 uppercase font-black">Status:</span>
+                      <span className="font-black text-slate-900 uppercase">Fully Paid</span>
+                    </div>
+                  </div>
+
+                  <div className="w-full space-y-4 pt-4 text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="h-8 w-full bg-slate-900 flex gap-[1px] px-4 py-1.5 overflow-hidden">
+                        {Array.from({ length: 40 }).map((_, i) => (
+                          <div key={i} className="bg-white h-full" style={{ width: `${(i % 3) + 1}px`, opacity: i % 2 === 0 ? 1 : 0.7 }} />
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-[9px] font-black italic text-slate-400 uppercase tracking-widest">--- Keep the vibes ---</p>
+                  </div>
+                </div>
+
+                {/* Sawtooth bottom border */}
+                <div 
+                  className="absolute -bottom-3 left-0 w-full h-3" 
+                  style={{
+                    backgroundImage: `linear-gradient(-45deg, transparent 6px, #F9F9F9 0), linear-gradient(45deg, transparent 6px, #F9F9F9 0)`,
+                    backgroundSize: '12px 12px'
+                  }}
+                />
               </div>
-              
-              <div className="absolute top-1/2 -left-3 w-6 h-6 bg-black/80 rounded-full shadow-inner"></div>
-              <div className="absolute top-1/2 -right-3 w-6 h-6 bg-black/80 rounded-full shadow-inner"></div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <button 
-                onClick={shareToWhatsApp}
-                className="col-span-2 py-5 bg-[#25D366] text-white rounded-3xl font-bold text-xs flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all tracking-widest"
-              >
-                <MessageCircle size={20} fill="white" /> Whatsapp
-              </button>
-              
+            <div className="grid grid-cols-2 gap-3 max-w-[320px] mx-auto px-4">
               <button 
                 onClick={downloadReceipt}
                 disabled={isGenerating}
-                className="py-5 bg-white text-black rounded-3xl font-bold text-[10px] flex items-center justify-center gap-2 active:scale-95 transition-all tracking-widest"
+                className="col-span-2 py-4 bg-primary text-slate-900 rounded-2xl font-black text-xs flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all uppercase tracking-widest disabled:opacity-50"
               >
-                {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} 
-                Save Image
+                {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download size={18} />} 
+                Save Proof to Gallery
               </button>
-
               <button 
-                onClick={() => setShowReceiptModal(false)} 
-                className="py-5 bg-black text-white rounded-3xl font-bold text-[10px] flex items-center justify-center gap-2 tracking-widest"
+                onClick={() => setShowReceiptModal(false)}
+                className="col-span-2 py-2 text-white/40 font-bold text-[10px] hover:text-white transition-colors uppercase tracking-widest text-center"
               >
-                <X size={16} /> Close
+                close preview
               </button>
             </div>
           </div>

@@ -3,27 +3,25 @@
 import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import {
-  Gift, Loader2, CheckCircle, AlertCircle, Users,
-  Clock, Sparkles, Home, ArrowRight
+  Gift, Loader2, CheckCircle, AlertCircle, 
+  Sparkles, Home, ArrowRight, Wallet, ShieldCheck, Clock
 } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "@/hooks/useAuth"
 import { useBalance } from "@/hooks/useBalance"
 import { toast } from "sonner"
 import Header from "@/components/layout/Header"
+import EnvelopeAnimation from "@/components/packet/envelope-animation"
+import { PACKET_THEMES } from "@/lib/packet-themes"
 
 interface PacketInfo {
   packetCode: string
-  creator: string
-  totalAmount: string
-  remainingAmount: string
+  themeId: string
   maxWinners: number
   winnerCount: number
-  distributionType: string
-  status: string
-  createdAt: string
   expiresAt: string
-  exists: boolean
   hasClaimed: boolean
+  totalAmount: string
 }
 
 export default function ClaimPacketPage() {
@@ -39,20 +37,11 @@ export default function ClaimPacketPage() {
   const [packet, setPacket] = useState<PacketInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [claimedAmount, setClaimedAmount] = useState<string | null>(null)
+  const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
     fetchPacketInfo()
   }, [packetCode])
-
-  const formatTimeRemaining = (expiresAt: string) => {
-    const now = new Date()
-    const expiry = new Date(expiresAt)
-    const diff = expiry.getTime() - now.getTime()
-    if (diff <= 0) return "Expired"
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-    return `${hours}j ${minutes}m`
-  }
 
   const fetchPacketInfo = async () => {
     if (!packetCode) return
@@ -71,7 +60,7 @@ export default function ClaimPacketPage() {
 
   const handleClaim = async () => {
     if (!user) {
-      toast.error("Login dulu bosku!")
+      toast.error("Please login first!")
       router.push("/get-started")
       return
     }
@@ -89,132 +78,167 @@ export default function ClaimPacketPage() {
       })
 
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "Gagal klaim")
+      if (!response.ok) throw new Error(data.error || "Claim failed")
 
-      setClaimedAmount(data.claimedAmount)
-      refetchBalance()
-      toast.success("Berhasil klaim!")
+      // Start Opening Animation
+      setIsOpen(true)
+      
+      // Show result after animation finishes
+      setTimeout(() => {
+        setClaimedAmount(data.claimedAmount)
+        refetchBalance()
+      }, 1200)
+
     } catch (err: any) {
       toast.error(err.message)
-    } finally {
       setIsClaiming(false)
     }
   }
 
+  // Get current theme object
+  const currentTheme = PACKET_THEMES.find(t => t.id === packet?.themeId) || PACKET_THEMES[0]
+
   if (isLoading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
-      <Loader2 className="animate-spin text-primary" size={40} />
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+      <Loader2 className="animate-spin text-primary mb-4" size={40} />
+      <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Fetching your gift...</p>
     </div>
   )
 
   if (error || !packet) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
-      <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
-      <h1 className="text-xl font-bold">Packet Not Found</h1>
-      <p className="text-black/50 mb-6 font-medium">{error || "Packet tidak ditemukan."}</p>
-      <button onClick={() => router.push("/home")} className="px-8 py-3 bg-black text-white rounded-2xl font-bold">Back Home</button>
+      <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6">
+        <AlertCircle className="w-10 h-10 text-red-500" />
+      </div>
+      <h1 className="text-2xl font-black tracking-tight mb-2">Packet Not Found</h1>
+      <p className="text-muted-foreground mb-8 text-sm max-w-[250px]">{error || "This packet doesn't exist or has expired."}</p>
+      <button onClick={() => router.push("/home")} className="w-full max-w-[200px] py-4 bg-primary text-primary-foreground rounded-2xl font-black shadow-lg shadow-primary/20">Back Home</button>
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] flex flex-col max-w-lg mx-auto border-x border-border font-sans relative">
-      <Header />
+    <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans relative overflow-hidden">
+      <Header title="Claim Packet" />
 
-      <main className="flex-1 flex flex-col items-center justify-center p-6">
-        {!claimedAmount && !packet.hasClaimed ? (
-          /* --- TAMPILAN KARTU KLAIM STATIS --- */
-          <div className="w-full flex flex-col items-center space-y-6">
-            <div className="w-full max-w-sm bg-white rounded-[2.5rem] p-8 shadow-xl border border-black/5">
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Gift className="text-primary" size={32} />
-                </div>
-                <p className="text-[10px] font-bold text-black/20 uppercase tracking-[0.2em] mb-1">Saku Reward</p>
-                <h3 className="text-2xl font-black italic text-primary leading-none uppercase">Dana Kaget</h3>
-                <p className="text-xs text-black/40 mt-3 font-bold tracking-widest">{packet.packetCode}</p>
+      {/* Dynamic Background Mesh based on Theme */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div 
+          className="absolute top-[20%] left-1/2 -translate-x-1/2 w-[300px] h-[300px] blur-[120px] rounded-full opacity-20"
+          style={{ backgroundColor: currentTheme.colors.primary }}
+        />
+      </div>
+
+      <main className="flex-1 flex flex-col items-center justify-center p-6 relative z-10">
+        <AnimatePresence mode="wait">
+          {!claimedAmount ? (
+            /* --- STATE 1: REVEAL ENVELOPE --- */
+            <motion.div 
+              key="reveal"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="w-full flex flex-col items-center space-y-10"
+            >
+              <div className="text-center space-y-2">
+                <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">You received a gift!</p>
+                <h2 className="text-3xl font-black tracking-tighter">Open Your Packet</h2>
               </div>
 
-              <div className="space-y-4 mb-8">
-                <div className="flex justify-between text-[11px] font-bold text-black/40 uppercase">
-                  <span>Status Kuota</span>
-                  <span>{packet.winnerCount}/{packet.maxWinners}</span>
-                </div>
-                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-primary transition-all duration-500" 
-                    style={{ width: `${(packet.winnerCount / packet.maxWinners) * 100}%` }} 
-                  />
-                </div>
-                <div className="flex items-center justify-center gap-2 text-[10px] font-bold text-black/30 uppercase">
-                   <Clock size={12}/> Berakhir dalam: {formatTimeRemaining(packet.expiresAt)}
-                </div>
+              {/* Theme-based Envelope */}
+              <div className="w-full max-w-[280px] drop-shadow-2xl">
+                <EnvelopeAnimation
+                  theme={currentTheme}
+                  isOpen={isOpen}
+                  onOpen={handleClaim}
+                  size="custom"
+                />
               </div>
 
-              <button
-                onClick={handleClaim}
-                disabled={isClaiming}
-                className="w-full py-5 bg-black text-white rounded-2xl font-bold text-sm shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3"
-              >
-                {isClaiming ? (
-                  <>
-                    <Loader2 className="animate-spin" size={20} />
-                    Mengklaim...
-                  </>
-                ) : (
-                  "KLAIM SEKARANG"
-                )}
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* --- TAMPILAN SETELAH BERHASIL KLAIM --- */
-          <div className="w-full max-w-sm bg-white rounded-[3rem] p-10 shadow-xl text-center space-y-8 border border-black/5">
-            <div className="space-y-3">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-12 h-12 text-green-600" />
-              </div>
-              <h1 className="text-3xl font-black italic tracking-tighter uppercase">
-                  {packet.hasClaimed && !claimedAmount ? "Sudah Diambil" : "Berhasil!"}
-              </h1>
-              <p className="text-black/40 text-sm font-medium">
-                {packet.hasClaimed && !claimedAmount 
-                  ? "Kamu sudah mengambil jatah kamu di amplop ini." 
-                  : "Saldo IDRX telah berhasil ditambahkan ke dompetmu."}
-              </p>
-            </div>
+              <div className="w-full max-w-[300px] space-y-6">
+                 {/* Progress Info */}
+                 <div className="bg-white/50 backdrop-blur-md rounded-2xl p-4 border border-border space-y-3">
+                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        <span>Claimed Capacity</span>
+                        <span className="text-primary">{packet.winnerCount} / {packet.maxWinners}</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(packet.winnerCount / packet.maxWinners) * 100}%` }}
+                          className="h-full bg-primary"
+                        />
+                    </div>
+                 </div>
 
-            {(claimedAmount || packet.hasClaimed) && (
-              <div className="py-8 bg-primary/5 rounded-[2.5rem] border-2 border-dashed border-primary/20 relative">
-                <Sparkles className="absolute top-4 right-4 text-primary/20" size={20} />
-                <p className="text-[10px] font-bold text-primary/60 tracking-widest uppercase mb-2">Jumlah Diterima</p>
-                <p className="text-5xl font-black text-black tracking-tighter">
-                  <span className="text-xl mr-1 italic text-primary">Rp</span>
-                  {parseFloat(claimedAmount || "0").toLocaleString()}
-                </p>
+                 <button
+                  onClick={handleClaim}
+                  disabled={isClaiming || isOpen}
+                  className="w-full py-5 bg-primary text-primary-foreground rounded-[2rem] font-black text-lg shadow-xl shadow-primary/20 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                >
+                  {isClaiming ? <Loader2 className="animate-spin" size={24} /> : "OPEN PACKET"}
+                </button>
               </div>
-            )}
+            </motion.div>
+          ) : (
+            /* --- STATE 2: SUCCESS RECEIPT --- */
+            <motion.div 
+              key="success"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className="w-full max-w-sm bg-white rounded-[3rem] shadow-2xl border border-border overflow-hidden"
+            >
+              <div className="p-8 text-center space-y-6">
+                <div className="relative w-24 h-24 mx-auto">
+                  <div className="w-24 h-24 rounded-[2rem] bg-primary/10 flex items-center justify-center text-primary">
+                    <Wallet size={48} />
+                  </div>
+                  <div className="absolute -bottom-2 -right-2 bg-green-500 text-white p-2 rounded-full shadow-lg border-4 border-white">
+                    <ShieldCheck size={20} />
+                  </div>
+                </div>
 
-            <div className="grid gap-3">
-              <button
-                onClick={() => router.push("/home")}
-                className="w-full py-5 rounded-2xl bg-black text-white font-bold flex items-center justify-center gap-2 shadow-lg"
-              >
-                <Home size={18} /> Balik Beranda
-              </button>
-              <button
-                onClick={() => router.push("/transactions")}
-                className="w-full py-5 rounded-2xl bg-muted font-bold flex items-center justify-center gap-2"
-              >
-                Lihat Transaksi <ArrowRight size={18} />
-              </button>
-            </div>
-          </div>
-        )}
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Claim Successful</p>
+                  <h1 className="text-5xl font-black text-foreground tracking-tighter">
+                    {parseFloat(claimedAmount).toFixed(2)} <span className="text-primary/60 text-2xl">USDC</span>
+                  </h1>
+                </div>
+
+                <div className="bg-muted/30 rounded-[2rem] p-6 space-y-4 border border-border/50 text-left">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground font-medium">From</span>
+                    <span className="font-bold text-foreground">Saku Packet</span>
+                  </div>
+                  <div className="h-px bg-border/50 w-full" />
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground font-medium">Status</span>
+                    <span className="text-green-600 font-black text-[10px] tracking-widest flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"/> 
+                        Confirmed
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 pt-4">
+                  <button
+                    onClick={() => router.push("/home")}
+                    className="w-full py-5 rounded-2xl bg-primary text-primary-foreground font-black flex items-center justify-center gap-2 shadow-lg shadow-primary/20 active:scale-95 transition-all"
+                  >
+                    <Home size={18} /> Go To Wallet
+                  </button>
+                  <button
+                    onClick={() => router.push("/transactions")}
+                    className="w-full py-5 rounded-2xl bg-muted font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all"
+                  >
+                    View Transaction <ArrowRight size={16} />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
-      <div className="p-8 text-center mt-auto">
-        <p className="text-[9px] font-bold text-black/10 uppercase tracking-[0.3em] italic">Powered by Saku Web3</p>
-      </div>
     </div>
   )
 }

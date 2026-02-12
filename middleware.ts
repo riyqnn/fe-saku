@@ -31,7 +31,7 @@ export function middleware(request: NextRequest) {
     "default-src 'self'; " +
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com; " +
     "style-src 'self' 'unsafe-inline'; " +
-    "img-src 'self' data: https:; " +
+    "img-src 'self' data: blob: https:; " +
     "font-src 'self' data:; " +
     "connect-src 'self' " +
       "https: " +  // Allow all HTTPS connections (for development - tighten for production!)

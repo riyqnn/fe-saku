@@ -16,6 +16,7 @@ interface UserProfile {
   wallet_address: string
   is_verified: boolean
   full_name: string | null
+  avatar_url?: string | null
 }
 
 interface AuthContextType {
@@ -75,12 +76,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (dbError || !profile) {
         setUser(null)
-        // Clear invalid token
         localStorage.removeItem('saku_auth_token')
+        localStorage.removeItem('saku_user_phone') // Tambahkan ini
         setToken(null)
       } else {
         setUser(profile)
         setToken(savedToken)
+        // Pastikan localStorage sinkron untuk kebutuhan hooks lain
+        localStorage.setItem('saku_user_phone', profile.phone_number)
+        if (profile.wallet_address) {
+          localStorage.setItem('saku_wallet_address', profile.wallet_address)
+        }
       }
     } catch (err) {
       setUser(null)
