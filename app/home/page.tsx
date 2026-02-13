@@ -10,11 +10,13 @@ import RecentTransactions from "@/components/home/recent-transactions"
 import BottomNavigation from "@/components/home/bottom-navigation"
 import TransferModal from "@/components/transfer/transfer-modal"
 import PendingBillsSection from "@/components/home/pending-bills"
+import ReceiptModal from "@/components/home/receipt-modal"
 
 export default function Home() {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [showTransferModal, setShowTransferModal] = useState(false)
+  const [selectedTx, setSelectedTx] = useState<any>(null)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -43,13 +45,17 @@ export default function Home() {
           
         <QuickActions />
         <PendingBillsSection />
-        <RecentTransactions />
+        <RecentTransactions onTxSelect={setSelectedTx} />
       </main>
 
-      <BottomNavigation />
+      {!selectedTx && <BottomNavigation />}
 
       {showTransferModal && (
         <TransferModal onClose={() => setShowTransferModal(false)} />
+      )}
+
+      {selectedTx && (
+        <ReceiptModal selectedTx={selectedTx} onClose={() => setSelectedTx(null)} />
       )}
     </div>
   )

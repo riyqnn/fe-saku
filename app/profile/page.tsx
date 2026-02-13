@@ -29,7 +29,7 @@ export default function ProfilePage() {
   if (!isAuthenticated) return null
 
   return (
-    <div className="min-h-dvh bg-[#FDFCFB] text-foreground animate-in fade-in duration-500">
+    <div className="min-h-dvh bg-[#FDFCFB] text-foreground">
       <HomeHeader />
 
       <main className="max-w-lg mx-auto px-5 space-y-6">
@@ -74,7 +74,7 @@ export default function ProfilePage() {
           </div>
         )}
       </main>
-
+      
       <BottomNavigation />
     </div>
   )
