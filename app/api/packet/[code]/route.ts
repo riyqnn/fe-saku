@@ -53,6 +53,7 @@ export async function GET(request: NextRequest, { params }: { params: any }) {
         distributionType: packet.distribution_type,
         status: packet.status,
         expiresAt: packet.contract_expires_at,
+        themeId: packet.design_id, // <-- ADD THIS LINE
         hasClaimed
       }
     });
