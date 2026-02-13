@@ -99,7 +99,7 @@ export default function SuccessStep({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col h-full bg-white font-sans overflow-y-auto animate-in fade-in duration-500">
+    <div className="fixed inset-0 z-[100] flex flex-col h-full max-w-lg mx-auto bg-white font-sans overflow-y-auto animate-in fade-in duration-500">
       <div className="p-8 pt-16 text-center space-y-6">
         <animated.div style={iconSpring} className="relative inline-block">
           <div className="absolute inset-0 bg-emerald-100 rounded-full scale-150 blur-2xl opacity-50" />
