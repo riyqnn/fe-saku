@@ -75,7 +75,7 @@ export default function NotificationsPage() {
   return (
     <div className="min-h-dvh bg-gray-50 flex flex-col max-w-lg mx-auto">
       <div className="bg-white flex-1 flex flex-col">
-        <Header title="Notifications" backButton />
+        <Header title="Notifications" showBack />
         
         <div className="flex-1 overflow-y-auto">
           {isLoading && (
