@@ -3,18 +3,11 @@ import { ethers } from "ethers";
 import { createSakuServerClient } from "@/lib/supabaseServer";
 import { CONTRACTS, NETWORK_CONFIG, IDRX_DECIMALS } from "@/lib/config";
 import { SAKU_REGISTRY_ABI } from "@/lib/abi";
-import { toTokenAmount, fromTokenAmount } from "@/lib/blockchain";
+import { toTokenAmount } from "@/lib/blockchain";
 import { hashPhoneNumber } from "@/utils/phoneHash";
 import { decrypt } from "@/utils/encrypt";
 import { validateAuth } from "@/lib/auth-middleware";
 
-/**
- * POST /api/packet/claim
- * Claim a packet using the amplopId (packet_code_hash from database)
- *
- * Body:
- * - packetCode: string (the display code, used to look up amplopId)
- */
 export async function POST(request: NextRequest) {
   const supabase = await createSakuServerClient();
 
@@ -26,114 +19,117 @@ export async function POST(request: NextRequest) {
     const phoneNumber = auth.phone!;
     const claimerPhoneHash = hashPhoneNumber(phoneNumber);
 
-    // 1. Ambil Profile & Packet data
     const { data: profile } = await supabase.from("profiles").select("*").eq("phone_hash", claimerPhoneHash).single();
     const { data: packet } = await supabase.from("packets").select("*").eq("packet_code", packetCode?.toUpperCase()).single();
 
-    if (!packet) return NextResponse.json({ error: "Packet not found" }, { status: 404 });
-    if (packet.status !== "ACTIVE") return NextResponse.json({ error: "Packet is no longer active" }, { status: 400 });
-    
-    const { data: creatorProfile } = await supabase.from("profiles").select("full_name").eq("phone_hash", packet.creator_phone_hash).single();
-    const creatorName = creatorProfile?.full_name || "Someone";
+    if (!packet) return NextResponse.json({ error: "Box not found" }, { status: 404 });
+    if (packet.status !== "ACTIVE") return NextResponse.json({ error: "Box is no longer active" }, { status: 400 });
 
-    // 2. VALIDASI PRIVATE CIRCLE (Fitur Baru)
-    if (packet.restricted_to && packet.restricted_to.length > 0) {
-      if (!packet.restricted_to.includes(claimerPhoneHash)) {
-        return NextResponse.json({ 
-          error: "Private Packet: You are not invited to this circle!" 
-        }, { status: 403 });
-      }
+    if (packet.restricted_to && !packet.restricted_to.includes(claimerPhoneHash)) {
+      return NextResponse.json({ error: "Private Circle: You are not invited!" }, { status: 403 });
     }
 
-    // 3. Cek Double Claim
-    const { data: existing } = await supabase.from("packet_claims")
-      .select("id").eq("packet_id", packet.id)
-      .eq("claimer_phone_hash", claimerPhoneHash).single();
-    
-    if (existing) return NextResponse.json({ error: "You've already claimed this packet" }, { status: 400 });
+    const { data: existing } = await supabase.from("packet_claims").select("id")
+      .eq("packet_id", packet.id).eq("claimer_phone_hash", claimerPhoneHash).single();
+    if (existing) return NextResponse.json({ error: "Already claimed!" }, { status: 400 });
 
-    // 4. Kalkulasi Amount (OFF-CHAIN)
-    const claimAmount = calculateClaimAmount(
-      packet.distribution_type,
-      packet.remaining_amount,
-      packet.max_winners - packet.winner_count
-    );
-
-    if (claimAmount <= 0) return NextResponse.json({ error: "Packet is empty" }, { status: 400 });
-
-    // 5. On-Chain Transaction
     const privateKey = decrypt(profile.encrypted_private_key, profile.encryption_iv, profile.auth_tag);
     const provider = new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl);
     const signer = new ethers.Wallet(privateKey, provider);
     const registryContract = new ethers.Contract(CONTRACTS.REGISTRY_ADDRESS, SAKU_REGISTRY_ABI, signer);
 
+    // 1. Ambil data asli Blockchain (SATUAN BIGINT)
+    const exists = await registryContract.amplopExists(packet.packet_code_hash);
+    if (!exists) return NextResponse.json({ error: "Box not found on-chain" }, { status: 404 });
+
+    const totalAmt = await registryContract.amplopTotalAmounts(packet.packet_code_hash);
+    const claimedAmt = await registryContract.amplopClaimedAmounts(packet.packet_code_hash);
+    const remainingOnChainBigInt = totalAmt - claimedAmt;
+    
+    // Convert ke number buat kalkulasi logic
+    const remainingOnChain = Number(ethers.formatUnits(remainingOnChainBigInt, IDRX_DECIMALS));
+
+    if (remainingOnChainBigInt <= BigInt(0)) {
+      return NextResponse.json({ error: "Blockchain: Box is empty" }, { status: 400 });
+    }
+
+    // 2. Kalkulasi Amount dengan safety check
+    const winnersLeft = packet.max_winners - packet.winner_count;
+    let claimAmount = calculateClaimAmount(
+      packet.distribution_type,
+      remainingOnChain,
+      winnersLeft
+    );
+
+    // Mencegah claimAmount > sisa (Safety rounding)
+    if (claimAmount > remainingOnChain) claimAmount = remainingOnChain;
+
+    // Convert balik ke BigInt untuk kirim ke kontrak
     const tokenAmount = toTokenAmount(claimAmount.toString(), IDRX_DECIMALS);
 
-    // Execute claim on blockchain
-    const tx = await registryContract.claimAmplop(packet.packet_code_hash, tokenAmount);
-    const receipt = await tx.wait();
+    // 3. Last chance check: Kalau ternyata tokenAmount masih > remainingOnChainBigInt gara-gara string conversion
+    const finalTokenAmount = tokenAmount > remainingOnChainBigInt ? remainingOnChainBigInt : tokenAmount;
 
-    // 6. Update Database (Atomic-ish)
-    await supabase.from("packet_claims").insert([{
-      packet_id: packet.id,
-      packet_code_hash: packet.packet_code_hash,
-      claimer_phone_hash: claimerPhoneHash,
-      claimer_wallet_address: profile.wallet_address,
-      claimed_amount: claimAmount,
-      contract_tx_hash: receipt.hash,
-    }]);
+    // 4. Pre-Execution (Cek Gas)
+    const ethBalance = await provider.getBalance(signer.address);
+    if (ethBalance < ethers.parseEther("0.0001")) {
+      return NextResponse.json({ error: "No ETH for gas fees. Claim failed." }, { status: 400 });
+    }
 
-    await supabase.from("transactions").insert([{
-      receiver_phone: phoneNumber,
-      receiver_wallet: profile.wallet_address,
-      amount: claimAmount,
-      tx_hash: receipt.hash,
-      block_number: receipt.blockNumber,
-      type: "PACKET_CLAIM",
-      reference_id: packet.id,
-      timestamp: new Date().toISOString(),
-    }]);
+    // 5. Execute On-Chain
+    try {
+      // Gunakan finalTokenAmount yang sudah pasti aman
+      const tx = await registryContract.claimAmplop(packet.packet_code_hash, finalTokenAmount);
+      const receipt = await tx.wait();
 
-    const newWinnerCount = packet.winner_count + 1;
-    const newRemaining = packet.remaining_amount - claimAmount;
+      // 6. Atomic Database Update (RPC)
+      // Pakai claimAmount original buat DB (biar balance sinkron)
+      const { error: rpcError } = await supabase.rpc('claim_packet_atomic', {
+        target_packet_id: packet.id,
+        amount_to_claim: claimAmount
+      });
 
-    await supabase.from("packets").update({
-      winner_count: newWinnerCount,
-      remaining_amount: newRemaining,
-      status: newWinnerCount >= packet.max_winners ? "CLAIMED" : "ACTIVE"
-    }).eq("id", packet.id);
+      if (rpcError) console.error("RPC Warning (Possible race condition):", rpcError);
 
-    // Create notification for the claimer
-    await supabase.from('notifications').insert({
-      user_id: profile.id,
-      type: 'TRANSFER_IN',
-      message: `You claimed ${claimAmount} USDC from a packet by ${creatorName}.`,
-      metadata: {
+      // 7. Insert History
+      await supabase.from("packet_claims").insert([{
+        packet_id: packet.id,
+        packet_code_hash: packet.packet_code_hash,
+        claimer_phone_hash: claimerPhoneHash,
+        claimer_wallet_address: profile.wallet_address,
+        claimed_amount: claimAmount,
+        contract_tx_hash: receipt.hash,
+      }]);
+
+      await supabase.from("transactions").insert([{
+        receiver_phone: phoneNumber,
+        receiver_wallet: profile.wallet_address,
         amount: claimAmount,
         tx_hash: receipt.hash,
-        packet_code: packetCode,
-        from_name: creatorName,
-      },
-    });
+        block_number: receipt.blockNumber,
+        type: "PACKET_CLAIM",
+        reference_id: packet.id,
+        timestamp: new Date().toISOString(),
+      }]);
 
-    return NextResponse.json({ 
-      success: true, 
-      claimedAmount: claimAmount, 
-      transactionHash: receipt.hash 
-    });
+      return NextResponse.json({ success: true, claimedAmount: claimAmount, transactionHash: receipt.hash });
+
+    } catch (blockchainErr: any) {
+      console.error("CONTRACT REVERT DETAIL:", blockchainErr);
+      return NextResponse.json({ error: "Blockchain Rejected: " + (blockchainErr.reason || "Invalid Amount or Already Claimed On-chain") }, { status: 400 });
+    }
 
   } catch (error: any) {
-    console.error("CLAIM ERROR:", error);
+    console.error("FATAL ERROR:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 function calculateClaimAmount(type: string, remaining: number, left: number): number {
   if (left <= 0 || remaining <= 0) return 0;
-  if (left === 1) return remaining;
+  if (left === 1) return parseFloat(remaining.toFixed(2));
   if (type === "EQUAL") return parseFloat((remaining / left).toFixed(2));
   
-  // Random logic for USDC (pake desimal biar ga cuma 1 USDC)
   const min = 0.01;
   const avg = remaining / left;
   const max = Math.min(remaining - (left * 0.01), avg * 2);

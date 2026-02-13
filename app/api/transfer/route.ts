@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ethers } from "ethers";
+import { createClient } from "@supabase/supabase-js";
 import { createSakuServerClient } from "@/lib/supabaseServer";
 import { CONTRACTS, NETWORK_CONFIG, IDRX_DECIMALS } from "@/lib/config";
 import { SAKU_REGISTRY_ABI, IDRX_ABI } from "@/lib/abi";

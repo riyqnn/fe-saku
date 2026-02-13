@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ethers } from "ethers";
+import { createClient } from "@supabase/supabase-js";
 import { CONTRACTS, NETWORK_CONFIG, IDRX_DECIMALS } from "@/lib/config";
 import { USDC_STAKING_ABI, IDRX_ABI } from "@/lib/abi";
 import { toTokenAmount, fromTokenAmount } from "@/lib/blockchain";

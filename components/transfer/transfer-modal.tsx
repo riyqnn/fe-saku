@@ -131,6 +131,7 @@ export default function TransferModal({ onClose }: { onClose: () => void }) {
             receiverName={receiver?.name || ""}
             receiverPhone={receiver?.phone || ""}
             amount={amount}
+            billDescription="Transfer"
             onComplete={handleComplete}
           />
         )}
