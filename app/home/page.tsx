@@ -36,7 +36,7 @@ export default function Home() {
 
   return (
     <div className="min-h-dvh bg-white font-sans relative max-w-lg mx-auto">
-      <div className="absolute top-0 left-0 right-0 h-[450px] bg-gradient-to-b from-primary via-primary/5 to-transparent pointer-events-none" />
+      <div className="absolute top-0 left-0 right-0 h-[450px] bg-gradient-to-b from-primary via-primary/10 to-transparent pointer-events-none" />
 
       <HomeHeader />
 
