@@ -152,20 +152,7 @@ export default function ClaimPacketPage() {
               </div>
 
               <div className="w-full max-w-[300px] space-y-6">
-                 {/* Progress Info */}
-                 <div className="bg-white/50 backdrop-blur-md rounded-2xl p-4 border border-border space-y-3">
-                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        <span>Claimed Capacity</span>
-                        <span className="text-primary">{packet.winnerCount} / {packet.maxWinners}</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(packet.winnerCount / packet.maxWinners) * 100}%` }}
-                          className="h-full bg-primary"
-                        />
-                    </div>
-                 </div>
+
 
                  <button
                   onClick={handleClaim}

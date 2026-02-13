@@ -45,6 +45,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const origin = request.nextUrl.origin;
+
     // Get claim counts for each packet
     const packetsWithClaimCounts = await Promise.all(
       (packets || []).map(async (packet) => {
