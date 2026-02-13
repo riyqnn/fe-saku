@@ -105,7 +105,7 @@ export default function TopupPage() {
           </div>
           <h1 className="text-3xl font-bold italic text-black/85">Success!</h1>
           <p className="text-black/50 font-medium">
-            You have successfully received {Number(amount).toLocaleString()} IDRX
+            You have successfully received {Number(amount).toLocaleString()} USDC
           </p>
 
           {txHash && (
@@ -185,7 +185,7 @@ export default function TopupPage() {
                       Instant Top Up
                     </p>
                     <p className="text-xs text-black/50 leading-relaxed">
-                      Enter the amount you need and receive IDRX tokens instantly. Tokens will be sent directly to your wallet address.
+                      Enter the amount you need and receive USDC tokens instantly. Tokens will be sent directly to your wallet address.
                     </p>
                   </div>
                 </div>
@@ -194,7 +194,7 @@ export default function TopupPage() {
               {/* Amount Input */}
               <div className="space-y-3">
                 <label className="text-sm font-semibold text-black/85">
-                  Amount (IDRX)
+                  Amount (USDC)
                 </label>
                 <div className="space-y-3">
                   <input
@@ -209,25 +209,25 @@ export default function TopupPage() {
                   {/* Quick Amount Buttons */}
                   <div className="grid grid-cols-3 gap-3">
                     <button
-                      onClick={() => setAmount("100000")}
+                      onClick={() => setAmount("10")}
                       className="p-3 rounded-xl bg-primary/20 text-amber-900 font-semibold hover:bg-primary/30 transition-colors active:scale-95"
                       disabled={loading}
                     >
-                      100K
+                      10
                     </button>
                     <button
-                      onClick={() => setAmount("500000")}
+                      onClick={() => setAmount("50")}
                       className="p-3 rounded-xl bg-primary/20 text-amber-900 font-semibold hover:bg-primary/30 transition-colors active:scale-95"
                       disabled={loading}
                     >
-                      500K
+                      50
                     </button>
                     <button
-                      onClick={() => setAmount("1000000")}
+                      onClick={() => setAmount("100")}
                       className="p-3 rounded-xl bg-primary/20 text-amber-900 font-semibold hover:bg-primary/30 transition-colors active:scale-95"
                       disabled={loading}
                     >
-                      1M
+                      100
                     </button>
                   </div>
                 </div>
@@ -255,7 +255,7 @@ export default function TopupPage() {
                   ) : (
                     <>
                       <Coins className="w-5 h-5" />
-                      Top Up {amount ? Number(amount).toLocaleString() : '0'} IDRX
+                      Top Up {amount ? Number(amount).toLocaleString() : '0'} USDC
                     </>
                   )}
                 </button>

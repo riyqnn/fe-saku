@@ -182,9 +182,9 @@ export default function StakingPage() {
       claim: "Claimed!",
     }
     const messages = {
-      stake: `${formatNumber(successData.amount || "0")} IDRX → ${formatNumber(successData.stUSDCReceived || "0")} stUSDC`,
-      unstake: `${formatNumber(successData.amount || "0")} stUSDC → ${formatNumber(successData.amountReceived || "0")} IDRX`,
-      claim: `${formatNumber(successData.amount || "0")} IDRX rewards`,
+      stake: `${formatNumber(successData.amount || "0")} USDC → ${formatNumber(successData.stUSDCReceived || "0")} stUSDC`,
+      unstake: `${formatNumber(successData.amount || "0")} stUSDC → ${formatNumber(successData.amountReceived || "0")} USDC`,
+      claim: `${formatNumber(successData.amount || "0")} USDC rewards`,
     }
 
     return (
@@ -220,7 +220,7 @@ export default function StakingPage() {
   }
 
   return (
-    <div className="min-h-screen h-dvh bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans pb-24">
+    <div className="min-h-screen h-dvh bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans">
       <Header title="Staking" />
 
       <div className="flex-1 overflow-y-auto p-5 space-y-6 animate-in fade-in duration-500 scrollbar-hide">
@@ -228,7 +228,7 @@ export default function StakingPage() {
         <div className="space-y-1">
           <h1 className="text-4xl font-black italic tracking-tighter leading-none">STAKING</h1>
           <div className="h-1 w-12 bg-primary rounded-full" />
-          <p className="text-[10px] font-bold text-black/30 tracking-widest pt-1">Earn rewards by staking IDRX</p>
+          <p className="text-[10px] font-bold text-black/30 tracking-widest pt-1">Earn rewards by staking USDC</p>
         </div>
 
         {/* Main Stats Card */}
@@ -245,7 +245,7 @@ export default function StakingPage() {
                   <p className="text-[10px] font-bold text-amber-900/60 tracking-[0.2em]">Your Staked Balance</p>
                 </div>
                 <h2 className="text-4xl font-bold tracking-tighter text-black/85">
-                  {stakingInfo ? formatNumber(stakingInfo.userStaked) : "0"} IDRX
+                  {stakingInfo ? formatNumber(stakingInfo.userStaked) : "0"} USDC
                 </h2>
                 <p className="text-xs text-amber-900/60 font-medium">
                   ≈ {stakingInfo ? formatNumber(stakingInfo.userStaked) : "0"} stUSDC
@@ -298,7 +298,7 @@ export default function StakingPage() {
           <StatCard
             icon={Percent}
             label="Min Stake"
-            value={stakingInfo ? `${formatNumber(stakingInfo.minStakeAmount)} IDRX` : "1 IDRX"}
+            value={stakingInfo ? `${formatNumber(stakingInfo.minStakeAmount)} USDC` : "1 USDC"}
             color="primary"
           />
         </section>
@@ -342,13 +342,13 @@ export default function StakingPage() {
                       className="w-full text-3xl font-black bg-transparent outline-none placeholder:text-black/10"
                       disabled={isStaking}
                     />
-                    <span className="absolute right-0 top-1/2 -translate-y-1/2 text-sm font-bold text-black/30">IDRX</span>
+                    <span className="absolute right-0 top-1/2 -translate-y-1/2 text-sm font-bold text-black/30">USDC</span>
                   </div>
                   <div className="flex gap-2">
-                    {["100K", "500K", "1M"].map((val) => (
+                    {["10", "50", "100"].map((val) => (
                       <button
                         key={val}
-                        onClick={() => setAmount(val.replace("K", "000").replace("M", "000000"))}
+                        onClick={() => setAmount(val)}
                         className="flex-1 py-2 rounded-xl bg-muted/50 text-xs font-bold hover:bg-primary/10 transition-colors"
                         disabled={isStaking}
                       >
@@ -371,7 +371,7 @@ export default function StakingPage() {
                   ) : (
                     <>
                       <TrendingUp size={18} />
-                      Stake {amount ? formatNumber(amount) : "0"} IDRX
+                      Stake {amount ? formatNumber(amount) : "0"} USDC
                     </>
                   )}
                 </button>
@@ -444,7 +444,7 @@ export default function StakingPage() {
                     <div className="space-y-1">
                       <p className="text-[10px] font-bold text-amber-900/60 tracking-widest">PENDING REWARDS</p>
                       <p className="text-3xl font-bold text-amber-900">
-                        {stakingInfo ? formatNumber(stakingInfo.pendingRewards) : "0"} IDRX
+                        {stakingInfo ? formatNumber(stakingInfo.pendingRewards) : "0"} USDC
                       </p>
                     </div>
                   </div>
@@ -485,7 +485,7 @@ export default function StakingPage() {
           <ul className="space-y-2 text-xs text-black/60 font-medium">
             <li className="flex items-start gap-2">
               <span className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 text-[10px] font-bold">1</span>
-              <span>Stake IDRX to receive stUSDC (1:1 ratio)</span>
+              <span>Stake USDC to receive stUSDC (1:1 ratio)</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 text-[10px] font-bold">2</span>
@@ -493,7 +493,7 @@ export default function StakingPage() {
             </li>
             <li className="flex items-start gap-2">
               <span className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 text-[10px] font-bold">3</span>
-              <span>Unstake anytime to get your IDRX back</span>
+              <span>Unstake anytime to get your USDC back</span>
             </li>
           </ul>
         </section>

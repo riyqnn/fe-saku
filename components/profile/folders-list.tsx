@@ -149,7 +149,7 @@ export default function FoldersManager() {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-black/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="bg-card border border-border/50 rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
             <div className="p-6 border-b border-border/50 flex justify-between items-center">
               <h2 className="font-bold">Find Someone</h2>

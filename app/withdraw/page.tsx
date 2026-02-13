@@ -101,8 +101,8 @@ export default function WithdrawPage() {
             {withdrawAllFlag
               ? 'All funds have been withdrawn successfully.'
               : withdrawResult
-                ? `${Number(withdrawResult.amountAfterFee).toLocaleString()} IDRX withdrawn`
-                : `${Number(estimatedAmountAfterFee).toLocaleString()} IDRX withdrawn`
+                ? `${Number(withdrawResult.amountAfterFee).toLocaleString()} USDC withdrawn`
+                : `${Number(estimatedAmountAfterFee).toLocaleString()} USDC withdrawn`
             }
           </p>
 
@@ -166,7 +166,7 @@ export default function WithdrawPage() {
 
           {/* Amount Input */}
           <div className="space-y-3">
-            <label className="text-sm font-semibold text-black/85">Amount (IDRX)</label>
+            <label className="text-sm font-semibold text-black/85">Amount (USDC)</label>
             <div className="relative">
               <input
                 type="text"
@@ -196,19 +196,19 @@ export default function WithdrawPage() {
             <div className="p-4 rounded-2xl bg-muted/50 border border-border space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-black/50">Amount</span>
-                <span className="text-sm font-semibold text-black/85">{Number(amount).toLocaleString()} IDRX</span>
+                <span className="text-sm font-semibold text-black/85">{Number(amount).toLocaleString()} USDC</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-black/50">Fee (1%)</span>
                 <span className="text-sm font-semibold text-orange-500">
-                  -{Number(estimatedFee).toLocaleString()} IDRX
+                  -{Number(estimatedFee).toLocaleString()} USDC
                 </span>
               </div>
               <div className="h-px bg-border" />
               <div className="flex justify-between items-center">
                 <span className="text-sm font-semibold text-black/85">You'll Receive</span>
                 <span className="text-lg font-bold text-green-500">
-                  {Number(estimatedAmountAfterFee).toLocaleString()} IDRX
+                  {Number(estimatedAmountAfterFee).toLocaleString()} USDC
                 </span>
               </div>
             </div>
@@ -223,7 +223,7 @@ export default function WithdrawPage() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-black/50">Est. Fee (1%)</span>
                 <span className="text-sm font-semibold text-orange-500">
-                  ~{(parseFloat(formattedBalance) * 0.01).toFixed(6)} IDRX
+                  ~{(parseFloat(formattedBalance) * 0.01).toFixed(6)} USDC
                 </span>
               </div>
             </div>
@@ -247,7 +247,7 @@ export default function WithdrawPage() {
               }
               className="w-full py-4 px-6 rounded-2xl bg-black text-white font-semibold text-lg shadow-xl shadow-black/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
             >
-              {loading ? 'Withdrawing...' : `Withdraw ${withdrawAllFlag ? 'All' : amount} IDRX`}
+              {loading ? 'Withdrawing...' : `Withdraw ${withdrawAllFlag ? 'All' : amount} USDC`}
             </button>
 
             <button
