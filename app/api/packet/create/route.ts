@@ -13,12 +13,11 @@ export async function POST(request: NextRequest) {
 
   try {
     const auth = await validateAuth(request);
-    if (!auth.valid) {
-      return NextResponse.json({ error: auth.error }, { status: 401 });
-    }
+    if (!auth.valid) return NextResponse.json({ error: auth.error }, { status: 401 });
 
     const body = await request.json();
-    const { packetCode, totalAmount, maxWinners, distributionType } = body;
+    // Tambahkan targetPhones dari body
+    const { packetCode, totalAmount, maxWinners, distributionType, targetPhones, themeId } = body;
     const phoneNumber = auth.phone!;
 
     // 1. Validasi Input
@@ -31,6 +30,12 @@ export async function POST(request: NextRequest) {
 
     // 2. Ambil Profile & Decrypt Private Key
     const phoneHash = hashPhoneNumber(phoneNumber);
+    
+    // Proses targetPhones jika ada (Private Mode)
+    let restrictedToHashes = null;
+    if (targetPhones && Array.isArray(targetPhones) && targetPhones.length > 0) {
+      restrictedToHashes = targetPhones.map(phone => hashPhoneNumber(phone));
+    }
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("wallet_address, encrypted_private_key, encryption_iv, auth_tag")
@@ -69,7 +74,7 @@ export async function POST(request: NextRequest) {
       .insert([
         {
           packet_code: displayCode,
-          packet_code_hash: amplopId,
+          packet_code_hash: amplopId, // dari ethers keccak
           creator_phone_hash: phoneHash,
           creator_wallet_address: profile.wallet_address,
           total_amount: totalAmount,
@@ -79,6 +84,8 @@ export async function POST(request: NextRequest) {
           distribution_type: distributionType || "RANDOM",
           status: "ACTIVE",
           contract_tx_hash: receipt.hash,
+          design_id: themeId || 'orange',
+          restricted_to: restrictedToHashes, // KOLOM BARU
           contract_expires_at: new Date(Date.now() + 86400000).toISOString(),
         },
       ])

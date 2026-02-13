@@ -11,16 +11,41 @@ import BottomNavigation from "@/components/home/bottom-navigation"
 import TransferModal from "@/components/transfer/transfer-modal"
 import PendingBillsSection from "@/components/home/pending-bills"
 import ReceiptModal from "@/components/home/receipt-modal"
+import GiftPacketsSection from "@/components/home/give-packets-sections"
 
 export default function Home() {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [showTransferModal, setShowTransferModal] = useState(false)
   const [selectedTx, setSelectedTx] = useState<any>(null)
+  
+  const [packetsLoading, setPacketsLoading] = useState(true)
+
+  const [myInvitedPackets, setMyInvitedPackets] = useState([])
+
+  const fetchInvitedPackets = async () => {
+    try {
+      const token = localStorage.getItem("saku_auth_token")
+      const response = await fetch("/api/packet/invited", {
+        headers: { "Authorization": `Bearer ${token}` },
+      })
+      const data = await response.json()
+      
+      console.log("API Response invited packets:", data); 
+
+      if (response.ok) {
+        setMyInvitedPackets(data.packets || [])
+      }
+    } catch (error) {
+      console.error("Fetch error:", error)
+    }
+  }
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.replace("/get-started")
+    } else if (isAuthenticated) {
+      fetchInvitedPackets()
     }
   }, [isAuthenticated, authLoading, router])
 
@@ -44,7 +69,12 @@ export default function Home() {
         <BalanceCardSection />
           
         <QuickActions />
+
+        {myInvitedPackets.length > 0 && (
+          <GiftPacketsSection packets={myInvitedPackets} />
+        )}
         <PendingBillsSection />
+
         <RecentTransactions onTxSelect={setSelectedTx} />
       </main>
 

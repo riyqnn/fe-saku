@@ -80,10 +80,8 @@ export default function ClaimPacketPage() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "Claim failed")
 
-      // Start Opening Animation
       setIsOpen(true)
       
-      // Show result after animation finishes
       setTimeout(() => {
         setClaimedAmount(data.claimedAmount)
         refetchBalance()
@@ -95,7 +93,6 @@ export default function ClaimPacketPage() {
     }
   }
 
-  // Get current theme object
   const currentTheme = PACKET_THEMES.find(t => t.id === packet?.themeId) || PACKET_THEMES[0]
 
   if (isLoading) return (

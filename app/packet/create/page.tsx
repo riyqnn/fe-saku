@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   Gift, Loader2, Sparkles, Copy, Check, Share2,
   Users, Shuffle, Divide, Download, Home, X, Wallet,
-  ArrowRight, ExternalLink, ShieldCheck
+  ArrowRight, ExternalLink, ShieldCheck, Search
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "@/hooks/useAuth"
@@ -16,6 +16,7 @@ import { generatePacketCode } from "@/hooks/usePacket"
 import { PacketTheme, PACKET_THEMES } from "@/lib/packet-themes"
 import EnvelopeCarousel from "@/components/packet/envelope-carousel"
 import Header from "@/components/layout/Header"
+import { useContacts } from "@/hooks/useContacts"
 
 export default function CreatePacketPage() {
   const router = useRouter()
@@ -38,6 +39,20 @@ export default function CreatePacketPage() {
     totalAmount: string
   } | null>(null)
   const [isCopied, setIsCopied] = useState(false)
+
+  // Fitur Private Circle
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [searchContact, setSearchContact] = useState("");
+  const [selectedContacts, setSelectedContacts] = useState<any[]>([]);
+  const { contacts } = useContacts();
+
+  const toggleContact = (contact: any) => {
+    if (selectedContacts.find(c => c.id === contact.id)) {
+      setSelectedContacts(selectedContacts.filter(c => c.id !== contact.id));
+    } else {
+      setSelectedContacts([...selectedContacts, contact]);
+    }
+  };
 
   const handleThemeChange = (theme: PacketTheme) => {
     if (!showDrawer) setCurrentDisplayTheme(theme)
@@ -68,6 +83,12 @@ export default function CreatePacketPage() {
       toast.error("Enter a valid amount")
       return
     }
+    
+    if (isPrivate && selectedContacts.length === 0) {
+      toast.error("Please select at least one contact for Private Circle")
+      return
+    }
+
     setIsLoading(true)
     const autoGenCode = generatePacketCode(8)
 
@@ -85,6 +106,7 @@ export default function CreatePacketPage() {
           maxWinners: parseInt(maxWinners),
           distributionType,
           themeId: selectedTheme?.id || "orange",
+          targetPhones: isPrivate ? selectedContacts.map(c => c.phone_number) : null
         }),
       })
 
@@ -105,96 +127,95 @@ export default function CreatePacketPage() {
     }
   }
 
-  // --- NEW SUCCESS SCREEN UI ---
   if (createdPacket) {
+    // ... UI Success Lu (Tetap sama)
     return (
-      <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans relative overflow-hidden">
-        <Header title="Receipt" showBack={false} />
-        
-        {/* Animated Background Mesh for Success */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          <div className="absolute top-0 left-0 w-full h-[40%] bg-gradient-to-b from-primary/10 to-transparent" />
-          <div className="absolute top-[20%] right-[-10%] w-[250px] h-[250px] bg-green-500/5 blur-[100px] rounded-full" />
-        </div>
-
-        <div className="flex-1 flex flex-col items-center p-6 space-y-6 relative z-10 animate-slide-in">
-          {/* Main Success Card */}
-          <div className="w-full bg-white rounded-[2.5rem] shadow-2xl border border-border overflow-hidden">
-            <div className="p-8 text-center space-y-6">
-              {/* Wallet Icon with Success Badge */}
-              <div className="relative w-24 h-24 mx-auto">
-                <div className="w-24 h-24 rounded-[2rem] bg-primary/10 flex items-center justify-center text-primary">
-                  <Wallet size={48} />
-                </div>
-                <div className="absolute -bottom-2 -right-2 bg-green-500 text-white p-2 rounded-full shadow-lg border-4 border-white">
-                  <ShieldCheck size={20} />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.3em]">Payment Sent</p>
-                <h1 className="text-4xl font-black text-foreground tracking-tighter">
-                  {createdPacket.totalAmount} <span className="text-primary/60">USDC</span>
-                </h1>
-              </div>
-
-              {/* Transaction Detail Box */}
-              <div className="bg-muted/30 rounded-[2rem] p-6 space-y-4 border border-border/50">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground font-medium">Status</span>
-                  <span className="text-green-600 font-black flex items-center gap-1 uppercase text-[10px] tracking-widest">
-                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    Confirmed
-                  </span>
-                </div>
-                <div className="h-px bg-border/50 w-full" />
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground font-medium">Distribution</span>
-                  <span className="font-bold text-foreground capitalize">{distributionType.toLowerCase()}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground font-medium">Recipients</span>
-                  <span className="font-bold text-foreground">{maxWinners} People</span>
-                </div>
-              </div>
-
-              {/* Shareable QR Section */}
-              <div className="space-y-4 pt-4">
-                <div className="relative group inline-block">
-                  <div className="absolute -inset-4 bg-primary/5 rounded-[3rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div ref={qrRef} className="relative p-5 bg-white rounded-[2.5rem] shadow-xl border border-border inline-block">
-                    <QRCodeSVG value={createdPacket.shareLink} size={160} level="H" />
+        <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto border-x border-border font-sans relative overflow-hidden">
+          <Header title="Receipt" showBack={false} />
+          
+          {/* Animated Background Mesh for Success */}
+          <div className="absolute inset-0 z-0 pointer-events-none">
+            <div className="absolute top-0 left-0 w-full h-[40%] bg-gradient-to-b from-primary/10 to-transparent" />
+            <div className="absolute top-[20%] right-[-10%] w-[250px] h-[250px] bg-green-500/5 blur-[100px] rounded-full" />
+          </div>
+  
+          <div className="flex-1 flex flex-col items-center p-6 space-y-6 relative z-10 animate-slide-in">
+            {/* Main Success Card */}
+            <div className="w-full bg-white rounded-[2.5rem] shadow-2xl border border-border overflow-hidden">
+              <div className="p-8 text-center space-y-6">
+                {/* Wallet Icon with Success Badge */}
+                <div className="relative w-24 h-24 mx-auto">
+                  <div className="w-24 h-24 rounded-[2rem] bg-primary/10 flex items-center justify-center text-primary">
+                    <Wallet size={48} />
+                  </div>
+                  <div className="absolute -bottom-2 -right-2 bg-green-500 text-white p-2 rounded-full shadow-lg border-4 border-white">
+                    <ShieldCheck size={20} />
                   </div>
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-foreground mb-1">Packet Code: <span className="text-primary font-black uppercase">{createdPacket.packetCode}</span></p>
-                  <p className="text-[10px] text-muted-foreground px-10">Anyone with this QR or code can claim the rewards in your packet.</p>
+  
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.3em]">Payment Sent</p>
+                  <h1 className="text-4xl font-black text-foreground tracking-tighter">
+                    {createdPacket.totalAmount} <span className="text-primary/60">USDC</span>
+                  </h1>
+                </div>
+  
+                {/* Transaction Detail Box */}
+                <div className="bg-muted/30 rounded-[2rem] p-6 space-y-4 border border-border/50">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground font-medium">Status</span>
+                    <span className="text-green-600 font-black flex items-center gap-1 uppercase text-[10px] tracking-widest">
+                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                      Confirmed
+                    </span>
+                  </div>
+                  <div className="h-px bg-border/50 w-full" />
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground font-medium">Distribution</span>
+                    <span className="font-bold text-foreground capitalize">{distributionType.toLowerCase()}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground font-medium">Recipients</span>
+                    <span className="font-bold text-foreground">{maxWinners} People</span>
+                  </div>
+                </div>
+  
+                {/* Shareable QR Section */}
+                <div className="space-y-4 pt-4">
+                  <div className="relative group inline-block">
+                    <div className="absolute -inset-4 bg-primary/5 rounded-[3rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div ref={qrRef} className="relative p-5 bg-white rounded-[2.5rem] shadow-xl border border-border inline-block">
+                      <QRCodeSVG value={createdPacket.shareLink} size={160} level="H" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-foreground mb-1">Packet Code: <span className="text-primary font-black uppercase">{createdPacket.packetCode}</span></p>
+                    <p className="text-[10px] text-muted-foreground px-10">Anyone with this QR or code can claim the rewards in your packet.</p>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            {/* Bottom Action Bar */}
-            <div className="bg-muted/20 p-6 grid grid-cols-2 gap-3 border-t border-border">
-               <button 
-                onClick={() => router.push("/home")} 
-                className="py-4 rounded-2xl bg-white border border-border font-bold text-sm shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
-               >
-                 <Home size={18} /> Home
-               </button>
-               <button 
-                onClick={() => handleCopy(createdPacket.shareLink)} 
-                className="py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-sm shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-               >
-                 <Share2 size={18} /> {isCopied ? 'Copied' : 'Share Link'}
-               </button>
+  
+              {/* Bottom Action Bar */}
+              <div className="bg-muted/20 p-6 grid grid-cols-2 gap-3 border-t border-border">
+                 <button 
+                  onClick={() => router.push("/home")} 
+                  className="py-4 rounded-2xl bg-white border border-border font-bold text-sm shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+                 >
+                   <Home size={18} /> Home
+                 </button>
+                 <button 
+                  onClick={() => handleCopy(createdPacket.shareLink)} 
+                  className="py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-sm shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                 >
+                   <Share2 size={18} /> {isCopied ? 'Copied' : 'Share Link'}
+                 </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    )
+      )
   }
 
-  // --- DRAWER & MAIN VIEW (KODE LU SEBELUMNYA) ---
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto border-x border-border relative overflow-hidden">
       <Header title="Create Packet" />
@@ -306,6 +327,72 @@ export default function CreatePacketPage() {
                     </div>
                   </div>
 
+                  {/* --- TARO DISINI CU (PRIVATE CIRCLE SECTION) --- */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border border-border">
+                        <div className="flex items-center gap-3">
+                            <Users size={20} className="text-primary" />
+                            <div>
+                            <p className="text-sm font-bold">Private Circle</p>
+                            <p className="text-[10px] text-muted-foreground">Only selected friends can claim</p>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={() => setIsPrivate(!isPrivate)}
+                            className={`w-12 h-6 rounded-full transition-all relative ${isPrivate ? 'bg-primary' : 'bg-muted'}`}
+                        >
+                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isPrivate ? 'left-7' : 'left-1'}`} />
+                        </button>
+                    </div>
+
+                    <AnimatePresence>
+                    {isPrivate && (
+                        <motion.div 
+                        initial={{ height: 0, opacity: 0 }} 
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="space-y-4 overflow-hidden"
+                        >
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+                            <input 
+                            type="text" 
+                            placeholder="Search friends..."
+                            value={searchContact}
+                            onChange={(e) => setSearchContact(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 bg-muted/50 rounded-xl text-xs outline-none focus:ring-1 ring-primary"
+                            />
+                        </div>
+
+                        <div className="max-h-40 overflow-y-auto space-y-2 pr-2 scrollbar-hide">
+                            {contacts?.filter(c => c.name.toLowerCase().includes(searchContact.toLowerCase())).map(contact => (
+                            <button 
+                                key={contact.id}
+                                onClick={() => toggleContact(contact)}
+                                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
+                                selectedContacts.find(c => c.id === contact.id) ? 'border-primary bg-primary/5' : 'border-border bg-white'
+                                }`}
+                            >
+                                <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-xs font-bold">
+                                    {contact.name[0]}
+                                </div>
+                                <p className="text-xs font-bold">{contact.name}</p>
+                                </div>
+                                {selectedContacts.find(c => c.id === contact.id) && <Check size={14} className="text-primary" />}
+                            </button>
+                            ))}
+                        </div>
+                        
+                        <p className="text-[10px] text-center text-muted-foreground font-medium italic">
+                            Tip: Select more people than winners for a "Fastest Finger" challenge!
+                        </p>
+                        </motion.div>
+                    )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* --- CREATE BUTTON --- */}
                   <button
                     onClick={handleCreatePacket}
                     disabled={isLoading || !amount}
