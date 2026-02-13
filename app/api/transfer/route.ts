@@ -36,155 +36,113 @@ export async function POST(request: NextRequest) {
     const { receiverAddress, receiverPhone, amount } = body;
     const phoneNumber = auth.phone!; // From JWT token
 
-    // Validate amount
     if (!amount) {
-      return NextResponse.json(
-        { error: "Missing required field: amount" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing required field: amount" }, { status: 400 });
     }
 
-    // Determine receiver address (either from direct input or phone lookup)
-    let finalReceiverAddress = receiverAddress;
+    const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-    if (receiverPhone && !receiverAddress) {
-      // Look up wallet address from phone number
-      const receiverPhoneHash = hashPhoneNumber(receiverPhone);
-      const { data: receiverProfile, error: receiverError } = await supabase
-        .from("profiles")
-        .select("wallet_address")
-        .eq("phone_hash", receiverPhoneHash)
-        .single();
-
-      if (receiverError || !receiverProfile?.wallet_address) {
-        return NextResponse.json(
-          { error: "Receiver wallet not found" },
-          { status: 404 }
-        );
-      }
-
-      finalReceiverAddress = receiverProfile.wallet_address;
-    }
-
-    if (!finalReceiverAddress) {
-      return NextResponse.json(
-        { error: "Missing receiverAddress or receiverPhone" },
-        { status: 400 }
-      );
-    }
-
-    if (!ethers.isAddress(finalReceiverAddress)) {
-      return NextResponse.json(
-        { error: "Invalid receiver address" },
-        { status: 400 }
-      );
-    }
-
-    // Get sender's profile with encrypted private key
-    const phoneHash = hashPhoneNumber(phoneNumber);
-    const { data: profile, error: profileError } = await supabase
+    // Get sender's profile
+    const { data: senderProfile, error: senderProfileError } = await supabaseAdmin
       .from("profiles")
-      .select("wallet_address, encrypted_private_key, encryption_iv, auth_tag")
-      .eq("phone_hash", phoneHash)
+      .select("id, wallet_address, full_name, encrypted_private_key, encryption_iv, auth_tag")
+      .eq("phone_number", phoneNumber)
       .single();
 
-    if (profileError || !profile) {
-      return NextResponse.json(
-        { error: "Sender wallet not found" },
-        { status: 404 }
-      );
+    if (senderProfileError || !senderProfile) {
+      return NextResponse.json({ error: "Sender wallet not found" }, { status: 404 });
     }
 
-    if (!profile.wallet_address) {
-      return NextResponse.json(
-        { error: "Sender wallet address not found" },
-        { status: 400 }
-      );
+    // Get receiver's profile
+    let receiverProfile: any = null;
+    if (receiverPhone) {
+      const { data } = await supabaseAdmin.from("profiles").select("id, wallet_address, full_name").eq("phone_number", receiverPhone).single();
+      receiverProfile = data;
+    } else if (receiverAddress) {
+      const { data } = await supabaseAdmin.from("profiles").select("id, wallet_address, full_name").eq("wallet_address", receiverAddress).single();
+      receiverProfile = data;
     }
 
-    if (profile.wallet_address.toLowerCase() === finalReceiverAddress.toLowerCase()) {
-      return NextResponse.json(
-        { error: "Cannot transfer to the same address" },
-        { status: 400 }
-      );
+    if (!receiverProfile || !receiverProfile.wallet_address) {
+      return NextResponse.json({ error: "Receiver wallet not found" }, { status: 404 });
     }
 
-    // Decrypt private key server-side
-    let privateKey: string;
-    try {
-      privateKey = decrypt(
-        profile.encrypted_private_key,
-        profile.encryption_iv,
-        profile.auth_tag
-      );
-    } catch (decryptError) {
-      return NextResponse.json(
-        { error: "Failed to decrypt private key" },
-        { status: 500 }
-      );
+    const finalReceiverAddress = receiverProfile.wallet_address;
+
+    if (senderProfile.wallet_address.toLowerCase() === finalReceiverAddress.toLowerCase()) {
+      return NextResponse.json({ error: "Cannot transfer to the same address" }, { status: 400 });
     }
 
-    // Create provider and signer
+    // Decrypt sender's private key
+    const privateKey = decrypt(senderProfile.encrypted_private_key, senderProfile.encryption_iv, senderProfile.auth_tag);
     const provider = new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl);
     const signer = new ethers.Wallet(privateKey, provider);
 
-    // Verify sender address matches profile
-    if (signer.address.toLowerCase() !== profile.wallet_address.toLowerCase()) {
-      return NextResponse.json(
-        { error: "Private key does not match wallet address" },
-        { status: 401 }
-      );
+    if (signer.address.toLowerCase() !== senderProfile.wallet_address.toLowerCase()) {
+      return NextResponse.json({ error: "Private key does not match wallet address" }, { status: 401 });
     }
 
-    // Parse amount
     const transferAmount = toTokenAmount(amount, IDRX_DECIMALS);
+    const idrxContract = new ethers.Contract(CONTRACTS.IDRX_ADDRESS, IDRX_ABI, signer);
 
-    // Create IDRX token contract instance
-    const idrxContract = new ethers.Contract(
-      CONTRACTS.IDRX_ADDRESS,
-      IDRX_ABI,
-      signer
-    );
-
-    // Check balance
-    const balance = await idrxContract.balanceOf(profile.wallet_address);
+    const balance = await idrxContract.balanceOf(senderProfile.wallet_address);
     if (balance < transferAmount) {
-      return NextResponse.json(
-        { error: "Insufficient balance" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Insufficient balance" }, { status: 400 });
     }
 
-    // Execute transfer
     const tx = await idrxContract.transfer(finalReceiverAddress, transferAmount);
     const receipt = await tx.wait();
 
     if (!receipt) {
-      return NextResponse.json(
-        { error: "Transaction failed" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Transaction failed" }, { status: 500 });
     }
 
-    // Get registry contract to emit transfer event
-    const registryContract = new ethers.Contract(
-      CONTRACTS.REGISTRY_ADDRESS,
-      SAKU_REGISTRY_ABI,
-      signer
-    );
+    const senderName = senderProfile.full_name || `User ending in ...${phoneNumber.slice(-4)}`;
+    const receiverName = receiverProfile.full_name || `User at ...${finalReceiverAddress.slice(-4)}`;
 
-    // Note: Registry contract will automatically emit Transferred event when listening to blockchain
-    // but we don't need to call it again since the ERC20 transfer already happened
+    // Insert transaction record
+    await supabaseAdmin.from('transactions').insert({
+      sender_phone: phoneNumber,
+      sender_wallet: senderProfile.wallet_address,
+      receiver_phone: receiverProfile.phone_number,
+      receiver_wallet: finalReceiverAddress,
+      amount: parseFloat(amount),
+      tx_hash: receipt.hash,
+      type: 'TRANSFER',
+    });
+
+    // Create notifications for both parties
+    await Promise.all([
+      supabaseAdmin.from('notifications').insert({
+        user_id: senderProfile.id,
+        type: 'TRANSFER_OUT',
+        message: `You sent ${amount} USDC to ${receiverName}.`,
+        metadata: {
+          amount: parseFloat(amount),
+          tx_hash: receipt.hash,
+          to_name: receiverName,
+          to_address: finalReceiverAddress,
+        },
+      }),
+      supabaseAdmin.from('notifications').insert({
+        user_id: receiverProfile.id,
+        type: 'TRANSFER_IN',
+        message: `You received ${amount} USDC from ${senderName}.`,
+        metadata: {
+          amount: parseFloat(amount),
+          tx_hash: receipt.hash,
+          from_name: senderName,
+          from_address: senderProfile.wallet_address,
+        },
+      }),
+    ]);
 
     return NextResponse.json({
       success: true,
       transactionHash: receipt.hash,
-      blockNumber: receipt.blockNumber,
-      gasUsed: receipt.gasUsed?.toString(),
       from: signer.address,
       to: finalReceiverAddress,
       amount: amount,
-      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error occurred";

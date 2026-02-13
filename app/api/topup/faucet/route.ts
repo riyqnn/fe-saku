@@ -34,9 +34,15 @@ export async function POST(request: NextRequest) {
 
     const { data: userProfile } = await supabaseAdmin
       .from('profiles')
-      .select('phone_number')
+      .select('id, phone_number')
       .eq('wallet_address', walletAddress)
       .single()
+    
+    if (!userProfile) {
+      // Although the wallet might exist on-chain, if there's no profile, we can't notify.
+      // This case should be rare.
+      console.warn(`No profile found for wallet address: ${walletAddress}. Skipping notification.`);
+    }
     
     const receiverPhone = userProfile ? userProfile.phone_number : null
 
@@ -50,6 +56,7 @@ export async function POST(request: NextRequest) {
     const tx = await tokenContract.mint(walletAddress, amountInWei)
     const receipt = await tx.wait()
 
+    // Insert transaction record
     await supabaseAdmin
       .from('transactions')
       .insert({
@@ -63,6 +70,19 @@ export async function POST(request: NextRequest) {
         type: 'TOPUP',
         timestamp: new Date().toISOString()
       })
+
+    // Insert notification record if user profile exists
+    if (userProfile) {
+      await supabaseAdmin.from('notifications').insert({
+        user_id: userProfile.id,
+        type: 'TOPUP_SUCCESS',
+        message: `Top-up of ${amount} USDC was successful.`,
+        metadata: {
+          amount: parseFloat(amount),
+          tx_hash: receipt.hash,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,

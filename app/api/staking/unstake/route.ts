@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     const phoneHash = hashPhoneNumber(auth.phone!);
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("wallet_address, encrypted_private_key, encryption_iv, auth_tag")
+      .select("id, wallet_address, encrypted_private_key, encryption_iv, auth_tag")
       .eq("phone_hash", phoneHash)
       .single();
 
@@ -96,10 +96,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const amountUnstakedFormatted = fromTokenAmount(amountToUnstake, IDRX_DECIMALS);
+    const amountReceivedFormatted = fromTokenAmount(amountReceived, IDRX_DECIMALS);
+
+    // Add notification
+    const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    await supabaseAdmin.from('notifications').insert({
+      user_id: profile.id,
+      type: 'UNSTAKE_SUCCESS',
+      message: `Successfully unstaked ${amountUnstakedFormatted} stUSDC for ${amountReceivedFormatted} USDC.`,
+      metadata: {
+        amountUnstaked: amountUnstakedFormatted,
+        amountReceived: amountReceivedFormatted,
+        tx_hash: receipt.hash,
+      },
+    });
+
     return NextResponse.json({
       success: true,
-      amountUnstaked: fromTokenAmount(amountToUnstake, IDRX_DECIMALS),
-      amountReceived: fromTokenAmount(amountReceived, IDRX_DECIMALS),
+      amountUnstaked: amountUnstakedFormatted,
+      amountReceived: amountReceivedFormatted,
       transactionHash: receipt.hash,
     });
   } catch (error) {

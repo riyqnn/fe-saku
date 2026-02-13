@@ -8,11 +8,7 @@ import { SAKU_REGISTRY_ABI, IDRX_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/lib/config';
 import { validateAuth } from '@/lib/auth-middleware';
 
-function normalizePhone(phone: string): string {
-  let normalized = phone.replace(/\D/g, '');
-  if (normalized.startsWith('0')) normalized = '62' + normalized.substring(1);
-  return normalized;
-}
+
 
 export async function POST(req: Request) {
   const supabase = await createSakuServerClient();
@@ -43,12 +39,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid destination address' }, { status: 400 });
     }
 
-    const normalizedPhone = normalizePhone(phoneNumber);
-
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('wallet_address, encrypted_private_key, encryption_iv, auth_tag')
-      .eq('phone_number', normalizedPhone)
+      .select('id, wallet_address, encrypted_private_key, encryption_iv, auth_tag')
+      .eq('phone_number', phoneNumber)
       .single();
 
     if (profileError || !profile) {
@@ -59,7 +53,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Wallet address not found' }, { status: 400 });
     }
 
-    const phoneHash = hashPhoneNumber(normalizedPhone);
+    const phoneHash = hashPhoneNumber(phoneNumber);
 
     let privateKey: string;
     try {
@@ -152,20 +146,32 @@ export async function POST(req: Request) {
     }
 
     const amountAfterFee = withdrawnAmount - fee;
+    const finalAmount = parseFloat(ethers.formatUnits(withdrawnAmount, 6));
 
     await supabaseAdmin
       .from('transactions')
       .insert({
-        sender_phone: normalizedPhone,
+        sender_phone: phoneNumber,
         sender_wallet: wallet.address,
         receiver_phone: null,
         receiver_wallet: toAddress,
-        amount: parseFloat(ethers.formatUnits(withdrawnAmount, 6)),
+        amount: finalAmount,
         tx_hash: receipt.hash,
         block_number: receipt.blockNumber,
         type: 'WITHDRAW',
         timestamp: new Date().toISOString()
       });
+
+    await supabaseAdmin.from('notifications').insert({
+      user_id: profile.id,
+      type: 'WITHDRAW_SUCCESS',
+      message: `Withdrawal of ${finalAmount.toFixed(2)} USDC to ${toAddress.slice(0,6)}...${toAddress.slice(-4)} was successful.`,
+      metadata: {
+        amount: finalAmount,
+        tx_hash: receipt.hash,
+        to_address: toAddress
+      },
+    });
 
     return NextResponse.json({
       success: true,
@@ -178,7 +184,6 @@ export async function POST(req: Request) {
       approvalTxHash,
       type: 'WITHDRAW'
     });
-
   } catch (error: any) {
     return NextResponse.json({
       error: error.message || 'Withdrawal failed'

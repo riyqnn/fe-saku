@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const phoneHash = hashPhoneNumber(auth.phone!);
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("wallet_address, encrypted_private_key, encryption_iv, auth_tag")
+      .select("id, wallet_address, encrypted_private_key, encryption_iv, auth_tag")
       .eq("phone_hash", phoneHash)
       .single();
 
@@ -75,9 +75,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const claimedAmountFormatted = fromTokenAmount(claimedAmount, IDRX_DECIMALS);
+
+    // Add notification
+    const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    await supabaseAdmin.from('notifications').insert({
+      user_id: profile.id,
+      type: 'CLAIM_SUCCESS',
+      message: `Successfully claimed ${claimedAmountFormatted} USDC in rewards.`,
+      metadata: {
+        amount: claimedAmountFormatted,
+        tx_hash: receipt.hash,
+      },
+    });
+
     return NextResponse.json({
       success: true,
-      claimedAmount: fromTokenAmount(claimedAmount, IDRX_DECIMALS),
+      claimedAmount: claimedAmountFormatted,
       transactionHash: receipt.hash,
     });
   } catch (error) {
