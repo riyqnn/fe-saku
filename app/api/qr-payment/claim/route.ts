@@ -23,10 +23,9 @@ export async function POST(req: Request) {
     }
 
     // 3. Get Payer's Profile (Orang yang lagi megang HP/Scanner)
-    const payerPhoneHash = hashPhoneNumber(phoneNumber);
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('wallet_address, encrypted_private_key, encryption_iv, auth_tag, phone_number')
+      .select('id, wallet_address, encrypted_private_key, encryption_iv, auth_tag, phone_number, full_name')
       .eq('phone_hash', payerPhoneHash)
       .single();
 
@@ -45,16 +44,14 @@ export async function POST(req: Request) {
     const registryContract = new ethers.Contract(CONTRACTS.REGISTRY_ADDRESS, SAKU_REGISTRY_ABI, wallet);
 
     // 6. Execute Blockchain Claim
-    // Fungsi ini akan mendebit balance payer ke merchant berdasarkan data di qrHash
     const tx = await registryContract.claimQRPayment(qrHash);
     const receipt = await tx.wait();
 
     if (!receipt || receipt.status !== 1) throw new Error('On-chain transaction failed');
 
-    // 7. Parse Event untuk ambil detail aslinya (Amount & Merchant)
+    // 7. Parse Event to get details
     let claimedAmount = BigInt(0);
     let merchantHash = '';
-
     for (const log of receipt.logs) {
       try {
         const parsed = registryContract.interface.parseLog(log);
@@ -68,17 +65,15 @@ export async function POST(req: Request) {
 
     const formattedAmount = ethers.formatUnits(claimedAmount, 6);
 
-    // 8. Sync ke Database (PENTING!)
-    // Cari nomor HP merchant berdasarkan hash-nya untuk history yang manusiawi
+    // 8. Get merchant profile for notification and history
     const { data: merchantProfile } = await supabase
       .from('profiles')
-      .select('phone_number, wallet_address')
+      .select('id, phone_number, wallet_address, full_name')
       .eq('phone_hash', merchantHash)
       .single();
 
-    const { error: dbError } = await supabase
-      .from('transactions')
-      .insert({
+    // 9. Sync to Database
+    await supabase.from('transactions').insert({
         sender_phone: profile.phone_number,
         receiver_phone: merchantProfile?.phone_number || 'Unknown Merchant',
         sender_wallet: wallet.address.toLowerCase(),
@@ -90,13 +85,42 @@ export async function POST(req: Request) {
         timestamp: new Date().toISOString()
       });
 
-    if (dbError) console.error("History sync failed:", dbError);
+    // 10. Create notifications
+    const payerName = profile.full_name || `User ...${profile.phone_number.slice(-4)}`;
+    const merchantName = merchantProfile?.full_name || 'Saku Merchant';
 
+    if (merchantProfile) {
+      await Promise.all([
+        // Notification for payer
+        supabase.from('notifications').insert({
+          user_id: profile.id,
+          type: 'TRANSFER_OUT',
+          message: `You paid ${formattedAmount} USDC to ${merchantName}.`,
+          metadata: {
+            amount: parseFloat(formattedAmount),
+            tx_hash: receipt.hash,
+            to_name: merchantName,
+          },
+        }),
+        // Notification for merchant
+        supabase.from('notifications').insert({
+          user_id: merchantProfile.id,
+          type: 'TRANSFER_IN',
+          message: `You received a QR payment of ${formattedAmount} USDC from ${payerName}.`,
+          metadata: {
+            amount: parseFloat(formattedAmount),
+            tx_hash: receipt.hash,
+            from_name: payerName,
+          },
+        }),
+      ]);
+    }
+    
     return NextResponse.json({
       success: true,
       transactionHash: receipt.hash,
       amount: formattedAmount,
-      merchantName: merchantProfile?.phone_number || "Saku Merchant",
+      merchantName: merchantName,
       type: 'QR_PAYMENT'
     });
 

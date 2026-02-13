@@ -32,6 +32,9 @@ export async function POST(request: NextRequest) {
 
     if (!packet) return NextResponse.json({ error: "Packet not found" }, { status: 404 });
     if (packet.status !== "ACTIVE") return NextResponse.json({ error: "Packet is no longer active" }, { status: 400 });
+    
+    const { data: creatorProfile } = await supabase.from("profiles").select("full_name").eq("phone_hash", packet.creator_phone_hash).single();
+    const creatorName = creatorProfile?.full_name || "Someone";
 
     // 2. VALIDASI PRIVATE CIRCLE (Fitur Baru)
     if (packet.restricted_to && packet.restricted_to.length > 0) {
@@ -71,7 +74,6 @@ export async function POST(request: NextRequest) {
     const receipt = await tx.wait();
 
     // 6. Update Database (Atomic-ish)
-    // Catat claim
     await supabase.from("packet_claims").insert([{
       packet_id: packet.id,
       packet_code_hash: packet.packet_code_hash,
@@ -81,7 +83,6 @@ export async function POST(request: NextRequest) {
       contract_tx_hash: receipt.hash,
     }]);
 
-    // Catat history transaksi wallet
     await supabase.from("transactions").insert([{
       receiver_phone: phoneNumber,
       receiver_wallet: profile.wallet_address,
@@ -93,7 +94,6 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     }]);
 
-    // Update status packet
     const newWinnerCount = packet.winner_count + 1;
     const newRemaining = packet.remaining_amount - claimAmount;
 
@@ -102,6 +102,19 @@ export async function POST(request: NextRequest) {
       remaining_amount: newRemaining,
       status: newWinnerCount >= packet.max_winners ? "CLAIMED" : "ACTIVE"
     }).eq("id", packet.id);
+
+    // Create notification for the claimer
+    await supabase.from('notifications').insert({
+      user_id: profile.id,
+      type: 'TRANSFER_IN',
+      message: `You claimed ${claimAmount} USDC from a packet by ${creatorName}.`,
+      metadata: {
+        amount: claimAmount,
+        tx_hash: receipt.hash,
+        packet_code: packetCode,
+        from_name: creatorName,
+      },
+    });
 
     return NextResponse.json({ 
       success: true, 

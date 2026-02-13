@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("wallet_address, encrypted_private_key, encryption_iv, auth_tag")
+      .select("id, wallet_address, encrypted_private_key, encryption_iv, auth_tag")
       .eq("phone_hash", phoneHash)
       .single();
 
@@ -48,14 +48,11 @@ export async function POST(request: NextRequest) {
     const provider = new ethers.JsonRpcProvider(NETWORK_CONFIG.rpcUrl);
     const signer = new ethers.Wallet(privateKey, provider);
 
-    // 3. Kontrak Setup
     const idrxContract = new ethers.Contract(CONTRACTS.IDRX_ADDRESS, IDRX_ABI, signer);
     const registryContract = new ethers.Contract(CONTRACTS.REGISTRY_ADDRESS, SAKU_REGISTRY_ABI, signer);
 
     const tokenAmount = toTokenAmount(totalAmount.toString(), IDRX_DECIMALS);
 
-    // 4. On-chain: Approve & Create
-    // Cek dulu allowance biar ga double approve kalau ga perlu
     const currentAllowance = await idrxContract.allowance(profile.wallet_address, CONTRACTS.REGISTRY_ADDRESS);
     if (currentAllowance < tokenAmount) {
       const approveTx = await idrxContract.approve(CONTRACTS.REGISTRY_ADDRESS, tokenAmount);
@@ -65,61 +62,52 @@ export async function POST(request: NextRequest) {
     const tx = await registryContract.createAmplop(amplopId, maxWinners, tokenAmount);
     const receipt = await tx.wait();
 
-    // 5. Simpan ke Database (SESUAIKAN DENGAN SKEMA TABEL KAMU)
-    // PERHATIKAN: Saya menghapus sender_name dan message karena tidak ada di tabel packets kamu
-    // 5. Simpan ke Database
-    // Tambahkan .select("id").single() untuk mendapatkan ID yang baru dibuat
     const { data: newPacket, error: insertError } = await supabase
       .from("packets")
-      .insert([
-        {
-          packet_code: displayCode,
-          packet_code_hash: amplopId, // dari ethers keccak
-          creator_phone_hash: phoneHash,
-          creator_wallet_address: profile.wallet_address,
-          total_amount: totalAmount,
-          remaining_amount: totalAmount,
-          max_winners: maxWinners,
-          winner_count: 0,
-          distribution_type: distributionType || "RANDOM",
-          status: "ACTIVE",
-          contract_tx_hash: receipt.hash,
-          design_id: themeId || 'orange',
-          restricted_to: restrictedToHashes, // KOLOM BARU
-          contract_expires_at: new Date(Date.now() + 86400000).toISOString(),
-        },
-      ])
+      .insert([{
+        packet_code: displayCode,
+        packet_code_hash: amplopId,
+        creator_phone_hash: phoneHash,
+        creator_wallet_address: profile.wallet_address,
+        total_amount: totalAmount,
+        remaining_amount: totalAmount,
+        max_winners: maxWinners,
+        winner_count: 0,
+        distribution_type: distributionType || "RANDOM",
+        status: "ACTIVE",
+        contract_tx_hash: receipt.hash,
+        design_id: themeId || 'orange',
+        restricted_to: restrictedToHashes,
+        contract_expires_at: new Date(Date.now() + 86400000).toISOString(),
+      }])
       .select("id")
       .single();
+      
+    if (insertError) console.error("DATABASE INSERT ERROR:", insertError);
 
-    if (insertError) {
-      console.error("DATABASE INSERT ERROR:", insertError);
-    }
+    await supabase.from("transactions").insert([{
+        sender_phone: phoneNumber,
+        sender_wallet: profile.wallet_address,
+        amount: totalAmount,
+        tx_hash: receipt.hash,
+        block_number: receipt.blockNumber,
+        type: "PACKET_CREATE",
+        reference_id: newPacket?.id,
+        timestamp: new Date().toISOString(),
+      }]);
 
-    // 6. Catat ke Tabel Transactions (Riwayat)
-    // Gunakan newPacket?.id sebagai reference_id
-    const { error: txHistoryError } = await supabase
-      .from("transactions")
-      .insert([
-        {
-          sender_phone: phoneNumber,
-          sender_wallet: profile.wallet_address,
-          amount: totalAmount,
-          tx_hash: receipt.hash,
-          block_number: receipt.blockNumber,
-          type: "PACKET_CREATE",
-          reference_id: newPacket?.id, // Sekarang variabel ini sudah ada nilainya
-          timestamp: new Date().toISOString(),
-        },
-      ]);
-
-    if (txHistoryError) console.error("History Insert Error:", txHistoryError);
-
-    if (insertError) {
-      console.error("DATABASE INSERT ERROR:", insertError);
-      // Tetap return success karena on-chain sudah berhasil, tapi kasih warning di log
-    }
-
+    // Create notification for the creator
+    await supabase.from('notifications').insert({
+      user_id: profile.id,
+      type: 'TRANSFER_OUT',
+      message: `You created a packet of ${totalAmount} USDC.`,
+      metadata: {
+        amount: totalAmount,
+        tx_hash: receipt.hash,
+        packet_code: displayCode,
+      },
+    });
+      
     const origin = request.nextUrl.origin;
 
     return NextResponse.json({

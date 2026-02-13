@@ -100,6 +100,9 @@ export async function POST(request: NextRequest) {
     const senderName = senderProfile.full_name || `User ending in ...${phoneNumber.slice(-4)}`;
     const receiverName = receiverProfile.full_name || `User at ...${finalReceiverAddress.slice(-4)}`;
 
+    console.log("Sender Profile:", senderProfile);
+    console.log("Receiver Profile:", receiverProfile);
+
     // Insert transaction record
     await supabaseAdmin.from('transactions').insert({
       sender_phone: phoneNumber,
@@ -111,30 +114,37 @@ export async function POST(request: NextRequest) {
       type: 'TRANSFER',
     });
 
+    const senderNotification = {
+      user_id: senderProfile.id,
+      type: 'TRANSFER_OUT',
+      message: `You sent ${amount} USDC to ${receiverName}.`,
+      metadata: {
+        amount: parseFloat(amount),
+        tx_hash: receipt.hash,
+        to_name: receiverName,
+        to_address: finalReceiverAddress,
+      },
+    };
+
+    const receiverNotification = {
+      user_id: receiverProfile.id,
+      type: 'TRANSFER_IN',
+      message: `You received ${amount} USDC from ${senderName}.`,
+      metadata: {
+        amount: parseFloat(amount),
+        tx_hash: receipt.hash,
+        from_name: senderName,
+        from_address: senderProfile.wallet_address,
+      },
+    };
+
+    console.log("Sender Notification Payload:", senderNotification);
+    console.log("Receiver Notification Payload:", receiverNotification);
+
     // Create notifications for both parties
     await Promise.all([
-      supabaseAdmin.from('notifications').insert({
-        user_id: senderProfile.id,
-        type: 'TRANSFER_OUT',
-        message: `You sent ${amount} USDC to ${receiverName}.`,
-        metadata: {
-          amount: parseFloat(amount),
-          tx_hash: receipt.hash,
-          to_name: receiverName,
-          to_address: finalReceiverAddress,
-        },
-      }),
-      supabaseAdmin.from('notifications').insert({
-        user_id: receiverProfile.id,
-        type: 'TRANSFER_IN',
-        message: `You received ${amount} USDC from ${senderName}.`,
-        metadata: {
-          amount: parseFloat(amount),
-          tx_hash: receipt.hash,
-          from_name: senderName,
-          from_address: senderProfile.wallet_address,
-        },
-      }),
+      supabaseAdmin.from('notifications').insert(senderNotification),
+      supabaseAdmin.from('notifications').insert(receiverNotification),
     ]);
 
     return NextResponse.json({
