@@ -11,27 +11,36 @@ export async function GET(request: NextRequest) {
 
   const phoneHash = hashPhoneNumber(auth.phone!);
 
-  // Gunakan filter 'cs' (contains) untuk array di Supabase
-  const { data, error } = await supabase
-  .from("packets")
-  .select(`
-    *,
-    creator:profiles!packets_creator_phone_hash_fkey (
-      full_name,
-      avatar_url
-    )
-  `) // Kita join ke tabel profiles pake fkey creator_phone_hash
-  .filter("restricted_to", "cs", `{"${phoneHash}"}`)
-  .eq("status", "ACTIVE")
-  .order("created_at", { ascending: false });
+  const { data: claimedData } = await supabase
+    .from("packet_claims")
+    .select("packet_id")
+    .eq("claimer_phone_hash", phoneHash);
+
+  const claimedIds = claimedData?.map(c => c.packet_id) || [];
+
+  let query = supabase
+    .from("packets")
+    .select(`
+      *,
+      creator:profiles!packets_creator_phone_hash_fkey (
+        full_name,
+        avatar_url
+      )
+    `)
+    .filter("restricted_to", "cs", `{"${phoneHash}"}`)
+    .eq("status", "ACTIVE")
+    .order("created_at", { ascending: false });
+
+  if (claimedIds.length > 0) {
+    query = query.not("id", "in", `(${claimedIds.join(",")})`);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Fetch Invited Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  // Debug log di server console buat mastiin data keluar
-  console.log(`Found ${data?.length} invited packets for ${auth.phone}`);
 
   return NextResponse.json({ packets: data || [] });
 }

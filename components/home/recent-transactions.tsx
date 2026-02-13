@@ -94,7 +94,7 @@ export default function RecentTransactions({ onTxSelect }: { onTxSelect: (tx: an
                     <p className={`font-black text-sm tracking-tighter italic ${isSent ? 'text-red-500' : 'text-green-600'}`}>
                       {isSent ? '-' : '+'}{tx.amount.toLocaleString()}
                     </p>
-                    <p className="text-[9px] font-black text-black/10 italic">IDRX</p>
+                    <p className="text-[9px] font-black text-black/10 italic">USDC</p>
                   </div>
                   
                   <button 
