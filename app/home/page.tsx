@@ -40,7 +40,7 @@ export default function Home() {
 
       <HomeHeader />
 
-      <main className="max-w-lg mx-auto px-4 space-y-6 py-2 pb-28 relative z-10">
+      <main className="max-w-lg mx-auto px-4 space-y-6 py-2 relative z-10">
         <BalanceCardSection />
           
         <QuickActions />

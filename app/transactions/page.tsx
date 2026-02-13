@@ -129,7 +129,7 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto no-scrollbar bg-white pb-32">
+      <main className="flex-1 overflow-y-auto no-scrollbar bg-white">
         {refreshing ? (
             <div className="h-full flex flex-col items-center justify-center gap-3">
                 <Loader2 className="w-6 h-6 animate-spin text-slate-200" />
