@@ -8,16 +8,11 @@ import { useBalance } from "@/hooks/useBalance"
 export default function BalanceCardSection() {
   const { user, isLoading: isLoadingAuth } = useAuth()
   const walletAddress = user?.wallet_address || null
-  const { balance, refreshing } = useBalance(walletAddress) 
+  const { formattedBalance, refreshing } = useBalance(walletAddress) 
   const [balanceVisible, setBalanceVisible] = useState(true)
   const [copied, setCopied] = useState(false)
 
-  const displayBalance = !isLoadingAuth 
-    ? (parseFloat(balance?.toString() || "0") || 0).toLocaleString('en-US', { 
-        minimumFractionDigits: 2, 
-        maximumFractionDigits: 2 
-      }) 
-    : "...";
+  const displayBalance = !isLoadingAuth ? formattedBalance : "...";
 
   const handleCopyAddress = async () => {
     if (walletAddress) {

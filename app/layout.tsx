@@ -41,6 +41,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`overflow-x-hidden ${geist.variable} ${geistMono.variable}`}>
       <head>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.3.2/css/flag-icons.min.css" />
         <meta 
           httpEquiv="Content-Security-Policy" 
           content="img-src 'self' data: blob: https:; connect-src 'self' https: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;" 

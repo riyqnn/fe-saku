@@ -4,15 +4,11 @@ import { encrypt } from '@/utils/encrypt';
 import { rateLimiter, RATE_LIMITS } from '@/lib/rate-limiter';
 import { extractClientIP } from '@/lib/auth-middleware';
 
-function normalizePhoneForFonnte(phone: string): string {
-  let normalized = phone.replace(/\D/g, '');
-  if (normalized.startsWith('0')) normalized = '62' + normalized.substring(1);
-  return normalized;
-}
+
 
 export async function POST(request: Request) {
   try {
-    const { phone } = await request.json();
+    const { phone, countryCode } = await request.json();
 
     // Extract client IP for rate limiting
     const clientIP = extractClientIP(request) || 'unknown';
@@ -50,7 +46,6 @@ export async function POST(request: Request) {
       global: { fetch: (...args) => fetch(...args) },
     });
     
-    const formattedPhone = normalizePhoneForFonnte(phone);
     const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     const encryptedOTP = encrypt(otpCode);
@@ -58,7 +53,7 @@ export async function POST(request: Request) {
     const { error: dbError } = await supabaseAdmin
       .from('otp_verifications')
       .insert([{ 
-        phone_number: formattedPhone, 
+        phone_number: phone, 
         otp_code: encryptedOTP.encryptedData,
         encryption_iv: encryptedOTP.iv,      
         auth_tag: encryptedOTP.authTag,       
@@ -82,8 +77,9 @@ export async function POST(request: Request) {
           'Accept': 'application/json' 
         },
         body: new URLSearchParams({
-          target: formattedPhone,
-          message: `*[ SAKU ]*\n\nYour OTP code is: *${otpCode}*\n\nDo not share this code with anyone. Valid for 5 minutes.`
+          target: phone,
+          message: `*[ SAKU ]*\n\nYour OTP code is: *${otpCode}*\n\nDo not share this code with anyone. Valid for 5 minutes.`,
+          countryCode: countryCode || '62'
         }),
       });
 
@@ -103,7 +99,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         message: 'OTP terkirim!',
-        phone: formattedPhone
+        phone: phone
       });
 
     } catch (fetchErr: any) {

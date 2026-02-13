@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { toast } from "sonner"
+import CountryCodeDropdown from "@/components/get-started/country-code-dropdown"
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -11,6 +12,7 @@ export default function LoginScreen() {
 
   const [loginMethod, setLoginMethod] = useState<"phone" | "otp" | null>(null)
   const [phone, setPhone] = useState("")
+  const [selectedCountryCode, setSelectedCountryCode] = useState("+62")
   const [otp, setOtp] = useState<string[]>(new Array(4).fill(""))
   const [loading, setLoading] = useState(false)
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
@@ -23,7 +25,17 @@ export default function LoginScreen() {
 
   const formatPhone = (num: string) => {
     const cleanNum = num.replace(/\D/g, '');
-    return cleanNum.startsWith('0') ? `62${cleanNum.slice(1)}` : cleanNum.startsWith('62') ? cleanNum : `62${cleanNum}`;
+    const countryCode = selectedCountryCode.replace('+', '');
+    // If number starts with 0, replace it with country code
+    if (cleanNum.startsWith('0')) {
+      return `${countryCode}${cleanNum.slice(1)}`;
+    }
+    // If number already starts with country code, do nothing
+    if (cleanNum.startsWith(countryCode)) {
+      return cleanNum;
+    }
+    // Otherwise, prepend country code
+    return `${countryCode}${cleanNum}`;
   }
 
   const handleSendOtp = async () => {
@@ -37,7 +49,7 @@ export default function LoginScreen() {
       fetch('/api/request-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: formatPhone(phone) }),
+        body: JSON.stringify({ phone: formatPhone(phone), countryCode: selectedCountryCode.replace('+', '') }),
       }).then(async (res) => {
         const result = await res.json();
         if (!res.ok) throw new Error(result.error || "Failed to send OTP");
@@ -156,8 +168,8 @@ export default function LoginScreen() {
             <div className="space-y-2">
               <label className="block text-xs font-black uppercase tracking-widest text-black">Mobile Number</label>
               <div className="relative">
-                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[#7F8790] font-bold">+62</span>
-                <input type="tel" value={phone} autoFocus onChange={(e) => setPhone(e.target.value)} placeholder="812 3456 7890" className="w-full pl-16 pr-5 py-4 bg-white border-2 border-black/5 rounded-2xl text-lg font-bold focus:outline-none focus:border-black transition-all" />
+                <CountryCodeDropdown onSelect={setSelectedCountryCode} selectedCode={selectedCountryCode} />
+                <input type="tel" value={phone} autoFocus onChange={(e) => setPhone(e.target.value)} placeholder="812 3456 7890" className="w-full pl-32 pr-5 py-4 bg-white border-2 border-black/5 rounded-2xl text-lg font-bold focus:outline-none focus:border-black transition-all" />
               </div>
             </div>
             <button onClick={handleSendOtp} disabled={phone.length < 10 || loading} className="w-full px-6 py-4 bg-black text-white rounded-2xl font-bold shadow-lg disabled:opacity-30 active:scale-95 transition-all">{loading ? "Sending..." : "Continue"}</button>
@@ -169,7 +181,7 @@ export default function LoginScreen() {
             <button onClick={() => setLoginMethod("phone")} className="flex items-center text-[#7F8790] font-bold hover:text-black transition-colors"><svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>Change Number</button>
             <div className="space-y-3">
               <h2 className="text-3xl font-black text-black leading-tight">Verify Identity</h2>
-              <p className="text-[#7F8790]">Enter the 4-digit code sent to <span className="font-bold text-black">+62 {phone}</span></p>
+              <p className="text-[#7F8790]">Enter the 4-digit code sent to <span className="font-bold text-black">{selectedCountryCode} {phone}</span></p>
             </div>
             <div className="flex justify-center gap-4">
               {otp.map((data, i) => (

@@ -9,16 +9,10 @@ import { rateLimiter, RATE_LIMITS } from '@/lib/rate-limiter';
 import { generateToken } from '@/lib/jwt';
 import { extractClientIP } from '@/lib/auth-middleware';
 
-function normalizePhone(phone: string): string {
-  let normalized = phone.replace(/\D/g, '');
-  if (normalized.startsWith('0')) normalized = '62' + normalized.substring(1);
-  return normalized;
-}
-
 export async function POST(request: Request) {
   try {
     const { phone, otp } = await request.json();
-    const formattedPhone = normalizePhone(phone);
+    const formattedPhone = phone;
     const clientIP = extractClientIP(request) || 'unknown';
 
     // Check OTP verification rate limit (max 3 attempts per 5 minutes)
