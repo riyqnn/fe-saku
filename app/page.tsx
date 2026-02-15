@@ -27,10 +27,10 @@ export default function Home() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative w-full flex flex-col gap-20 md:gap-30 py-10 justify-center bg-gradient-to-b from-primary to-background items-center text-center pt-24 md:pt-35">
+      <section className="relative w-full flex flex-col gap-20 md:gap-30 py-10 justify-center bg-gradient-to-b from-primary to-background items-start text-left md:items-center md:text-center pt-48 md:pt-35 pl-6">
         <h1
           className="
-            text-[88px] sm:text-[100px] md:text-[120px] lg:text-[150px]
+            text-7xl md:text-8xl lg:text-9xl
             text-black/85 font-medium leading-none
             px-4
           "
@@ -57,7 +57,7 @@ export default function Home() {
             py-4 md:py-5 px-8 md:px-12
             transition-all duration-300
             font-medium text-lg md:text-xl
-            hover:bg-white rounded-full
+            rounded-full
           "
           href="/get-started"
         >
@@ -67,13 +67,13 @@ export default function Home() {
       </section>
 
       {/* Promotion Section */}
-      <section className="relative w-full flex flex-col gap-12 md:gap-20 py-10 justify-center items-center text-center">
+      <section className="relative w-full flex flex-col gap-12 md:gap-20 py-10 justify-center items-start text-left md:items-center md:text-center px-6">
         <div className="flex flex-col max-w-4xl gap-4 md:gap-6">
           <h1 className="text-4xl sm:text-5xl md:text-[80px] text-black/85 font-medium leading-normal">
             Transfer crypto <br /> with phone number
           </h1>
           <p className="text-md md:text-2xl text-black/50">
-            Easily transfer IDRX without inputing the complex address
+            Easily transfer USDC without inputing the complex address
           </p>
         </div>
 
@@ -89,16 +89,15 @@ export default function Home() {
       </section>
 
       {/* Steps Section - Added data-aos */}
-      <section 
-        className="relative w-full flex flex-col gap-12 md:gap-20 py-10 justify-center items-center text-center pt-20 md:pt-30"
-        data-aos="fade-down"
+            <section
+              className="relative w-full flex flex-col gap-12 md:gap-20 py-10 justify-center items-start text-left md:items-center md:text-center pt-20 md:pt-30 px-6"        data-aos="fade-down"
       >
         <div className="max-w-300 flex flex-col gap-4 md:gap-6">
           <h2 className="text-3xl md:text-5xl font-semibold">
             Easy use, Get Crypto transfers done fast.
           </h2>
           <p className="text-lg md:text-2xl text-black/50">
-            Easily transfer IDRX without inputing the complex address
+            Easily transfer USDC without inputing the complex address
           </p>
         </div>
 
@@ -127,9 +126,8 @@ export default function Home() {
       </section>
 
       {/* FAQ Section - Added data-aos */}
-      <section 
-        className="relative w-full flex flex-col gap-20 py-20 justify-center items-center text-center pt-20 md:pt-30"
-        data-aos="fade-down"
+            <section
+              className="relative w-full flex flex-col gap-20 py-20 justify-center items-start text-left md:items-center md:text-center pt-20 md:pt-30 px-6"        data-aos="fade-down"
       >
         <FAQSection />
       </section>
@@ -137,14 +135,13 @@ export default function Home() {
       {/* CTA Section */}
       <section
         className="
-          relative w-full p-6 md:p-10
+          relative w-full md:p-10
           justify-center py-10 md:py-20
           flex flex-col md:flex-row gap-10 md:gap-40
           bg-gradient-to-b from-background to-primary
-          items-center
         "
       >
-        <div className="flex flex-col gap-6 md:gap-10 text-center md:text-left items-center md:items-start">
+        <div className="flex flex-col gap-6 md:gap-10 text-left items-start md:text-left md:items-start px-6">
           <p className="text-lg md:text-2xl font-medium">
             Secure your transaction without wallet addresses. <br />
             <span className="bg-gradient-to-r from-amber-600 to-amber-800 bg-clip-text text-transparent">
