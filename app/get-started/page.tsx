@@ -86,7 +86,10 @@ export default function LoginScreen() {
         const result = await res.json();
         if (!res.ok) throw new Error(result.error || "Verification failed");
 
-        // Save JWT token to localStorage and update auth state (NOT private key!)
+        if (result.isNewRegistration) {
+          localStorage.setItem("saku_just_registered", "true");
+        }
+
         localStorage.setItem('saku_auth_token', result.token);
         setToken(result.token);
 

@@ -228,3 +228,7 @@
 .animate-slide-in {
   animation: slideInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+.swiper-pagination-bullet-active {
+  background: #000 !important;
+}

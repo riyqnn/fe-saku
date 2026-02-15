@@ -13,14 +13,15 @@ import PendingBillsSection from "@/components/home/pending-bills"
 import ReceiptModal from "@/components/home/receipt-modal"
 import GiftPacketsSection from "@/components/home/give-packets-sections"
 
+// Import komponen onboarding baru
+import OnboardingSlider from "@/components/home/onboarding-slider"
+
 export default function Home() {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [showTransferModal, setShowTransferModal] = useState(false)
   const [selectedTx, setSelectedTx] = useState<any>(null)
   
-  const [packetsLoading, setPacketsLoading] = useState(true)
-
   const [myInvitedPackets, setMyInvitedPackets] = useState([])
 
   const fetchInvitedPackets = async () => {
@@ -61,7 +62,13 @@ export default function Home() {
 
   return (
     <div className="min-h-dvh bg-white font-sans relative max-w-lg mx-auto">
-      <div className="absolute top-0 left-0 right-0 h-[450px]  pointer-events-none" />
+      {/* ONBOARDING OVERLAY 
+          Komponen ini akan mengecek localStorage secara internal. 
+          Hanya muncul jika 'saku_just_registered' ada dan 'saku_has_seen_onboarding' tidak ada.
+      */}
+      <OnboardingSlider />
+
+      <div className="absolute top-0 left-0 right-0 h-[450px] pointer-events-none" />
 
       <HomeHeader />
 
