@@ -22,6 +22,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    const payerPhoneHash = hashPhoneNumber(phoneNumber);
+
     // 3. Get Payer's Profile (Orang yang lagi megang HP/Scanner)
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
