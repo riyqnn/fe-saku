@@ -8,7 +8,7 @@ Send crypto with phone numbers. No wallet addresses needed.
 
 A modern crypto wallet application built on BSC Testnet that simplifies Web3 transactions by mapping phone numbers to wallet addresses. Making crypto payments as intuitive as traditional messaging apps.
 
-[Smart Contracts](https://github.com/riyqnn/sc-saku)
+[Smart Contracts](https://github.com/riyqnn/contract-saku)
 
 ---
 
