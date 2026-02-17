@@ -1,15 +1,15 @@
 export const CONTRACTS = {
-  SAKU_ADDRESS: process.env.NEXT_PUBLIC_SAKU_REGISTRY_ADDRESS || "0xeB94353ccdD59f49126205903B7Fb7A91CBD3226",
-  IDRX_ADDRESS: process.env.NEXT_PUBLIC_IDRX_ADDRESS || "0x4aA676740f4b28925Dc9b11cD4642b2AEa57c424",
-  REGISTRY_ADDRESS: process.env.NEXT_PUBLIC_SAKU_REGISTRY_ADDRESS || "0xeB94353ccdD59f49126205903B7Fb7A91CBD3226",
-  USDC_STAKING: process.env.NEXT_PUBLIC_USDC_STAKING || "0x9024A2E57C62125e6fdC9C0e3D79A4c5526afE44",
+  SAKU_ADDRESS: process.env.NEXT_PUBLIC_SAKU_REGISTRY_ADDRESS || "0x96E2CE19F730a902d0C87d75794E2c908Bd6B5aC",
+  IDRX_ADDRESS: process.env.NEXT_PUBLIC_USDC_TOKEN_ADDRESS || "0x5e63e94cD4Ecf6Ecbaa8A2735D90205872b84842",
+  REGISTRY_ADDRESS: process.env.NEXT_PUBLIC_SAKU_REGISTRY_ADDRESS || "0x96E2CE19F730a902d0C87d75794E2c908Bd6B5aC",
+  USDC_STAKING: process.env.NEXT_PUBLIC_USDC_STAKING || "0x9d6bda50a3315b9bB991dB3fcc7F5440BE48eAf5",
 } as const;
 
 export const NETWORK_CONFIG = {
-  chainId: 421614,
-  name: "Arbitrum Sepolia",
-  rpcUrl: process.env.NEXT_PUBLIC_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc",
-  blockExplorer: "https://sepolia.arbiscan.io",
+  chainId: 97,
+  name: "BSC Testnet",
+  rpcUrl: process.env.NEXT_PUBLIC_RPC_URL!,
+  blockExplorer: "https://testnet.bscscan.com",
 } as const;
 
 export const IDRX_DECIMALS = 6;

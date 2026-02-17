@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org';
+    const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL!;
     const adminPrivateKey = process.env.ADMIN_PRIVATE_KEY;
 
     if (!adminPrivateKey) {

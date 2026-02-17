@@ -8,11 +8,7 @@ export const hashPhone = (phone: string) => {
   return ethers.keccak256(ethers.toUtf8Bytes(cleanPhone));
 };
 export const getProvider = () => {
-  const url = process.env.NEXT_PUBLIC_RPC_URL;
-  if (!url) {
-      return new ethers.JsonRpcProvider("https://sepolia.base.org");
-  }
-  return new ethers.JsonRpcProvider(url);
+  return new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL!);
 };
 /**
  * Convert token amount to human readable format

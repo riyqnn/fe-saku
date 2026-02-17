@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     }
 
     // 2. Setup provider (read-only, no wallet needed)
-    const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org');
+    const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL!);
 
     // 3. Setup contract instance (read-only)
     const registryContract = new ethers.Contract(

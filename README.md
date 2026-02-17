@@ -6,7 +6,7 @@
 
 Send crypto with phone numbers. No wallet addresses needed.
 
-A modern crypto wallet application built on Arbitrum that simplifies Web3 transactions by mapping phone numbers to wallet addresses. Making crypto payments as intuitive as traditional messaging apps.
+A modern crypto wallet application built on BSC Testnet that simplifies Web3 transactions by mapping phone numbers to wallet addresses. Making crypto payments as intuitive as traditional messaging apps.
 
 [Smart Contracts](https://github.com/riyqnn/sc-saku)
 
@@ -36,7 +36,7 @@ Saku eliminates the complexity of cryptocurrency transfers. Instead of copying l
 
 ### Technical Features
 
-**Smart Contract Integration** - Interacts with Saku Registry on Arbitrum Sepolia for phone-to-address mapping
+**Smart Contract Integration** - Interacts with Saku Registry on BSC Testnet for phone-to-address mapping
 
 **Secure Authentication** - JWT-based system with OTP verification via WhatsApp
 
@@ -52,7 +52,7 @@ Saku eliminates the complexity of cryptocurrency transfers. Instead of copying l
 
 - Node.js 18+ and pnpm
 - A Supabase project
-- Arbitrum Sepolia RPC endpoint
+- BSC Testnet RPC endpoint
 
 ### Installation
 
@@ -82,9 +82,10 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Blockchain Configuration
-NEXT_PUBLIC_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc
-NEXT_PUBLIC_SAKU_REGISTRY_ADDRESS=0xFf3157D1BE69e88F40eb105d222344b10Caa25A1
-NEXT_PUBLIC_IDRX_ADDRESS=your_idrx_token_address
+NEXT_PUBLIC_RPC_URL=
+NEXT_PUBLIC_SAKU_REGISTRY_ADDRESS=0x96E2CE19F730a902d0C87d75794E2c908Bd6B5aC
+NEXT_PUBLIC_USDC_TOKEN_ADDRESS=0x5e63e94cD4Ecf6Ecbaa8A2735D90205872b84842
+NEXT_PUBLIC_USDC_STAKING=0x9d6bda50a3315b9bB991dB3fcc7F5440BE48eAf5
 ADMIN_PRIVATE_KEY=your_admin_private_key
 ```
 
@@ -163,7 +164,7 @@ graph LR
 | Technology | Purpose |
 |------------|---------|
 | [Ethers.js v6](https://docs.ethers.org) | Web3 interactions |
-| [Arbitrum Sepolia](https://sepolia.arbitrum.io) | Testnet deployment |
+| [BSC Testnet](https://testnet.bscscan.com) | Testnet deployment |
 | [QRCode.react](https://github.com/zpao/qrcode.react) | QR code generation |
 
 ### Additional Tools
@@ -203,14 +204,14 @@ graph LR
 
 ### Network Settings
 
-Default network is **Arbitrum Sepolia** (Chain ID: 421614). Configure in `lib/config.ts`:
+Default network is **BSC Testnet** (Chain ID: 97). Configure in `lib/config.ts`:
 
 ```typescript
 export const NETWORK_CONFIG = {
-  chainId: 421614,
-  name: "Arbitrum Sepolia",
-  rpcUrl: "https://sepolia-rollup.arbitrum.io/rpc",
-  blockExplorer: "https://sepolia.arbiscan.io",
+  chainId: 97,
+  name: "BSC Testnet",
+  rpcUrl: "https://data-seed-prebsc-1-s1.binance.org:8545",
+  blockExplorer: "https://testnet.bscscan.com",
 };
 ```
 
@@ -251,7 +252,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - Built with [Next.js](https://nextjs.org)
-- Smart contracts deployed on [Arbitrum](https://arbitrum.io)
+- Smart contracts deployed on [BSC](https://binance.org)
 - UI components from [Radix UI](https://www.radix-ui.com)
 - Icons by [Lucide](https://lucide.dev)
 

@@ -6,7 +6,7 @@ import { ethers } from 'ethers'
 
 const IDRX_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_IDRX_ADDRESS || "0x4aA676740f4b28925Dc9b11cD4642b2AEa57c424"
 const PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY // Admin wallet private key
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://rpc-amoy.polygon.technology"
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL!
 
 // ERC20 Token ABI - minimal untuk mint function
 const TOKEN_ABI = [

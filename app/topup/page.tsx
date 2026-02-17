@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { useBalance } from "@/hooks/useBalance"
 import Header from "@/components/layout/Header"
 
-const IDRX_TOKEN_ADDRESS = "0x4aA676740f4b28925Dc9b11cD4642b2AEa57c424"
+const IDRX_TOKEN_ADDRESS = "0x5e63e94cD4Ecf6Ecbaa8A2735D90205872b84842"
 
 export default function TopupPage() {
   const router = useRouter()

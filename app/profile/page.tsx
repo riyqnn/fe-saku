@@ -56,8 +56,8 @@ export default function ProfilePage() {
         {activeTab === 'profile' ? (
           <div className="space-y-8 animate-in slide-in-from-bottom-2 duration-300">
             <ProfileCard />
-            
-            {/* <div className="space-y-4 pt-4">
+
+            <div className="space-y-4 pt-4">
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Danger Zone</h3>
               <button
                 onClick={() => logout()}
@@ -66,7 +66,7 @@ export default function ProfilePage() {
                 <LogOut className="w-5 h-5" />
                 Sign Out
               </button>
-            </div> */}
+            </div>
           </div>
         ) : (
           <div className="animate-in slide-in-from-bottom-2 duration-300">

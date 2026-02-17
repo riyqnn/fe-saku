@@ -36,7 +36,7 @@ export function useBalance(address: string | null, refreshTrigger?: number) {
       setRefreshing(true);
 
       const provider = new ethers.JsonRpcProvider(
-        process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org'
+        process.env.NEXT_PUBLIC_RPC_URL!
       );
 
       // Pastikan CONTRACTS.IDRX_ADDRESS sudah merujuk ke contract USDC yang baru di Base

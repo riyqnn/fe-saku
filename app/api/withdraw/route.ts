@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Failed to decrypt private key' }, { status: 500 });
     }
 
-    const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org');
+    const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL!);
     const wallet = new ethers.Wallet(privateKey, provider);
 
     const registryContract = new ethers.Contract(

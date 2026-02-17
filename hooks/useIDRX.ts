@@ -17,7 +17,7 @@ export function useIDRX(signer: ethers.Signer | null, address: string | null) {
   // Create read-only contract instance for view functions
   const getReadContract = () => {
     const provider = signer?.provider || new ethers.JsonRpcProvider(
-      process.env.NEXT_PUBLIC_NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org'
+      process.env.NEXT_PUBLIC_RPC_URL!
     );
     return new ethers.Contract(CONTRACTS.IDRX_ADDRESS, IDRX_ABI, provider);
   };

@@ -154,7 +154,7 @@ export default function SuccessStep({
             </button>
           </div>
           <p className="font-mono text-[10px] text-slate-500 break-all leading-relaxed bg-white p-3 rounded-xl border border-slate-200/50">
-            {txHash || "Transaction verified on Arbitrum network"}
+            {txHash || "Transaction verified on BSC Testnet network"}
           </p>
         </div>
       </div>

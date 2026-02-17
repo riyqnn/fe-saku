@@ -42,7 +42,7 @@ const NotificationItem = ({ notification }: { notification: Notification }) => {
 
   const handleNotificationClick = () => {
     if (notification.metadata?.tx_hash) {
-      const explorerUrl = `https://sepolia.basescan.org/tx/${notification.metadata.tx_hash}`;
+      const explorerUrl = `https://testnet.bscscan.com/tx/${notification.metadata.tx_hash}`;
       window.open(explorerUrl, '_blank');
     }
   };
